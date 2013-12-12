@@ -3473,6 +3473,7 @@ func (c *FilesListCall) Do() (*FileList, error) {
 	if v, ok := c.opt_["q"]; ok {
 		params.Set("q", fmt.Sprintf("%v", v))
 	}
+	params.Set("fields", "items(downloadUrl,id,modifiedDate,title,mimeType,fileSize)")
 	urls := googleapi.ResolveRelative("https://www.googleapis.com/drive/v2/", "files")
 	urls += "?" + params.Encode()
 	req, _ := http.NewRequest("GET", urls, body)

@@ -16,11 +16,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
-	"github.com/rakyll/god"
-	"github.com/rakyll/god/config"
+	"github.com/rakyll/gd"
+	"github.com/rakyll/gd/config"
 )
 
 func main() {
@@ -33,33 +34,34 @@ func main() {
 		ClientSecret: "8glhKA6mkyvUWD4vC1kGsBiy",
 	}
 
-	g := god.New(context, &god.Options{
-		Path:        "/",
+	g := gd.New(context, &gd.Options{
+		Path:        "/test",
 		IsRecursive: true,
 	})
-
-	log.Println(g.Pull())
-	return
 
 	if len(os.Args) < 2 {
 		help(os.Args)
 		return
 	}
 
+	var err error
 	switch os.Args[1] {
 	case "init":
 	case "auth":
 		log.Println("auth")
 	case "pull":
-		log.Println("pull")
+		err = g.Pull()
 	case "push":
-		log.Println("push")
+		err = g.Push()
 	case "stat":
 		log.Println("stat")
 	case "diff":
 		log.Println("diff")
 	default:
 		help(os.Args)
+	}
+	if err != nil {
+		fmt.Println("Error occured:", err)
 	}
 }
 

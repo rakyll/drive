@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package god
+package gd
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 // and initializes directory with required config files. Runs auth
 // automatically to retrieve required auths.
 // If there already exists such a directory, exists with error.
-func (g *God) Init(absPath string) {
+func (g *Gd) Init(absPath string) {
 	if g.context != nil && g.context.AbsPath == absPath {
 		fmt.Println(ErrContextExists)
 		return // TODO: exit with error status

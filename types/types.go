@@ -15,11 +15,10 @@
 package types
 
 import (
-	"fmt"
 	"os"
 	"time"
 
-	drive "github.com/rakyll/god/third_party/code.google.com/p/google-api-go-client/drive/v2"
+	drive "github.com/rakyll/gd/third_party/code.google.com/p/google-api-go-client/drive/v2"
 )
 
 const (
@@ -68,6 +67,20 @@ type Change struct {
 	Dest *File
 }
 
+func (c *Change) Symbol() string {
+	op := c.Op()
+	switch op {
+	case OpAdd:
+		return "\x1b[32m+\x1b[0m"
+	case OpDelete:
+		return "\x1b[31m-\x1b[0m"
+	case OpMod:
+		return "\x1b[33mM\x1b[0m"
+	default:
+		return ""
+	}
+}
+
 func (c *Change) Op() int {
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
@@ -85,7 +98,6 @@ func (c *Change) Op() int {
 	if !c.Src.IsDir {
 		// if it's a regular file, see it it's modified
 		if c.Src.Size != c.Dest.Size || !c.Src.ModTime.Equal(c.Dest.ModTime) {
-			fmt.Println(c.Src.ModTime, c.Dest.ModTime)
 			return OpMod
 		}
 	}

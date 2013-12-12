@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rakyll/god/config"
-	"github.com/rakyll/god/third_party/code.google.com/p/goauth2/oauth"
-	drive "github.com/rakyll/god/third_party/code.google.com/p/google-api-go-client/drive/v2"
-	"github.com/rakyll/god/types"
+	"github.com/rakyll/gd/config"
+	"github.com/rakyll/gd/third_party/code.google.com/p/goauth2/oauth"
+	drive "github.com/rakyll/gd/third_party/code.google.com/p/google-api-go-client/drive/v2"
+	"github.com/rakyll/gd/types"
 )
 
 const (
@@ -83,11 +83,17 @@ func (r *Remote) FindByParentId(parentId string) (files []*types.File, err error
 	if err != nil {
 		return
 	}
-	files = make([]*types.File, len(results.Items))
-	for i, f := range results.Items {
-		files[i] = types.NewRemoteFile(f)
+	for _, f := range results.Items {
+		if !strings.HasPrefix(f.Title, ".") { // ignore hidden files
+			files = append(files, types.NewRemoteFile(f))
+		}
 	}
 	return
+}
+
+func (r *Remote) Trash(id string) error {
+	_, err := r.service.Files.Trash(id).Do()
+	return err
 }
 
 func (r *Remote) Download(id string) (io.ReadCloser, error) {
@@ -96,6 +102,36 @@ func (r *Remote) Download(id string) (io.ReadCloser, error) {
 		return resp.Body, err
 	}
 	return resp.Body, nil
+}
+
+func (r *Remote) Upsert(parentId string, file *types.File, body io.Reader) (f *types.File, err error) {
+	uploaded := &drive.File{
+		Title:   file.Name,
+		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
+	}
+	if file.IsDir {
+		uploaded.MimeType = "application/vnd.google-apps.folder"
+	}
+
+	if file.Id == "" {
+		req := r.service.Files.Insert(uploaded)
+		if !file.IsDir && body != nil {
+			req = req.Media(body)
+		}
+		if uploaded, err = req.Do(); err != nil {
+			return
+		}
+		return types.NewRemoteFile(uploaded), nil
+	}
+	// update the existing
+	req := r.service.Files.Update(file.Id, uploaded)
+	if !file.IsDir && body != nil {
+		req = req.Media(body)
+	}
+	if uploaded, err = req.Do(); err != nil {
+		return
+	}
+	return types.NewRemoteFile(uploaded), nil
 }
 
 func (r *Remote) findByPathRecv(parentId string, p []string) (file *types.File, err error) {

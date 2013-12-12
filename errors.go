@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package god
+package gd
 
 import (
 	"errors"
 )
 
 var (
-	ErrContextExists = errors.New("already a god directory")
-	ErrNoContext     = errors.New("not in a god context")
+	ErrContextExists = errors.New("already a gd directory")
+	ErrNoContext     = errors.New("not in a gd context")
 )

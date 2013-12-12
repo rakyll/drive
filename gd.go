@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package god
+package gd
 
 import (
 	"path"
 
-	"github.com/rakyll/god/config"
-	"github.com/rakyll/god/remote"
+	"github.com/rakyll/gd/config"
+	"github.com/rakyll/gd/remote"
+
+	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
 )
 
 type Options struct {
@@ -27,21 +29,22 @@ type Options struct {
 	IsForce     bool
 }
 
-type God struct {
+type Gd struct {
 	context *config.Context
 	rem     *remote.Remote
+	opts    *Options
 
-	opts *Options
+	progress *pb.ProgressBar
 }
 
-func New(context *config.Context, opts *Options) *God {
+func New(context *config.Context, opts *Options) *Gd {
 	var r *remote.Remote
 	if context != nil {
 		r = remote.New(context)
 	}
 	// TODO: should always start with /
 	opts.Path = path.Clean(opts.Path)
-	return &God{
+	return &Gd{
 		context: context,
 		rem:     r,
 		opts:    opts,

@@ -12,89 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package god
+package gd
 
 import (
 	"fmt"
 	"io"
 	"os"
-	gopath "path"
-	"sync"
 
-	"github.com/rakyll/god/types"
+	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
+	"github.com/rakyll/gd/types"
 )
 
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
-func (g *God) Pull() error {
+func (g *Gd) Pull() (err error) {
 	if g.context == nil {
 		return ErrNoContext
 	}
-	// TODO: handle errors
-	var cl []*types.Change
-	cl, _ = g.createPullChangeListRecv(g.opts.Path, nil)
-	// TODO: promt for approval
-	return g.playPullChangeList(cl)
-}
 
-func (g *God) createPullChangeListRecv(path string, r *types.File) (cl []*types.Change, err error) {
-	//defer wg.Done()
-	if r == nil {
-		if r, err = g.rem.FindByPath(path); err != nil {
-			return nil, err
-		}
+	var r, l *types.File
+	if r, err = g.rem.FindByPath(g.opts.Path); err != nil {
+		return nil
 	}
-
-	var l *types.File
-	absPath := g.context.AbsPathOf(path)
+	absPath := g.context.AbsPathOf(g.opts.Path)
 	localinfo, _ := os.Stat(absPath)
 	if localinfo != nil {
 		l = types.NewLocalFile(absPath, localinfo)
 	}
 
-	cl = []*types.Change{&types.Change{Path: path, Src: r, Dest: l}}
-	if !g.opts.IsRecursive || !r.IsDir {
-		return cl, nil
-	}
-
-	// look-up for children
-	var children []*types.File
-	children, err = g.rem.FindByParentId(r.Id)
-	if err != nil {
+	var cl []*types.Change
+	fmt.Println("Resolving...")
+	if cl, err = g.resolveChangeListRecv(false, g.opts.Path, r, l); err != nil {
 		return
 	}
-	for _, child := range children {
-		//go func(cl []*types.Change, wg *sync.WaitGroup, path string, child *types.File) {
-		childChanges, _ := g.createPullChangeListRecv(gopath.Join(path, child.Name), child)
-		cl = append(cl, childChanges...)
-		//}(cl, wg, path, child)
+	if ok := printChangeList(cl); !ok {
+		return
 	}
-	return cl, nil
+	return g.playPullChangeList(cl)
 }
 
-func (g *God) playPullChangeList(cl []*types.Change) (err error) {
-	var wg sync.WaitGroup
+func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
+	if len(cl) > 0 {
+		g.progress = pb.New(len(cl))
+		g.progress.Start()
+	}
 	for _, c := range cl {
 		switch c.Op() {
 		case types.OpMod:
-			wg.Add(1)
-			go g.localMod(&wg, c)
+			g.localMod(c)
 		case types.OpAdd:
-			wg.Add(1)
-			go g.localAdd(&wg, c)
+			g.localAdd(c)
 		case types.OpDelete:
-			wg.Add(1)
-			go g.localDelete(&wg, c)
+			g.localDelete(c)
 		}
 	}
-	wg.Wait()
+	if g.progress != nil {
+		g.progress.Finish()
+	}
 	return err
 }
 
-func (g *God) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
-	defer wg.Done()
-	fmt.Println("M", change.Path)
+func (g *Gd) localMod(change *types.Change) (err error) {
+	if g.progress != nil {
+		defer g.progress.Increment()
+	}
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.BlobAt != "" {
 		// download and replace
@@ -105,9 +87,10 @@ func (g *God) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *God) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
-	defer wg.Done()
-	fmt.Println("+", change.Path)
+func (g *Gd) localAdd(change *types.Change) (err error) {
+	if g.progress != nil {
+		defer g.progress.Increment()
+	}
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
@@ -123,13 +106,14 @@ func (g *God) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
 }
 
 // TODO: no one calls localdelete
-func (g *God) localDelete(wg *sync.WaitGroup, change *types.Change) (err error) {
-	defer wg.Done()
-	fmt.Println("-", change.Path)
+func (g *Gd) localDelete(change *types.Change) (err error) {
+	if g.progress != nil {
+		defer g.progress.Increment()
+	}
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 
-func (g *God) download(change *types.Change) (err error) {
+func (g *Gd) download(change *types.Change) (err error) {
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	var fo *os.File
 	fo, err = os.Create(destAbsPath)
