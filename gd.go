@@ -50,3 +50,22 @@ func New(context *config.Context, opts *Options) *Gd {
 		opts:    opts,
 	}
 }
+
+func (g *Gd) taskStart(numOfTasks int) {
+	if numOfTasks > 0 {
+		g.progress = pb.New(numOfTasks)
+		g.progress.Start()
+	}
+}
+
+func (g *Gd) taskDone() {
+	if g.progress != nil {
+		g.progress.Increment()
+	}
+}
+
+func (g *Gd) taskFinish() {
+	if g.progress != nil {
+		g.progress.Finish()
+	}
+}

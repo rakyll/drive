@@ -23,7 +23,6 @@ import (
 
 	"github.com/rakyll/gd/config"
 	"github.com/rakyll/gd/remote"
-	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
 	"github.com/rakyll/gd/types"
 )
 
@@ -60,10 +59,7 @@ func (g *Gd) Push() (err error) {
 }
 
 func (g *Gd) playPushChangeList(cl []*types.Change) (err error) {
-	if len(cl) > 0 {
-		g.progress = pb.New(len(cl))
-		g.progress.Start()
-	}
+	g.taskStart(len(cl))
 	for _, c := range cl {
 		switch c.Op() {
 		case types.OpMod:
@@ -74,17 +70,12 @@ func (g *Gd) playPushChangeList(cl []*types.Change) (err error) {
 			g.remoteDelete(c)
 		}
 	}
-	if g.progress != nil {
-		defer g.progress.Finish()
-	}
+	g.taskFinish()
 	return err
 }
 
 func (g *Gd) remoteMod(change *types.Change) (err error) {
-	if g.progress != nil {
-		defer g.progress.Increment()
-	}
-
+	defer g.taskDone()
 	absPath := g.context.AbsPathOf(change.Path)
 	var updated, parent *types.File
 	if change.Dest != nil {
@@ -116,9 +107,7 @@ func (g *Gd) remoteAdd(change *types.Change) (err error) {
 
 // TODO: no one calls localdelete
 func (g *Gd) remoteDelete(change *types.Change) (err error) {
-	if g.progress != nil {
-		defer g.progress.Increment()
-	}
+	defer g.taskDone()
 	return g.rem.Trash(change.Dest.Id)
 }
 

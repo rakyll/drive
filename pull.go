@@ -19,7 +19,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
 	"github.com/rakyll/gd/types"
 )
 
@@ -53,10 +52,7 @@ func (g *Gd) Pull() (err error) {
 }
 
 func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
-	if len(cl) > 0 {
-		g.progress = pb.New(len(cl))
-		g.progress.Start()
-	}
+	g.taskStart(len(cl))
 	for _, c := range cl {
 		switch c.Op() {
 		case types.OpMod:
@@ -67,16 +63,12 @@ func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
 			g.localDelete(c)
 		}
 	}
-	if g.progress != nil {
-		g.progress.Finish()
-	}
+	g.taskFinish()
 	return err
 }
 
 func (g *Gd) localMod(change *types.Change) (err error) {
-	if g.progress != nil {
-		defer g.progress.Increment()
-	}
+	defer g.taskDone()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.BlobAt != "" {
 		// download and replace
@@ -88,9 +80,7 @@ func (g *Gd) localMod(change *types.Change) (err error) {
 }
 
 func (g *Gd) localAdd(change *types.Change) (err error) {
-	if g.progress != nil {
-		defer g.progress.Increment()
-	}
+	defer g.taskDone()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
@@ -107,9 +97,7 @@ func (g *Gd) localAdd(change *types.Change) (err error) {
 
 // TODO: no one calls localdelete
 func (g *Gd) localDelete(change *types.Change) (err error) {
-	if g.progress != nil {
-		defer g.progress.Increment()
-	}
+	defer g.taskDone()
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 
