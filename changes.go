@@ -17,6 +17,7 @@ package gd
 import (
 	"fmt"
 	"path"
+	"sync"
 
 	"github.com/rakyll/gd/types"
 )
@@ -32,6 +33,15 @@ func (d *dirList) Name() string {
 	}
 	return d.local.Name
 }
+
+// completed := make(chan bool, len(downloads))
+// 	for _, item := range downloads {
+// 		go func(id string, checksum string, ch chan bool) {
+// 			d.download(id, checksum)
+// 			ch <- true
+// 		}(item.Id, item.Md5Checksum, completed)
+// 	}
+// 	<-completed
 
 func (g *Gd) resolveChangeListRecv(
 	isPush bool, p string, r *types.File, l *types.File) (cl []*types.Change, err error) {
@@ -62,11 +72,18 @@ func (g *Gd) resolveChangeListRecv(
 		}
 	}
 
+	// TODO: limit the number of active tasks for children lookups
 	dirlist := merge(remoteChildren, localChildren)
+	var wg sync.WaitGroup
+	wg.Add(len(dirlist))
 	for _, l := range dirlist {
-		childChanges, _ := g.resolveChangeListRecv(isPush, path.Join(p, l.Name()), l.remote, l.local)
-		cl = append(cl, childChanges...)
+		go func(wg *sync.WaitGroup, isPush bool, cl *[]*types.Change, p string, l *dirList) {
+			defer wg.Done()
+			childChanges, _ := g.resolveChangeListRecv(isPush, path.Join(p, l.Name()), l.remote, l.local)
+			*cl = append(*cl, childChanges...)
+		}(&wg, isPush, &cl, p, l)
 	}
+	wg.Wait()
 	return cl, nil
 }
 
