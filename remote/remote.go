@@ -140,7 +140,8 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *types.File, 
 	// TODO: use field selectors
 	req.Q(fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, p[0]))
 	files, err := req.Do()
-	if len(files.Items) < 1 || err != nil {
+	if err != nil || len(files.Items) < 1 {
+		// TODO: make sure only 404s are handled here
 		return nil, ErrPathNotExists
 	}
 	file = types.NewRemoteFile(files.Items[0])
