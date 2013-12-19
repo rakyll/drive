@@ -18,8 +18,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/rakyll/gd/types"
+)
+
+const (
+	maxNumOfConcPullTasks = 4
 )
 
 // Pull from remote if remote path exists and in a god context. If path is a
@@ -52,23 +57,42 @@ func (g *Gd) Pull() (err error) {
 }
 
 func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
+	var next []*types.Change
 	g.taskStart(len(cl))
-	for _, c := range cl {
-		switch c.Op() {
-		case types.OpMod:
-			g.localMod(c)
-		case types.OpAdd:
-			g.localAdd(c)
-		case types.OpDelete:
-			g.localDelete(c)
+
+	for {
+		if len(cl) > maxNumOfConcPullTasks {
+			next, cl = cl[:maxNumOfConcPullTasks], cl[maxNumOfConcPullTasks:len(cl)]
+		} else {
+			next, cl = cl, []*types.Change{}
 		}
+		if len(next) == 0 {
+			break
+		}
+		var wg sync.WaitGroup
+		wg.Add(len(next))
+		// play the changes
+		// TODO: add timeouts
+		for _, c := range next {
+			switch c.Op() {
+			case types.OpMod:
+				go g.localMod(&wg, c)
+			case types.OpAdd:
+				go g.localAdd(&wg, c)
+			case types.OpDelete:
+				go g.localDelete(&wg, c)
+			}
+		}
+		wg.Wait()
 	}
+
 	g.taskFinish()
 	return err
 }
 
-func (g *Gd) localMod(change *types.Change) (err error) {
+func (g *Gd) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
+	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.BlobAt != "" {
 		// download and replace
@@ -79,8 +103,9 @@ func (g *Gd) localMod(change *types.Change) (err error) {
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Gd) localAdd(change *types.Change) (err error) {
+func (g *Gd) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
+	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
@@ -95,9 +120,9 @@ func (g *Gd) localAdd(change *types.Change) (err error) {
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-// TODO: no one calls localdelete
-func (g *Gd) localDelete(change *types.Change) (err error) {
+func (g *Gd) localDelete(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
+	defer wg.Done()
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 

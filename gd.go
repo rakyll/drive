@@ -53,8 +53,7 @@ func New(context *config.Context, opts *Options) *Gd {
 
 func (g *Gd) taskStart(numOfTasks int) {
 	if numOfTasks > 0 {
-		g.progress = pb.New(numOfTasks)
-		g.progress.Start()
+		g.progress = pb.StartNew(numOfTasks)
 	}
 }
 

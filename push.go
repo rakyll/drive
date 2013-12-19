@@ -88,13 +88,11 @@ func (g *Gd) remoteMod(change *types.Change) (err error) {
 		return
 	}
 
-	// TODO: mimetype detection
 	var body *os.File
 	if !change.Src.IsDir {
 		// TODO: handle errors, read more efficiently for large files
 		body, _ = os.Open(absPath)
 	}
-	// TODO: append blob
 	if updated, err = g.rem.Upsert(parent.Id, change.Src, body); err != nil {
 		return
 	}
