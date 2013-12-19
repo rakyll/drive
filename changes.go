@@ -107,7 +107,7 @@ func merge(remotes, locals []*types.File) (merged []*dirList) {
 	return
 }
 
-func printChangeList(changes []*types.Change) bool {
+func printChangeList(changes []*types.Change, isNoPrompt bool) bool {
 	for _, c := range changes {
 		if c.Op() != types.OpNone {
 			fmt.Println(c.Symbol(), c.Path)
@@ -116,6 +116,9 @@ func printChangeList(changes []*types.Change) bool {
 	if len(changes) == 0 {
 		fmt.Println("Everything is up-to-date.")
 		return false
+	}
+	if isNoPrompt {
+		return true
 	}
 	var input string
 	fmt.Print("Proceed with the changes? [Y/n]: ")

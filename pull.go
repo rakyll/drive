@@ -51,10 +51,7 @@ func (g *Gd) Pull() (err error) {
 		return
 	}
 
-	if g.opts.IsNoPrompt {
-		return g.playPullChangeList(cl)
-	}
-	if ok := printChangeList(cl); ok {
+	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
 		return g.playPullChangeList(cl)
 	}
 	return

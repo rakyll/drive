@@ -52,10 +52,7 @@ func (g *Gd) Push() (err error) {
 		return err
 	}
 
-	if g.opts.IsNoPrompt {
-		return g.playPushChangeList(cl)
-	}
-	if ok := printChangeList(cl); ok {
+	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
 		return g.playPushChangeList(cl)
 	}
 	return
