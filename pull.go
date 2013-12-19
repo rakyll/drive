@@ -50,10 +50,14 @@ func (g *Gd) Pull() (err error) {
 	if cl, err = g.resolveChangeListRecv(false, g.opts.Path, r, l); err != nil {
 		return
 	}
-	if ok := printChangeList(cl); !ok {
-		return
+
+	if g.opts.IsNoPrompt {
+		return g.playPullChangeList(cl)
 	}
-	return g.playPullChangeList(cl)
+	if ok := printChangeList(cl); ok {
+		return g.playPullChangeList(cl)
+	}
+	return
 }
 
 func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {

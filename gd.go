@@ -25,6 +25,7 @@ import (
 
 type Options struct {
 	Path        string
+	IsNoPrompt  bool
 	IsRecursive bool
 	IsForce     bool
 }
