@@ -23,8 +23,8 @@ import (
 )
 
 type Context struct {
-	ClientId     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
+	ClientId     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`
 	AbsPath      string `json:"-"`
 }
@@ -71,7 +71,6 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 	if !found {
 		return nil, errors.New("no gd context is found; use gd init")
 	}
-	// TODO: read credentials
 	context = &Context{AbsPath: p}
 	err = context.Read()
 	return
@@ -80,23 +79,17 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 func Initialize(absPath string) (c *Context, err error) {
 	p := gdPath(absPath)
 	var info os.FileInfo
-	if info, err = os.Stat(p); err != nil {
-		return
-	}
-	if info.IsDir() {
+	info, err = os.Stat(p)
+	if info != nil && info.IsDir() {
 		err = errors.New("already a gd directory")
 		return
 	}
-	if err = os.Mkdir(p, 0644); err != nil {
+	if err = os.MkdirAll(p, 0755); err != nil {
 		return
 	}
-	c = &Context{AbsPath: p}
-	c.ClientId = "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com"
-	c.ClientSecret = "8glhKA6mkyvUWD4vC1kGsBiy"
-	if err = c.Write(); err != nil {
-		return
-	}
-	return c, nil
+	c = &Context{AbsPath: absPath}
+	err = c.Write()
+	return
 }
 
 func gdPath(absPath string) string {

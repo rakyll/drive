@@ -48,8 +48,10 @@ func New(context *config.Context, opts *Options) *Gd {
 	if context != nil {
 		r = remote.New(context)
 	}
-	// should always start with /
-	opts.Path = path.Clean(path.Join("/", opts.Path))
+	if opts != nil {
+		// should always start with /
+		opts.Path = path.Clean(path.Join("/", opts.Path))
+	}
 	return &Gd{
 		context: context,
 		rem:     r,

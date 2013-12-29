@@ -15,13 +15,21 @@
 package gd
 
 import (
-// "github.com/rakyll/gd/config"
+	"github.com/rakyll/gd/remote"
 )
 
 func (g *Gd) Init() error {
 	return g.Auth()
 }
 
-func (g *Gd) Auth() error {
-	return nil
+func (g *Gd) Auth() (err error) {
+	var refresh string
+	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
+	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
+	if refresh, err = remote.RetrieveRefreshToken(g.context); err != nil {
+		return
+	}
+	g.context.RefreshToken = refresh
+	err = g.context.Write()
+	return
 }

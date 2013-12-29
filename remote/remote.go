@@ -58,6 +58,21 @@ func New(context *config.Context) *Remote {
 	return &Remote{service: service, transport: transport}
 }
 
+func RetrieveRefreshToken(context *config.Context) (string, error) {
+	transport := newTransport(context)
+	url := transport.Config.AuthCodeURL("")
+	fmt.Println("Visit this URL to get an authorization code")
+	fmt.Println(url)
+	fmt.Println("Paste the authorization code: ")
+	var code string
+	fmt.Scanln(&code)
+	token, err := transport.Exchange(code)
+	if err != nil {
+		return "", err
+	}
+	return token.RefreshToken, nil
+}
+
 func (r *Remote) FindById(id string) (file *types.File, err error) {
 	req := r.service.Files.Get(id)
 	var f *drive.File
