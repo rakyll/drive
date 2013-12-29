@@ -2,7 +2,7 @@
 
 `gd` is a tiny program to pull or push files and directories from Google Drive. You need go tools installed in order to build the program.
 
-    go get github.com/rakyll/gd
+    go install github.com/rakyll/gd
 
 Use `gd help` for further reference.
 

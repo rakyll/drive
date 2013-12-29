@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package contains the main entry point of god.
+// Package contains the main entry point of gd.
 package main
 
 import (
@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/rakyll/command"
-	"github.com/rakyll/gd"
+	"github.com/rakyll/gd/commands"
 	"github.com/rakyll/gd/config"
 )
 
@@ -47,7 +47,7 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *initCmd) Run(args []string) {
 	context := initContext()
-	exitWithError(gd.New(context, nil).Init())
+	exitWithError(commands.New(context, nil).Init())
 }
 
 type pullCmd struct {
@@ -66,7 +66,7 @@ func (cmd *pullCmd) Run(args []string) {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	exitWithError(gd.New(discoverContext(), &gd.Options{
+	exitWithError(commands.New(discoverContext(), &commands.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -89,7 +89,7 @@ func (cmd *pushCmd) Run(args []string) {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	exitWithError(gd.New(discoverContext(), &gd.Options{
+	exitWithError(commands.New(discoverContext(), &commands.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -107,7 +107,7 @@ func (cmd *diffCmd) Run(args []string) {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	exitWithError(gd.New(discoverContext(), &gd.Options{
+	exitWithError(commands.New(discoverContext(), &commands.Options{
 		Path: path,
 	}).Diff())
 }
