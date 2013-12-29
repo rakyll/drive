@@ -67,7 +67,7 @@ type pullCmd struct {
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.isRecursive = fs.Bool("r", false, "perform the pull action recursively")
+	cmd.isRecursive = fs.Bool("r", true, "perform the pull action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the pull action")
 	return fs
 }
@@ -90,7 +90,7 @@ type pushCmd struct {
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.isRecursive = fs.Bool("r", false, "perform the push action recursively")
+	cmd.isRecursive = fs.Bool("r", true, "perform the push action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the push action")
 	return fs
 }
