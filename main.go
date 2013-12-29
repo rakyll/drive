@@ -19,14 +19,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/rakyll/command"
 	"github.com/rakyll/gd/commands"
 	"github.com/rakyll/gd/config"
-)
-
-var (
-	flagContextPath = flag.String("c", "", "gd context path. if none set, pwd")
 )
 
 var context *config.Context
@@ -46,8 +43,7 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *initCmd) Run(args []string) {
-	context := initContext()
-	exitWithError(commands.New(context, nil).Init())
+	exitWithError(commands.New(initContext(args), nil).Init())
 }
 
 type pullCmd struct {
@@ -62,11 +58,8 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *pullCmd) Run(args []string) {
-	path := ""
-	if len(args) > 0 {
-		path = args[0]
-	}
-	exitWithError(commands.New(discoverContext(), &commands.Options{
+	context, path := discoverContext(args)
+	exitWithError(commands.New(context, &commands.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -85,11 +78,8 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *pushCmd) Run(args []string) {
-	path := ""
-	if len(args) > 0 {
-		path = args[0]
-	}
-	exitWithError(commands.New(discoverContext(), &commands.Options{
+	context, path := discoverContext(args)
+	exitWithError(commands.New(context, &commands.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -103,35 +93,39 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *diffCmd) Run(args []string) {
-	path := ""
-	if len(args) > 0 {
-		path = args[0]
-	}
-	exitWithError(commands.New(discoverContext(), &commands.Options{
+	context, path := discoverContext(args)
+	exitWithError(commands.New(context, &commands.Options{
 		Path: path,
 	}).Diff())
 }
 
-func initContext() *config.Context {
-	contextPath := *flagContextPath
-	if contextPath == "" {
-		contextPath, _ = os.Getwd()
-	}
+func initContext(args []string) *config.Context {
 	var err error
-	context, err = config.Initialize(contextPath)
+	context, err = config.Initialize(getContextPath(args))
 	exitWithError(err)
 	return context
 }
 
-func discoverContext() *config.Context {
-	contextPath := *flagContextPath
+func discoverContext(args []string) (*config.Context, string) {
+	var err error
+	context, err = config.Discover(getContextPath(args))
+	exitWithError(err)
+	relPath := ""
+	if len(args) > 0 {
+		relPath, err = filepath.Rel(context.AbsPath, args[0])
+	}
+	exitWithError(err)
+	return context, relPath
+}
+
+func getContextPath(args []string) (contextPath string) {
+	if len(args) > 0 {
+		contextPath = args[0]
+	}
 	if contextPath == "" {
 		contextPath, _ = os.Getwd()
 	}
-	var err error
-	context, err = config.Discover(contextPath)
-	exitWithError(err)
-	return context
+	return
 }
 
 func exitWithError(err error) {
