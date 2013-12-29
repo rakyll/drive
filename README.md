@@ -6,9 +6,8 @@
 
 Use `gd help` for further reference.
 
-* `$ gd init [--C <path>]`
-* `$ gd auth [--C <path>]` // starts the authorization and authentication wizard
-* `$ gd pull [--C <path>] [--recursive=true]` // pulls from remote
-* `$ gd push [--C <path>] [--recursive=true]` // pushes to the remote
-* `$ gd stat [--C <path>]` // shows current upload and download status
-* `$ gd diff [--C <filepath>]` // outputs a diff of local and remote
+* `$ gd [-c=<gdDir>] init`
+* `$ gd [-c=<gdDir>] auth` // starts the authorization and authentication wizard
+* `$ gd [-c=<gdDir>] pull [-r=false] [-no-prompt=false] <path>` // pulls from remote
+* `$ gd [-c=<gdDir>] push [-r=false] [-no-prompt=false] <path>` // pushes to the remote
+* `$ gd [-c=<gdDir>] diff <path>` // outputs a diff of local and remote
