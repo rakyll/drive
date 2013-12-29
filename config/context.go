@@ -15,18 +15,43 @@
 package config
 
 import (
+	"errors"
+	"os"
 	"path"
+	"time"
 )
 
 type Context struct {
-	ClientId     string
-	ClientSecret string
-	RefreshToken string
-	AbsPath      string
+	ClientId           string
+	ClientSecret       string
+	RefreshToken       string
+	AccessTokenExpires *time.Time
+	AbsPath            string
 }
 
-func Discover(path string) (context *Context, err error) {
-	return nil, nil
+// Discovers the gd directory, if no gd directory or credentials
+// could be found for the path, returns ErrNoContext.
+func Discover(currentAbsPath string) (context *Context, err error) {
+	gdPath := currentAbsPath
+	found := false
+	for {
+		info, e := os.Stat(path.Join(gdPath, ".gd"))
+		if e == nil && info.IsDir() {
+			found = true
+			break
+		}
+		newPath := path.Join(gdPath, "..")
+		if gdPath == newPath {
+			break
+		}
+		gdPath = newPath
+	}
+
+	if !found {
+		return nil, errors.New("no gd context is found; use gd init")
+	}
+	// TODO: read credentials
+	return &Context{AbsPath: gdPath}, nil
 }
 
 func (c *Context) AbsPathOf(fileOrDirPath string) string {

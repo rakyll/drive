@@ -16,55 +16,101 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/rakyll/command"
 	"github.com/rakyll/gd"
 	"github.com/rakyll/gd/config"
 )
 
+var (
+	flagContextPath = flag.String("c", "", "gd context path. if none set, pwd")
+)
+
+var context *config.Context
+
 func main() {
-	// TODO: config.Initialize()
-	// TODO: process level lock to protect pulls and pushes from themselves
-	context := &config.Context{
-		AbsPath:      "/Users/burcud/godtest",
-		RefreshToken: "1/RqZ7kz24jGa5BE8DhqXRyCw2i2L50wvrnBiGvFlGzzk",
-		ClientId:     "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com",
-		ClientSecret: "8glhKA6mkyvUWD4vC1kGsBiy",
-	}
+	command.On("init", &initCmd{})
+	command.On("pull", &pullCmd{})
+	command.On("push", &pushCmd{})
+	command.Parse()
 
-	g := gd.New(context, &gd.Options{
-		Path:        "/test",
-		IsRecursive: true,
-	})
-
-	if len(os.Args) < 2 {
-		help(os.Args)
-		return
+	contextPath := *flagContextPath
+	if contextPath == "" {
+		contextPath, _ = os.Getwd()
 	}
 
 	var err error
-	switch os.Args[1] {
-	case "init":
-	case "auth":
-		log.Println("auth")
-	case "pull":
-		err = g.Pull()
-	case "push":
-		err = g.Push()
-	case "stat":
-		log.Println("stat")
-	case "diff":
-		log.Println("diff")
-	default:
-		help(os.Args)
-	}
-	if err != nil {
-		fmt.Println("Error occured:", err)
-	}
+	context, err = config.Discover(contextPath)
+	exitWithError(err)
+	context.RefreshToken = "1/RqZ7kz24jGa5BE8DhqXRyCw2i2L50wvrnBiGvFlGzzk"
+	context.ClientId = "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com"
+	context.ClientSecret = "8glhKA6mkyvUWD4vC1kGsBiy"
+
+	// add auth, stat and diff
+	command.Run()
 }
 
-func help(args []string) {
-	log.Println("print help")
+type initCmd struct{}
+
+func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *initCmd) Run(args []string) {
+}
+
+type pullCmd struct {
+	isRecursive *bool
+	isNoPrompt  *bool
+}
+
+func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.isRecursive = fs.Bool("r", false, "perform the pull action recursively")
+	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the pull action")
+	return fs
+}
+
+func (cmd *pullCmd) Run(args []string) {
+	path := ""
+	if len(args) > 0 {
+		path = args[0]
+	}
+	exitWithError(gd.New(context, &gd.Options{
+		Path:        path, // TODO
+		IsRecursive: *cmd.isRecursive,
+		IsNoPrompt:  *cmd.isNoPrompt,
+	}).Pull())
+}
+
+type pushCmd struct {
+	isRecursive *bool
+	isNoPrompt  *bool
+}
+
+func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.isRecursive = fs.Bool("r", false, "perform the push action recursively")
+	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the push action")
+	return fs
+}
+
+func (cmd *pushCmd) Run(args []string) {
+	path := ""
+	if len(args) > 0 {
+		path = args[0]
+	}
+	exitWithError(gd.New(context, &gd.Options{
+		Path:        path, // TODO
+		IsRecursive: *cmd.isRecursive,
+		IsNoPrompt:  *cmd.isNoPrompt,
+	}).Push())
+}
+
+func exitWithError(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

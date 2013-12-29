@@ -34,15 +34,6 @@ func (d *dirList) Name() string {
 	return d.local.Name
 }
 
-// completed := make(chan bool, len(downloads))
-// 	for _, item := range downloads {
-// 		go func(id string, checksum string, ch chan bool) {
-// 			d.download(id, checksum)
-// 			ch <- true
-// 		}(item.Id, item.Md5Checksum, completed)
-// 	}
-// 	<-completed
-
 func (g *Gd) resolveChangeListRecv(
 	isPush bool, p string, r *types.File, l *types.File) (cl []*types.Change, err error) {
 	var change *types.Change
