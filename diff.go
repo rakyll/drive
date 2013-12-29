@@ -14,14 +14,6 @@
 
 package gd
 
-import (
-// "github.com/rakyll/gd/config"
-)
-
-func (g *Gd) Init() error {
-	return g.Auth()
-}
-
-func (g *Gd) Auth() error {
+func (g *Gd) Diff() error {
 	return nil
 }

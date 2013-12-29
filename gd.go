@@ -15,12 +15,17 @@
 package gd
 
 import (
+	"errors"
 	"path"
 
 	"github.com/rakyll/gd/config"
 	"github.com/rakyll/gd/remote"
 
 	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
+)
+
+var (
+	ErrNoContext = errors.New("not in a gd context")
 )
 
 type Options struct {

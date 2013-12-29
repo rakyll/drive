@@ -14,6 +14,6 @@
 
 package config
 
-func Initialize(path string) error {
-	return nil
+func Initialize(path string) (*Context, error) {
+	return nil, nil
 }

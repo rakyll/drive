@@ -32,25 +32,12 @@ var (
 var context *config.Context
 
 func main() {
-	command.On("init", &initCmd{})
-	command.On("pull", &pullCmd{})
-	command.On("push", &pushCmd{})
-	command.Parse()
-
-	contextPath := *flagContextPath
-	if contextPath == "" {
-		contextPath, _ = os.Getwd()
-	}
-
-	var err error
-	context, err = config.Discover(contextPath)
-	exitWithError(err)
-	context.RefreshToken = "1/RqZ7kz24jGa5BE8DhqXRyCw2i2L50wvrnBiGvFlGzzk"
-	context.ClientId = "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com"
-	context.ClientSecret = "8glhKA6mkyvUWD4vC1kGsBiy"
-
-	// add auth, stat and diff
-	command.Run()
+	command.On("init", &initCmd{}) // inits a directory as gd directory
+	command.On("auth", &authCmd{}) // run auth wizard to connect a gd directory to a Drive account
+	command.On("pull", &pullCmd{}) // pulls from Google Drive
+	command.On("push", &pushCmd{}) // pushes to Google Drive
+	command.On("diff", &diffCmd{}) // diff a file
+	command.ParseAndRun()
 }
 
 type initCmd struct{}
@@ -60,6 +47,18 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *initCmd) Run(args []string) {
+	context := initContext()
+	exitWithError(gd.New(context, nil).Init())
+}
+
+type authCmd struct{}
+
+func (cmd *authCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *authCmd) Run(args []string) {
+	exitWithError(gd.New(discoverContext(), nil).Auth())
 }
 
 type pullCmd struct {
@@ -78,8 +77,8 @@ func (cmd *pullCmd) Run(args []string) {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	exitWithError(gd.New(context, &gd.Options{
-		Path:        path, // TODO
+	exitWithError(gd.New(discoverContext(), &gd.Options{
+		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
 	}).Pull())
@@ -101,11 +100,52 @@ func (cmd *pushCmd) Run(args []string) {
 	if len(args) > 0 {
 		path = args[0]
 	}
-	exitWithError(gd.New(context, &gd.Options{
-		Path:        path, // TODO
+	exitWithError(gd.New(discoverContext(), &gd.Options{
+		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
 	}).Push())
+}
+
+type diffCmd struct{}
+
+func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *diffCmd) Run(args []string) {
+	path := ""
+	if len(args) > 0 {
+		path = args[0]
+	}
+	exitWithError(gd.New(discoverContext(), &gd.Options{
+		Path: path,
+	}).Diff())
+}
+
+func initContext() *config.Context {
+	contextPath := *flagContextPath
+	if contextPath == "" {
+		contextPath, _ = os.Getwd()
+	}
+	var err error
+	context, err = config.Initialize(contextPath)
+	exitWithError(err)
+	return context
+}
+
+func discoverContext() *config.Context {
+	contextPath := *flagContextPath
+	if contextPath == "" {
+		contextPath, _ = os.Getwd()
+	}
+	var err error
+	context, err = config.Discover(contextPath)
+	exitWithError(err)
+	context.RefreshToken = "1/RqZ7kz24jGa5BE8DhqXRyCw2i2L50wvrnBiGvFlGzzk"
+	context.ClientId = "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com"
+	context.ClientSecret = "8glhKA6mkyvUWD4vC1kGsBiy"
+	return context
 }
 
 func exitWithError(err error) {
