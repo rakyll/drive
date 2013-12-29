@@ -78,12 +78,6 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 
 func Initialize(absPath string) (c *Context, err error) {
 	p := gdPath(absPath)
-	var info os.FileInfo
-	info, err = os.Stat(p)
-	if info != nil && info.IsDir() {
-		err = errors.New("already a gd directory")
-		return
-	}
 	if err = os.MkdirAll(p, 0755); err != nil {
 		return
 	}

@@ -33,7 +33,6 @@ var context *config.Context
 
 func main() {
 	command.On("init", &initCmd{}) // inits a directory as gd directory
-	command.On("auth", &authCmd{}) // run auth wizard to connect a gd directory to a Drive account
 	command.On("pull", &pullCmd{}) // pulls from Google Drive
 	command.On("push", &pushCmd{}) // pushes to Google Drive
 	command.On("diff", &diffCmd{}) // diff a file
@@ -49,16 +48,6 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *initCmd) Run(args []string) {
 	context := initContext()
 	exitWithError(gd.New(context, nil).Init())
-}
-
-type authCmd struct{}
-
-func (cmd *authCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	return fs
-}
-
-func (cmd *authCmd) Run(args []string) {
-	exitWithError(gd.New(discoverContext(), nil).Auth())
 }
 
 type pullCmd struct {

@@ -18,11 +18,7 @@ import (
 	"github.com/rakyll/gd/remote"
 )
 
-func (g *Gd) Init() error {
-	return g.Auth()
-}
-
-func (g *Gd) Auth() (err error) {
+func (g *Gd) Init() (err error) {
 	var refresh string
 	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
 	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
