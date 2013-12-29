@@ -142,9 +142,6 @@ func discoverContext() *config.Context {
 	var err error
 	context, err = config.Discover(contextPath)
 	exitWithError(err)
-	context.RefreshToken = "1/RqZ7kz24jGa5BE8DhqXRyCw2i2L50wvrnBiGvFlGzzk"
-	context.ClientId = "354790962074-uhtvp8nslh2334lk1krv4arpaqdm24jl.apps.googleusercontent.com"
-	context.ClientSecret = "8glhKA6mkyvUWD4vC1kGsBiy"
 	return context
 }
 
