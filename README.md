@@ -1,5 +1,7 @@
 # gd
 
+[![Build Status](https://travis-ci.org/rakyll/gd.png?branch=master)](https://travis-ci.org/rakyll/gd)
+
 `gd` is a tiny program to pull or push files and directories from Google Drive. You need go tools installed in order to build the program.
 
     go install github.com/rakyll/gd
