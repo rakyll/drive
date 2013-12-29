@@ -63,7 +63,7 @@ func RetrieveRefreshToken(context *config.Context) (string, error) {
 	url := transport.Config.AuthCodeURL("")
 	fmt.Println("Visit this URL to get an authorization code")
 	fmt.Println(url)
-	fmt.Println("Paste the authorization code: ")
+	fmt.Print("Paste the authorization code: ")
 	var code string
 	fmt.Scanln(&code)
 	token, err := transport.Exchange(code)
