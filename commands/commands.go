@@ -18,10 +18,10 @@ import (
 	"errors"
 	"path"
 
-	"github.com/rakyll/gd/config"
-	"github.com/rakyll/gd/remote"
+	"github.com/rakyll/drive/config"
+	"github.com/rakyll/drive/remote"
 
-	"github.com/rakyll/gd/third_party/github.com/cheggaaa/pb"
+	"github.com/rakyll/drive/third_party/github.com/cheggaaa/pb"
 )
 
 var (
@@ -35,7 +35,7 @@ type Options struct {
 	IsForce     bool
 }
 
-type Gd struct {
+type Commands struct {
 	context *config.Context
 	rem     *remote.Remote
 	opts    *Options
@@ -43,7 +43,7 @@ type Gd struct {
 	progress *pb.ProgressBar
 }
 
-func New(context *config.Context, opts *Options) *Gd {
+func New(context *config.Context, opts *Options) *Commands {
 	var r *remote.Remote
 	if context != nil {
 		r = remote.New(context)
@@ -52,26 +52,26 @@ func New(context *config.Context, opts *Options) *Gd {
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
 	}
-	return &Gd{
+	return &Commands{
 		context: context,
 		rem:     r,
 		opts:    opts,
 	}
 }
 
-func (g *Gd) taskStart(numOfTasks int) {
+func (g *Commands) taskStart(numOfTasks int) {
 	if numOfTasks > 0 {
 		g.progress = pb.StartNew(numOfTasks)
 	}
 }
 
-func (g *Gd) taskDone() {
+func (g *Commands) taskDone() {
 	if g.progress != nil {
 		g.progress.Increment()
 	}
 }
 
-func (g *Gd) taskFinish() {
+func (g *Commands) taskFinish() {
 	if g.progress != nil {
 		g.progress.Finish()
 	}

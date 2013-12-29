@@ -21,15 +21,15 @@ import (
 	gopath "path"
 	"strings"
 
-	"github.com/rakyll/gd/config"
-	"github.com/rakyll/gd/remote"
-	"github.com/rakyll/gd/types"
+	"github.com/rakyll/drive/config"
+	"github.com/rakyll/drive/remote"
+	"github.com/rakyll/drive/types"
 )
 
 // Pushes to remote if local path exists and in a god context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
-func (g *Gd) Push() (err error) {
+func (g *Commands) Push() (err error) {
 	if g.context == nil {
 		return ErrNoContext
 	}
@@ -58,7 +58,7 @@ func (g *Gd) Push() (err error) {
 	return
 }
 
-func (g *Gd) playPushChangeList(cl []*types.Change) (err error) {
+func (g *Commands) playPushChangeList(cl []*types.Change) (err error) {
 	g.taskStart(len(cl))
 	for _, c := range cl {
 		switch c.Op() {
@@ -74,7 +74,7 @@ func (g *Gd) playPushChangeList(cl []*types.Change) (err error) {
 	return err
 }
 
-func (g *Gd) remoteMod(change *types.Change) (err error) {
+func (g *Commands) remoteMod(change *types.Change) (err error) {
 	defer g.taskDone()
 	absPath := g.context.AbsPathOf(change.Path)
 	var updated, parent *types.File
@@ -99,12 +99,11 @@ func (g *Gd) remoteMod(change *types.Change) (err error) {
 	return os.Chtimes(absPath, updated.ModTime, updated.ModTime)
 }
 
-func (g *Gd) remoteAdd(change *types.Change) (err error) {
+func (g *Commands) remoteAdd(change *types.Change) (err error) {
 	return g.remoteMod(change)
 }
 
-// TODO: no one calls localdelete
-func (g *Gd) remoteDelete(change *types.Change) (err error) {
+func (g *Commands) remoteDelete(change *types.Change) (err error) {
 	defer g.taskDone()
 	return g.rem.Trash(change.Dest.Id)
 }

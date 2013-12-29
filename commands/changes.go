@@ -19,7 +19,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/rakyll/gd/types"
+	"github.com/rakyll/drive/types"
 )
 
 type dirList struct {
@@ -34,7 +34,7 @@ func (d *dirList) Name() string {
 	return d.local.Name
 }
 
-func (g *Gd) resolveChangeListRecv(
+func (g *Commands) resolveChangeListRecv(
 	isPush bool, p string, r *types.File, l *types.File) (cl []*types.Change, err error) {
 	var change *types.Change
 	if isPush {

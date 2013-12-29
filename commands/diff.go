@@ -14,7 +14,7 @@
 
 package commands
 
-func (g *Gd) Diff() error {
+func (g *Commands) Diff() error {
 	panic("not implemented")
 	return nil
 }

@@ -15,11 +15,12 @@
 package commands
 
 import (
-	"github.com/rakyll/gd/remote"
+	"github.com/rakyll/drive/remote"
 )
 
-func (g *Gd) Init() (err error) {
+func (g *Commands) Init() (err error) {
 	var refresh string
+	// TODO: read from env variable.
 	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
 	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
 	if refresh, err = remote.RetrieveRefreshToken(g.context); err != nil {

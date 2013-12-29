@@ -20,7 +20,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rakyll/gd/types"
+	"github.com/rakyll/drive/types"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
-func (g *Gd) Pull() (err error) {
+func (g *Commands) Pull() (err error) {
 	if g.context == nil {
 		return ErrNoContext
 	}
@@ -57,7 +57,7 @@ func (g *Gd) Pull() (err error) {
 	return
 }
 
-func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
+func (g *Commands) playPullChangeList(cl []*types.Change) (err error) {
 	var next []*types.Change
 	g.taskStart(len(cl))
 
@@ -91,7 +91,7 @@ func (g *Gd) playPullChangeList(cl []*types.Change) (err error) {
 	return err
 }
 
-func (g *Gd) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -104,7 +104,7 @@ func (g *Gd) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Gd) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -121,13 +121,13 @@ func (g *Gd) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Gd) localDelete(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localDelete(wg *sync.WaitGroup, change *types.Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 
-func (g *Gd) download(change *types.Change) (err error) {
+func (g *Commands) download(change *types.Change) (err error) {
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	var fo *os.File
 	fo, err = os.Create(destAbsPath)
