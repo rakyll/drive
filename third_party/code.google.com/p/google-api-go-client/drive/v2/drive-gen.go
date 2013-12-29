@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rakyll/drivefuse/third_party/code.google.com/p/google-api-go-client/googleapi"
+	"github.com/rakyll/gd/third_party/code.google.com/p/google-api-go-client/googleapi"
 )
 
 // Always reference these packages, just in case the auto-generated code
