@@ -15,5 +15,6 @@
 package gd
 
 func (g *Gd) Diff() error {
+	panic("not implemented")
 	return nil
 }
