@@ -14,7 +14,7 @@ Use `drive help` for further reference.
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive diff [path] # outputs a diff of local and remote
-	$ drive publish [path] # publicizes the item and outputs a publicly available URL
+	$ drive publish [path] # publishes a file, outputs URL
 
 
 ## Why another Google Drive client?
@@ -42,11 +42,7 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 
 * Better I/O scheduling. One of the major goals is to provide better scheduling to fasten your daily interaction with Google Drive backend.
 
-* Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes.
-
-* Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
-
-
+* Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes. Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
 
 ## Known issues
 * Probably, it doesn't work on Windows.
@@ -61,7 +57,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-* http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
