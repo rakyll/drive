@@ -45,15 +45,25 @@ func (g *Commands) resolveChangeListRecv(
 	if change.Op() != types.OpNone {
 		cl = append(cl, change)
 	}
-	if !g.opts.IsRecursive || (r != nil && !r.IsDir) || (l != nil && !l.IsDir) {
+	if !g.opts.IsRecursive {
+		return cl, nil
+	}
+	// TODO: handle cases where remote and local type don't match
+	if !isPush && !r.IsDir {
+		return cl, nil
+	}
+
+	if isPush && !l.IsDir {
 		return cl, nil
 	}
 
 	// look-up for children
 	var localChildren []*types.File
-	localChildren, err = list(g.context, p)
-	if err != nil {
-		return
+	if l != nil {
+		localChildren, err = list(g.context, p)
+		if err != nil {
+			return
+		}
 	}
 
 	var remoteChildren []*types.File
