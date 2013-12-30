@@ -14,7 +14,7 @@ Use `drive help` for further reference.
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive diff [path] # outputs a diff of local and remote
-	$ drive publish <path> # publicizes the item and outputs a publicly available URL
+	$ drive publish [path] # publicizes the item and outputs a publicly available URL
 
 
 ## Why another Google Drive client?
