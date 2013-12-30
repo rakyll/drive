@@ -29,10 +29,11 @@ import (
 var context *config.Context
 
 func main() {
-	command.On("init", &initCmd{}) // inits a directory as gd directory
-	command.On("pull", &pullCmd{}) // pulls from Google Drive
-	command.On("push", &pushCmd{}) // pushes to Google Drive
-	command.On("diff", &diffCmd{}) // diff a file
+	command.On("init", &initCmd{})       // inits a directory as gd directory
+	command.On("pull", &pullCmd{})       // pulls from Google Drive
+	command.On("push", &pushCmd{})       // pushes to Google Drive
+	command.On("diff", &diffCmd{})       // diff a file
+	command.On("publish", &publishCmd{}) // publish a file
 	command.ParseAndRun()
 }
 
@@ -97,6 +98,19 @@ func (cmd *diffCmd) Run(args []string) {
 	exitWithError(commands.New(context, &commands.Options{
 		Path: path,
 	}).Diff())
+}
+
+type publishCmd struct{}
+
+func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *publishCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(commands.New(context, &commands.Options{
+		Path: path,
+	}).Publish())
 }
 
 func initContext(args []string) *config.Context {
