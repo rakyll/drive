@@ -18,7 +18,7 @@ import (
 	"os"
 	"time"
 
-	drive "github.com/rakyll/drive/third_party/code.google.com/p/google-api-go-client/drive/v2"
+	drive "code.google.com/p/google-api-go-client/drive/v2"
 )
 
 const (

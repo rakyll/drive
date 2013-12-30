@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"code.google.com/p/goauth2/oauth"
+	drive "code.google.com/p/google-api-go-client/drive/v2"
 	"github.com/rakyll/drive/config"
-	"github.com/rakyll/drive/third_party/code.google.com/p/goauth2/oauth"
-	drive "github.com/rakyll/drive/third_party/code.google.com/p/google-api-go-client/drive/v2"
 	"github.com/rakyll/drive/types"
 )
 
