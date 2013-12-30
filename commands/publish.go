@@ -14,7 +14,21 @@
 
 package commands
 
+import (
+	"fmt"
+
+	"github.com/rakyll/drive/types"
+)
+
 func (c *Commands) Publish() (err error) {
-	panic("not implemented")
+	var file *types.File
+	var link string
+	if file, err = c.rem.FindByPath(c.opts.Path); err != nil {
+		return
+	}
+	if link, err = c.rem.Publish(file.Id); err != nil {
+		return
+	}
+	fmt.Println("Published on", link)
 	return
 }

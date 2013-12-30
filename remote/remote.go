@@ -111,6 +111,15 @@ func (r *Remote) Trash(id string) error {
 	return err
 }
 
+func (r *Remote) Publish(id string) (string, error) {
+	perm := &drive.Permission{Type: "anyone", Role: "reader"}
+	_, err := r.service.Permissions.Insert(id, perm).Do()
+	if err != nil {
+		return "", err
+	}
+	return "https://googledrive.com/host/" + id, nil
+}
+
 func (r *Remote) Download(id string) (io.ReadCloser, error) {
 	resp, err := r.transport.Client().Get("https://googledrive.com/host/" + id)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
