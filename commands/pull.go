@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/rakyll/drive/types"
@@ -108,10 +109,11 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *types.Change) (err error
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
+	// make parent's dir if not exists
+	os.MkdirAll(filepath.Dir(destAbsPath), os.ModeDir|0755)
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
 	}
-
 	if change.Src.BlobAt != "" {
 		// download and create
 		if err = g.download(change); err != nil {
