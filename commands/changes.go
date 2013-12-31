@@ -49,11 +49,11 @@ func (g *Commands) resolveChangeListRecv(
 		return cl, nil
 	}
 	// TODO: handle cases where remote and local type don't match
-	if !isPush && !r.IsDir {
+	if !isPush && r != nil && !r.IsDir {
 		return cl, nil
 	}
 
-	if isPush && !l.IsDir {
+	if isPush && l != nil && !l.IsDir {
 		return cl, nil
 	}
 
