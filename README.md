@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/rakyll/drive.png?branch=master)](https://travis-ci.org/rakyll/drive)
 
-`drive` is a tiny program to pull or push files and directories from [Google Drive](https://drive.google.com). You need go1.2 installed in order to build the program.
+`drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need go1.2 installed in order to build the program.
 
 ## Installation
 
@@ -10,24 +10,24 @@
 
 Use `drive help` for further reference.
 
-	$ drive init [path]
+	$ drive init [path] 
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive publish [path] # publishes a file, outputs URL
 
-
 ## Why another Google Drive client?
-Background sync is not just hard, it's stupid. My technical and philosophical rants about why sync is not worth it:
+Background sync is not just hard, it's stupid. My technical and philosophical rants about why it is not worth to implement:
 
-* It's racy. Data has been shared between your remote resource, local disk and your sync daemon's in-memory struct. Any party could touch a file any time, hard to lock these actions. You end up working with multiple isolated copies of the same file and trying to determine which is the latest version and should be synced across different contexts.
+* Too racy. Data has been shared between your remote resource, local disk and sometimes in your sync daemon's in-memory struct. Any party could touch a file any time, hard to lock these actions. You end up working with multiple isolated copies of the same file and trying to determine which is the latest version and should be synced across different contexts.
+
 * It requires great scheduling to perform best with your existing environmental constraints. On the other hand, file attributes has an impact on the sync strategy. Large files are blocking, you wouldn't like to sit on and wait for a VM image to get synced before you start to work on a tiny text file.
-* It needs to read your mind to understand your priorities. Which file you need most?
-* It needs to read your mind to foresee your future actions. I'm editing a file, and saving the changes time to time. Why not to wait until I feel confident enough to commit the changes to the remote resource?
+
+* It needs to read your mind to understand your priorities. Which file you need most? It needs to read your mind to foresee your future actions. I'm editing a file, and saving the changes time to time. Why not to wait until I feel confident enough to commit the changes to the remote resource?
 
 `drive` is not a sync deamon, it provides:
 
-* Upstreaming and downstreaming unlike sync clients. User has full control what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt. 
+* Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. User has opportunity to decide what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt. 
 
 	    $ echo "hello" > hello.txt
 	    $ drive push # pushes hello.txt to Google Drive
@@ -38,17 +38,17 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 
 	    $ echo "hello" > hello.txt
 	    $ drive push hello.txt # pushes only the specified file
-	    $ drive pull path_to/a/b # pulls the remote directory recursively
+	    $ drive pull path/to/a/b # pulls the remote directory recursively
 
-* Better I/O scheduling. One of the major goals is to provide better scheduling to fasten your daily interaction with Google Drive backend.
+* Better I/O scheduling. One of the major goals is to provide better scheduling to improve upload/download times.
 
 * Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes. Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
 
 ## Known issues
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
-* Weak file comparison, we only encounter lastMod and file size. Md5 digest should be a part of the comparison.
-* Racing conditions if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
+* Weak file comparison, we only encounter lastMod and file size to determine if a file has modified. Md5 digest should be a part of the comparison.
+* Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 
 ## License
 Copyright 2013 Google Inc. All Rights Reserved.
