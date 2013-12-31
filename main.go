@@ -28,12 +28,20 @@ import (
 
 var context *config.Context
 
+const (
+	descInit    = "inits a directory and authenticates user"
+	descPull    = "pulls remote changes from google drive"
+	descPush    = "push local changes to google drive"
+	descDiff    = "compares a local file with remote"
+	descPublish = "publishes a file and prints its publicly available url"
+)
+
 func main() {
-	command.On("init", &initCmd{})       // inits a directory as gd directory
-	command.On("pull", &pullCmd{})       // pulls from Google Drive
-	command.On("push", &pushCmd{})       // pushes to Google Drive
-	command.On("diff", &diffCmd{})       // diff a file
-	command.On("publish", &publishCmd{}) // publish a file
+	command.On("init", descInit, &initCmd{})
+	command.On("pull", descPull, &pullCmd{})
+	command.On("push", descPush, &pushCmd{})
+	command.On("diff", descDiff, &diffCmd{})
+	command.On("pub", descPublish, &publishCmd{})
 	command.ParseAndRun()
 }
 
@@ -53,8 +61,8 @@ type pullCmd struct {
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.isRecursive = fs.Bool("r", true, "perform the pull action recursively")
-	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the pull action")
+	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
+	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	return fs
 }
 
@@ -73,8 +81,8 @@ type pushCmd struct {
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.isRecursive = fs.Bool("r", true, "perform the push action recursively")
-	cmd.isNoPrompt = fs.Bool("no-prompt", false, "no prompt before applying the push action")
+	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
+	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
 	return fs
 }
 
