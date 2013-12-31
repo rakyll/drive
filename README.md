@@ -6,7 +6,7 @@
 
 ## Installation
 
-    go install github.com/rakyll/drive
+    go get github.com/rakyll/drive
 
 Use `drive help` for further reference.
 
