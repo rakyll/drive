@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path"
 	"sync"
+	"strings"
 
 	"github.com/rakyll/drive/types"
 )
@@ -124,5 +125,5 @@ func printChangeList(changes []*types.Change, isNoPrompt bool) bool {
 	var input string
 	fmt.Print("Proceed with the changes? [Y/n]: ")
 	fmt.Scan(&input)
-	return input == "Y"
+	return strings.ToUpper(input) == "Y"
 }
