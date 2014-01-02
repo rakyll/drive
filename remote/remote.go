@@ -86,7 +86,7 @@ func (r *Remote) FindByPath(p string) (file *types.File, err error) {
 	if p == "/" {
 		return r.FindById("root")
 	}
-	parts := strings.Split(p, "/")
+	parts := strings.Split(p, "/") // TODO: use path.Split instead
 	return r.findByPathRecv("root", parts[1:])
 }
 
@@ -95,6 +95,7 @@ func (r *Remote) FindByParentId(parentId string) (files []*types.File, err error
 	// TODO: use field selectors
 	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
 	results, err := req.Do()
+	// TODO: handle paging
 	if err != nil {
 		return
 	}
