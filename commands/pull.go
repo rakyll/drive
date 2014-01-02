@@ -34,7 +34,7 @@ const (
 func (g *Commands) Pull() (err error) {
 	var r, l *types.File
 	if r, err = g.rem.FindByPath(g.opts.Path); err != nil {
-		return nil
+		return
 	}
 	absPath := g.context.AbsPathOf(g.opts.Path)
 	localinfo, _ := os.Stat(absPath)
