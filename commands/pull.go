@@ -32,10 +32,6 @@ const (
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
-	if g.context == nil {
-		return ErrNoContext
-	}
-
 	var r, l *types.File
 	if r, err = g.rem.FindByPath(g.opts.Path); err != nil {
 		return nil

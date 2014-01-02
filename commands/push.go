@@ -30,10 +30,6 @@ import (
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
-	if g.context == nil {
-		return ErrNoContext
-	}
-
 	absPath := g.context.AbsPathOf(g.opts.Path)
 	r, err := g.rem.FindByPath(g.opts.Path)
 	if err != nil && err != remote.ErrPathNotExists {
