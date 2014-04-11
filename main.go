@@ -37,11 +37,11 @@ const (
 )
 
 func main() {
-	command.On("init", descInit, &initCmd{})
-	command.On("pull", descPull, &pullCmd{})
-	command.On("push", descPush, &pushCmd{})
-	command.On("diff", descDiff, &diffCmd{})
-	command.On("pub", descPublish, &publishCmd{})
+	command.On("init", descInit, &initCmd{}, []string{})
+	command.On("pull", descPull, &pullCmd{}, []string{})
+	command.On("push", descPush, &pushCmd{}, []string{})
+	command.On("diff", descDiff, &diffCmd{}, []string{})
+	command.On("pub", descPublish, &publishCmd{}, []string{})
 	command.ParseAndRun()
 }
 
