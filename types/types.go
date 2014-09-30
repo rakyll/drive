@@ -35,6 +35,7 @@ type File struct {
 	ModTime time.Time
 	Size    int64
 	BlobAt  string
+	AltLink string
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -47,6 +48,7 @@ func NewRemoteFile(f *drive.File) *File {
 		ModTime: mtime,
 		Size:    f.FileSize,
 		BlobAt:  f.DownloadUrl,
+		AltLink: f.AlternateLink,
 	}
 }
 
