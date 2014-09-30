@@ -113,12 +113,16 @@ func (r *Remote) Trash(id string) error {
 }
 
 func (r *Remote) Publish(id string) (string, error) {
-	perm := &drive.Permission{Type: "anyone", Role: "reader"}
+	perm := &drive.Permission{Type: "anyone", Role: "reader", WithLink: true}
 	_, err := r.service.Permissions.Insert(id, perm).Do()
 	if err != nil {
 		return "", err
 	}
-	return "https://googledrive.com/host/" + id, nil
+	file, err := r.FindById(id)
+	if err != nil {
+		return "", err
+	}
+	return file.AltLink, nil
 }
 
 func (r *Remote) Download(id string) (io.ReadCloser, error) {
