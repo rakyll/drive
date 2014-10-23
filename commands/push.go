@@ -30,27 +30,9 @@ import (
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
-	absPath := g.context.AbsPathOf(g.opts.Path)
-	r, err := g.rem.FindByPath(g.opts.Path)
-	if err != nil && err != remote.ErrPathNotExists {
-		return err
-	}
 
-	var l *types.File
-	localinfo, _ := os.Stat(absPath)
-	if localinfo != nil {
-		l = types.NewLocalFile(absPath, localinfo)
-	}
+	fmt.Println("Don't push !")
 
-	fmt.Println("Resolving...")
-	var cl []*types.Change
-	if cl, err = g.resolveChangeListRecv(true, g.opts.Path, r, l); err != nil {
-		return err
-	}
-
-	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
-		return g.playPushChangeList(cl)
-	}
 	return
 }
 
