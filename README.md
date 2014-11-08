@@ -47,7 +47,6 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 ## Known issues
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
-* Weak file comparison, we only encounter lastMod and file size to determine if a file has modified. Md5 digest should be a part of the comparison.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 
 ## License
