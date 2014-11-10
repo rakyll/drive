@@ -15,8 +15,11 @@
 package types
 
 import (
+	"io"
 	"os"
+	"fmt"
 	"time"
+	"crypto/md5"
 
 	drive "code.google.com/p/google-api-go-client/drive/v2"
 )
@@ -29,24 +32,26 @@ const (
 )
 
 type File struct {
-	Id      string
-	Name    string
-	IsDir   bool
-	ModTime time.Time
-	Size    int64
-	BlobAt  string
+	Id          string
+	Name        string
+	IsDir       bool
+	ModTime     time.Time
+	Size        int64
+	BlobAt      string
+	Md5Checksum string
 }
 
 func NewRemoteFile(f *drive.File) *File {
 	mtime, _ := time.Parse("2006-01-02T15:04:05.000Z", f.ModifiedDate)
 	mtime = mtime.Round(time.Second)
 	return &File{
-		Id:      f.Id,
-		Name:    f.Title,
-		IsDir:   f.MimeType == "application/vnd.google-apps.folder",
-		ModTime: mtime,
-		Size:    f.FileSize,
-		BlobAt:  f.DownloadUrl,
+		Id:           f.Id,
+		Name:         f.Title,
+		IsDir:        f.MimeType == "application/vnd.google-apps.folder",
+		ModTime:      mtime,
+		Size:         f.FileSize,
+		BlobAt:       f.DownloadUrl,
+		Md5Checksum:  f.Md5Checksum,
 	}
 }
 
@@ -81,6 +86,29 @@ func (c *Change) Symbol() string {
 	}
 }
 
+func md5Checksum(f *File) string {
+	if f == nil || f.IsDir {
+		return ""
+	}
+	if f.Md5Checksum != "" {
+		return f.Md5Checksum
+	}
+
+	fh, err := os.Open(f.BlobAt)
+
+	if err != nil {
+		return ""
+	}
+	defer fh.Close()
+
+	h := md5.New()
+	_, err = io.Copy(h, fh)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 func (c *Change) Op() int {
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
@@ -96,9 +124,17 @@ func (c *Change) Op() int {
 	}
 
 	if !c.Src.IsDir {
-		// if it's a regular file, see it it's modified
-		// TODO: handle the case optionally looking at the md5 checksum
+		// if it's a regular file, see it it's modified.
+		// If the first test passes then do an Md5 checksum comparison
+
 		if c.Src.Size != c.Dest.Size || !c.Src.ModTime.Equal(c.Dest.ModTime) {
+			return OpMod
+		}
+
+		ssum := md5Checksum(c.Src)
+		dsum := md5Checksum(c.Dest)
+
+		if dsum != ssum {
 			return OpMod
 		}
 	}
