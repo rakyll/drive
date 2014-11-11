@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package types
+package drive
 
 import (
+	"crypto/md5"
+	"fmt"
 	"io"
 	"os"
-	"fmt"
 	"time"
-	"crypto/md5"
 
 	drive "code.google.com/p/google-api-go-client/drive/v2"
 )
@@ -45,13 +45,13 @@ func NewRemoteFile(f *drive.File) *File {
 	mtime, _ := time.Parse("2006-01-02T15:04:05.000Z", f.ModifiedDate)
 	mtime = mtime.Round(time.Second)
 	return &File{
-		Id:           f.Id,
-		Name:         f.Title,
-		IsDir:        f.MimeType == "application/vnd.google-apps.folder",
-		ModTime:      mtime,
-		Size:         f.FileSize,
-		BlobAt:       f.DownloadUrl,
-		Md5Checksum:  f.Md5Checksum,
+		Id:          f.Id,
+		Name:        f.Title,
+		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
+		ModTime:     mtime,
+		Size:        f.FileSize,
+		BlobAt:      f.DownloadUrl,
+		Md5Checksum: f.Md5Checksum,
 	}
 }
 

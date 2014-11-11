@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package remote
+package drive
 
 import (
 	"errors"
@@ -25,7 +25,6 @@ import (
 	"code.google.com/p/goauth2/oauth"
 	drive "code.google.com/p/google-api-go-client/drive/v2"
 	"github.com/rakyll/drive/config"
-	"github.com/rakyll/drive/types"
 )
 
 const (
@@ -52,7 +51,7 @@ type Remote struct {
 	service   *drive.Service
 }
 
-func New(context *config.Context) *Remote {
+func NewRemoteContext(context *config.Context) *Remote {
 	transport := newTransport(context)
 	service, _ := drive.New(transport.Client())
 	return &Remote{service: service, transport: transport}
@@ -73,16 +72,16 @@ func RetrieveRefreshToken(context *config.Context) (string, error) {
 	return token.RefreshToken, nil
 }
 
-func (r *Remote) FindById(id string) (file *types.File, err error) {
+func (r *Remote) FindById(id string) (file *File, err error) {
 	req := r.service.Files.Get(id)
 	var f *drive.File
 	if f, err = req.Do(); err != nil {
 		return
 	}
-	return types.NewRemoteFile(f), nil
+	return NewRemoteFile(f), nil
 }
 
-func (r *Remote) FindByPath(p string) (file *types.File, err error) {
+func (r *Remote) FindByPath(p string) (file *File, err error) {
 	if p == "/" {
 		return r.FindById("root")
 	}
@@ -90,7 +89,7 @@ func (r *Remote) FindByPath(p string) (file *types.File, err error) {
 	return r.findByPathRecv("root", parts[1:])
 }
 
-func (r *Remote) FindByParentId(parentId string) (files []*types.File, err error) {
+func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
 	req := r.service.Files.List()
 	// TODO: use field selectors
 	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
@@ -101,7 +100,7 @@ func (r *Remote) FindByParentId(parentId string) (files []*types.File, err error
 	}
 	for _, f := range results.Items {
 		if !strings.HasPrefix(f.Title, ".") { // ignore hidden files
-			files = append(files, types.NewRemoteFile(f))
+			files = append(files, NewRemoteFile(f))
 		}
 	}
 	return
@@ -129,7 +128,7 @@ func (r *Remote) Download(id string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (r *Remote) Upsert(parentId string, file *types.File, body io.Reader) (f *types.File, err error) {
+func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, err error) {
 	uploaded := &drive.File{
 		Title:   file.Name,
 		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
@@ -146,7 +145,7 @@ func (r *Remote) Upsert(parentId string, file *types.File, body io.Reader) (f *t
 		if uploaded, err = req.Do(); err != nil {
 			return
 		}
-		return types.NewRemoteFile(uploaded), nil
+		return NewRemoteFile(uploaded), nil
 	}
 	// update the existing
 	req := r.service.Files.Update(file.Id, uploaded)
@@ -156,10 +155,10 @@ func (r *Remote) Upsert(parentId string, file *types.File, body io.Reader) (f *t
 	if uploaded, err = req.Do(); err != nil {
 		return
 	}
-	return types.NewRemoteFile(uploaded), nil
+	return NewRemoteFile(uploaded), nil
 }
 
-func (r *Remote) findByPathRecv(parentId string, p []string) (file *types.File, err error) {
+func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
 	// TODO: use field selectors
@@ -169,7 +168,7 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *types.File, 
 		// TODO: make sure only 404s are handled here
 		return nil, ErrPathNotExists
 	}
-	file = types.NewRemoteFile(files.Items[0])
+	file = NewRemoteFile(files.Items[0])
 	if len(p) == 1 {
 		return file, nil
 	}

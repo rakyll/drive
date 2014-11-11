@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package drive
 
 import (
 	"errors"
@@ -20,7 +20,6 @@ import (
 
 	"github.com/cheggaaa/pb"
 	"github.com/rakyll/drive/config"
-	"github.com/rakyll/drive/remote"
 )
 
 var (
@@ -36,16 +35,16 @@ type Options struct {
 
 type Commands struct {
 	context *config.Context
-	rem     *remote.Remote
+	rem     *Remote
 	opts    *Options
 
 	progress *pb.ProgressBar
 }
 
 func New(context *config.Context, opts *Options) *Commands {
-	var r *remote.Remote
+	var r *Remote
 	if context != nil {
-		r = remote.New(context)
+		r = NewRemoteContext(context)
 	}
 	if opts != nil {
 		// should always start with /

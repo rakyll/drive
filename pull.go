@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package drive
 
 import (
 	"fmt"
@@ -20,8 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/rakyll/drive/types"
 )
 
 const (
@@ -32,17 +30,17 @@ const (
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
-	var r, l *types.File
+	var r, l *File
 	if r, err = g.rem.FindByPath(g.opts.Path); err != nil {
 		return
 	}
 	absPath := g.context.AbsPathOf(g.opts.Path)
 	localinfo, _ := os.Stat(absPath)
 	if localinfo != nil {
-		l = types.NewLocalFile(absPath, localinfo)
+		l = NewLocalFile(absPath, localinfo)
 	}
 
-	var cl []*types.Change
+	var cl []*Change
 	fmt.Println("Resolving...")
 	if cl, err = g.resolveChangeListRecv(false, g.opts.Path, r, l); err != nil {
 		return
@@ -54,15 +52,15 @@ func (g *Commands) Pull() (err error) {
 	return
 }
 
-func (g *Commands) playPullChangeList(cl []*types.Change) (err error) {
-	var next []*types.Change
+func (g *Commands) playPullChangeList(cl []*Change) (err error) {
+	var next []*Change
 	g.taskStart(len(cl))
 
 	for {
 		if len(cl) > maxNumOfConcPullTasks {
 			next, cl = cl[:maxNumOfConcPullTasks], cl[maxNumOfConcPullTasks:len(cl)]
 		} else {
-			next, cl = cl, []*types.Change{}
+			next, cl = cl, []*Change{}
 		}
 		if len(next) == 0 {
 			break
@@ -73,11 +71,11 @@ func (g *Commands) playPullChangeList(cl []*types.Change) (err error) {
 		// TODO: add timeouts
 		for _, c := range next {
 			switch c.Op() {
-			case types.OpMod:
+			case OpMod:
 				go g.localMod(&wg, c)
-			case types.OpAdd:
+			case OpAdd:
 				go g.localAdd(&wg, c)
-			case types.OpDelete:
+			case OpDelete:
 				go g.localDelete(&wg, c)
 			}
 		}
@@ -88,7 +86,7 @@ func (g *Commands) playPullChangeList(cl []*types.Change) (err error) {
 	return err
 }
 
-func (g *Commands) localMod(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localMod(wg *sync.WaitGroup, change *Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -101,7 +99,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *types.Change) (err error
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Commands) localAdd(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
@@ -119,13 +117,13 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *types.Change) (err error
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Commands) localDelete(wg *sync.WaitGroup, change *types.Change) (err error) {
+func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 
-func (g *Commands) download(change *types.Change) (err error) {
+func (g *Commands) download(change *Change) (err error) {
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	var fo *os.File
 	fo, err = os.Create(destAbsPath)

@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package drive
 
 import (
 	"fmt"
-
-	"github.com/rakyll/drive/types"
 )
 
 func (c *Commands) Publish() (err error) {
-	var file *types.File
+	var file *File
 	var link string
 	if file, err = c.rem.FindByPath(c.opts.Path); err != nil {
 		return

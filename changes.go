@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package drive
 
 import (
 	"fmt"
 	"path"
-	"sync"
 	"strings"
-
-	"github.com/rakyll/drive/types"
+	"sync"
 )
 
 type dirList struct {
-	remote *types.File
-	local  *types.File
+	remote *File
+	local  *File
 }
 
 func (d *dirList) Name() string {
@@ -36,14 +34,14 @@ func (d *dirList) Name() string {
 }
 
 func (g *Commands) resolveChangeListRecv(
-	isPush bool, p string, r *types.File, l *types.File) (cl []*types.Change, err error) {
-	var change *types.Change
+	isPush bool, p string, r *File, l *File) (cl []*Change, err error) {
+	var change *Change
 	if isPush {
-		change = &types.Change{Path: p, Src: l, Dest: r}
+		change = &Change{Path: p, Src: l, Dest: r}
 	} else {
-		change = &types.Change{Path: p, Src: r, Dest: l}
+		change = &Change{Path: p, Src: r, Dest: l}
 	}
-	if change.Op() != types.OpNone {
+	if change.Op() != OpNone {
 		cl = append(cl, change)
 	}
 	if !g.opts.IsRecursive {
@@ -59,7 +57,7 @@ func (g *Commands) resolveChangeListRecv(
 	}
 
 	// look-up for children
-	var localChildren []*types.File
+	var localChildren []*File
 	if l != nil {
 		localChildren, err = list(g.context, p)
 		if err != nil {
@@ -67,7 +65,7 @@ func (g *Commands) resolveChangeListRecv(
 		}
 	}
 
-	var remoteChildren []*types.File
+	var remoteChildren []*File
 	if r != nil {
 		if remoteChildren, err = g.rem.FindByParentId(r.Id); err != nil {
 			return
@@ -79,7 +77,7 @@ func (g *Commands) resolveChangeListRecv(
 	var wg sync.WaitGroup
 	wg.Add(len(dirlist))
 	for _, l := range dirlist {
-		go func(wg *sync.WaitGroup, isPush bool, cl *[]*types.Change, p string, l *dirList) {
+		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, l *dirList) {
 			defer wg.Done()
 			childChanges, _ := g.resolveChangeListRecv(isPush, path.Join(p, l.Name()), l.remote, l.local)
 			*cl = append(*cl, childChanges...)
@@ -89,7 +87,7 @@ func (g *Commands) resolveChangeListRecv(
 	return cl, nil
 }
 
-func merge(remotes, locals []*types.File) (merged []*dirList) {
+func merge(remotes, locals []*File) (merged []*dirList) {
 	for _, r := range remotes {
 		list := &dirList{remote: r}
 		// look for local
@@ -109,9 +107,9 @@ func merge(remotes, locals []*types.File) (merged []*dirList) {
 	return
 }
 
-func printChangeList(changes []*types.Change, isNoPrompt bool) bool {
+func printChangeList(changes []*Change, isNoPrompt bool) bool {
 	for _, c := range changes {
-		if c.Op() != types.OpNone {
+		if c.Op() != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
 	}

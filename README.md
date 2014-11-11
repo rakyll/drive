@@ -6,11 +6,11 @@
 
 ## Installation
 
-    go get github.com/rakyll/drive
+    go get github.com/rakyll/drive/cmd/drive
 
 Use `drive help` for further reference.
 
-	$ drive init [path] 
+	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive diff [path] # outputs a diff of local and remote
@@ -27,7 +27,7 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 
 `drive` is not a sync deamon, it provides:
 
-* Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. User has opportunity to decide what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt. 
+* Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. User has opportunity to decide what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt.
 
 	    $ echo "hello" > hello.txt
 	    $ drive push # pushes hello.txt to Google Drive

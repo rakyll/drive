@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package drive
 
-func (g *Commands) Diff() error {
-	panic("not implemented")
-	return nil
+func (g *Commands) Init() (err error) {
+	var refresh string
+	// TODO: read from env variable.
+	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
+	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
+	if refresh, err = RetrieveRefreshToken(g.context); err != nil {
+		return
+	}
+	g.context.RefreshToken = refresh
+	err = g.context.Write()
+	return
 }

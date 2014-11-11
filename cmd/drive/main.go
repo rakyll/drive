@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/rakyll/command"
-	"github.com/rakyll/drive/commands"
+	"github.com/rakyll/drive"
 	"github.com/rakyll/drive/config"
 )
 
@@ -52,7 +52,7 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *initCmd) Run(args []string) {
-	exitWithError(commands.New(initContext(args), nil).Init())
+	exitWithError(drive.New(initContext(args), nil).Init())
 }
 
 type pullCmd struct {
@@ -68,7 +68,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *pullCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(commands.New(context, &commands.Options{
+	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -88,7 +88,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *pushCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(commands.New(context, &commands.Options{
+	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
@@ -103,7 +103,7 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *diffCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(commands.New(context, &commands.Options{
+	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
 	}).Diff())
 }
@@ -116,7 +116,7 @@ func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *publishCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exitWithError(commands.New(context, &commands.Options{
+	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
 	}).Publish())
 }
