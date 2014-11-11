@@ -31,6 +31,8 @@ type Options struct {
 	IsNoPrompt  bool
 	IsRecursive bool
 	IsForce     bool
+	// Hidden discovers hidden paths if set
+	Hidden      bool
 }
 
 type Commands struct {
@@ -44,6 +46,7 @@ type Commands struct {
 func New(context *config.Context, opts *Options) *Commands {
 	var r *Remote
 	if context != nil {
+		context.Hidden = opts.Hidden
 		r = NewRemoteContext(context)
 	}
 	if opts != nil {

@@ -109,8 +109,7 @@ func list(context *config.Context, path string) (files []*File, err error) {
 		return
 	}
 	for _, file := range f {
-		// ignore hidden files
-		if !strings.HasPrefix(file.Name(), ".") {
+		if  context.Hidden || !strings.HasPrefix(file.Name(), ".") {
 			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
 		}
 	}
