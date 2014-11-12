@@ -76,13 +76,15 @@ func (cmd *pullCmd) Run(args []string) {
 }
 
 type pushCmd struct {
-	isRecursive *bool
+	hidden      *bool
 	isNoPrompt  *bool
+	isRecursive *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
 	return fs
 }
 
@@ -90,8 +92,9 @@ func (cmd *pushCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
-		IsRecursive: *cmd.isRecursive,
+		Hidden:      *cmd.hidden,
 		IsNoPrompt:  *cmd.isNoPrompt,
+		IsRecursive: *cmd.isRecursive,
 	}).Push())
 }
 
