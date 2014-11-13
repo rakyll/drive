@@ -59,7 +59,7 @@ func (g *Commands) resolveChangeListRecv(
 	// look-up for children
 	var localChildren []*File
 	if l != nil {
-		localChildren, err = list(g.context, p)
+		localChildren, err = list(g.context, p, g.opts.Hidden)
 		if err != nil {
 			return
 		}

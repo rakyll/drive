@@ -84,8 +84,10 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	var body *os.File
 	if !change.Src.IsDir {
-		// TODO: handle errors, read more efficiently for large files
-		body, _ = os.Open(absPath)
+		body, err = os.Open(absPath)
+		if err != nil {
+			return err
+		}
 	}
 	if updated, err = g.rem.Upsert(parent.Id, change.Src, body); err != nil {
 		return
@@ -102,14 +104,14 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return g.rem.Trash(change.Dest.Id)
 }
 
-func list(context *config.Context, path string) (files []*File, err error) {
+func list(context *config.Context, path string, hidden bool) (files []*File, err error) {
 	absPath := context.AbsPathOf(path)
 	var f []os.FileInfo
 	if f, err = ioutil.ReadDir(absPath); err != nil {
 		return
 	}
 	for _, file := range f {
-		if  context.Hidden || !strings.HasPrefix(file.Name(), ".") {
+		if hidden || !strings.HasPrefix(file.Name(), ".") {
 			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
 		}
 	}

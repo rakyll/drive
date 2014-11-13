@@ -27,8 +27,6 @@ type Context struct {
 	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`
 	AbsPath      string `json:"-"`
-	// Hidden discovers hidden paths if set
-	Hidden       bool
 }
 
 func (c *Context) AbsPathOf(fileOrDirPath string) string {
