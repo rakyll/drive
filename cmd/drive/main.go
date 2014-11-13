@@ -56,13 +56,15 @@ func (cmd *initCmd) Run(args []string) {
 }
 
 type pullCmd struct {
-	isRecursive *bool
-	isNoPrompt  *bool
+	isRecursive    *bool
+	isNoPrompt     *bool
+	exportOnBackup *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
+	cmd.exportOnBackup = fs.Bool("export", false, "export your docs + sheets files")
 	return fs
 }
 
@@ -72,6 +74,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Path:        path,
 		IsRecursive: *cmd.isRecursive,
 		IsNoPrompt:  *cmd.isNoPrompt,
+		ExportOnBackup: *cmd.exportOnBackup,
 	}).Pull())
 }
 

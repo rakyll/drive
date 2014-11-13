@@ -120,8 +120,14 @@ func (r *Remote) Publish(id string) (string, error) {
 	return "https://googledrive.com/host/" + id, nil
 }
 
-func (r *Remote) Download(id string) (io.ReadCloser, error) {
-	resp, err := r.transport.Client().Get("https://googledrive.com/host/" + id)
+func (r *Remote) Download(id string, exportUrl string) (io.ReadCloser, error) {
+	var url string
+	if len(exportUrl) < 1 {
+		url = "https://googledrive.com/host/" + id
+	} else {
+		url = exportUrl
+	}
+	resp, err := r.transport.Client().Get(url)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return resp.Body, err
 	}
