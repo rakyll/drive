@@ -15,7 +15,6 @@
 package drive
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	gopath "path"
@@ -24,32 +23,11 @@ import (
 	"github.com/rakyll/drive/config"
 )
 
-// Pushes to remote if local path exists and in a god context. If path is a
+// Pushes to remote if local path exists and in a gd context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
-	absPath := g.context.AbsPathOf(g.opts.Path)
-	r, err := g.rem.FindByPath(g.opts.Path)
-	if err != nil && err != ErrPathNotExists {
-		return err
-	}
-
-	var l *File
-	localinfo, _ := os.Stat(absPath)
-	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
-	}
-
-	fmt.Println("Resolving...")
-	var cl []*Change
-	if cl, err = g.resolveChangeListRecv(true, g.opts.Path, r, l); err != nil {
-		return err
-	}
-
-	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
-		return g.playPushChangeList(cl)
-	}
-	return
+	return g.syncByRelativePath(true)
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
