@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	gopath "path"
 	"strings"
 
@@ -29,20 +30,38 @@ import (
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
 	absPath := g.context.AbsPathOf(g.opts.Path)
-	r, err := g.rem.FindByPath(g.opts.Path)
-	if err != nil && err != ErrPathNotExists {
-		return err
+	root := g.context.AbsPathOf("")
+	relPath := ""
+	if absPath != root {
+		if relPath, err = filepath.Rel(root, absPath); err != nil {
+			return
+		}
+	} else {
+		var cwd string
+		if cwd, err = os.Getwd(); err != nil {
+			return
+		}
+		if cwd == root {
+			relPath = ""
+		} else if relPath, err = filepath.Rel(root, cwd); err != nil {
+			return
+		}
 	}
+     
+	relPath = strings.Join([]string{"", relPath}, "/")
 
-	var l *File
+	var r, l *File
+	if r, err = g.rem.FindByPath(relPath); err != nil {
+		return
+	}
 	localinfo, _ := os.Stat(absPath)
 	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
+		l = NewLocalFile(relPath, localinfo)
 	}
 
 	fmt.Println("Resolving...")
 	var cl []*Change
-	if cl, err = g.resolveChangeListRecv(true, g.opts.Path, r, l); err != nil {
+	if cl, err = g.resolveChangeListRecv(true, relPath, r, l); err != nil {
 		return err
 	}
 
