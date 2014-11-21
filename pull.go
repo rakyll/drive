@@ -15,11 +15,9 @@
 package drive
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -31,44 +29,7 @@ const (
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
-	absPath := g.context.AbsPathOf(g.opts.Path)
-	root := g.context.AbsPathOf("")
-	relPath := ""
-	if absPath != root {
-		if relPath, err = filepath.Rel(root, absPath); err != nil {
-			return
-		}
-	} else {
-		var cwd string
-		if cwd, err = os.Getwd(); err != nil {
-			return
-		}
-		if cwd == root {
-			relPath = ""
-		} else if relPath, err = filepath.Rel(root, cwd); err != nil {
-			return
-		}
-	}
-     
-	relPath = strings.Join([]string{"", relPath}, "/")
-	var r, l *File
-	if r, err = g.rem.FindByPath(relPath); err != nil {
-		return
-	}
-	localinfo, _ := os.Stat(absPath)
-	if localinfo != nil {
-		l = NewLocalFile(relPath, localinfo)
-	}
-
-	var cl []*Change
-	fmt.Println("Resolving...")
-	if cl, err = g.resolveChangeListRecv(false, relPath, r, l); err != nil {
-		return
-	}
-
-	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
-		return g.playPullChangeList(cl)
-	}
+	err = g.relativePathResolve(false)
 	return
 }
 
