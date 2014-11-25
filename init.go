@@ -14,11 +14,13 @@
 
 package drive
 
+import "os"
+
 func (g *Commands) Init() (err error) {
 	var refresh string
 	// TODO: read from env variable.
-	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
-	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
+	g.context.ClientId = os.Getenv("GOOGLE_API_CLIENT_ID")
+	g.context.ClientSecret = os.Getenv("GOOGLE_API_CLIENT_SECRET")
 	if refresh, err = RetrieveRefreshToken(g.context); err != nil {
 		return
 	}
