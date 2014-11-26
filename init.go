@@ -14,13 +14,31 @@
 
 package drive
 
-import "os"
+import (
+    "os"
+    "errors"
+)
+
+const (
+	clientIdEnvKey = "GOOGLE_API_CLIENT_ID"
+	clientSecretEnvKey = "GOOGLE_API_CLIENT_SECRET"
+)
 
 func (g *Commands) Init() (err error) {
 	var refresh string
-	// TODO: read from env variable.
-	g.context.ClientId = os.Getenv("GOOGLE_API_CLIENT_ID")
-	g.context.ClientSecret = os.Getenv("GOOGLE_API_CLIENT_SECRET")
+
+	g.context.ClientId = os.Getenv(clientIdEnvKey)
+    if len(g.context.ClientId) == 0 {
+        err = errors.New("environment variable " + clientIdEnvKey + " must be set")
+        return
+    }
+
+	g.context.ClientSecret = os.Getenv(clientSecretEnvKey)
+    if len(g.context.ClientSecret) == 0 {
+        err = errors.New("environment variable " + clientSecretEnvKey + " must be set")
+        return
+    }
+
 	if refresh, err = RetrieveRefreshToken(g.context); err != nil {
 		return
 	}

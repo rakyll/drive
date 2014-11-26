@@ -8,6 +8,8 @@
 
     go get github.com/rakyll/drive/cmd/drive
 
+You must set `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` appropriately in your environment before running `drive`.  For more information, see [the Google API docs](https://developers.google.com/drive/web/quickstart/quickstart-go#step_1_enable_the_drive_api).
+
 Use `drive help` for further reference.
 
 	$ drive init [path]
