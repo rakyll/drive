@@ -36,11 +36,11 @@ func (d *dirList) Name() string {
 }
 
 // Resolves the local path relative to the root directory
-// then performs either Push or Pull depending on 'isPush'
-func (g *Commands) syncByRelativePath(isPush bool) (err error) {
+// Returns the path relative to the remote, the abspath on disk and an error if any
+func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	root := g.context.AbsPathOf("")
-	absPath := g.context.AbsPathOf(g.opts.Path)
-	relPath := ""
+	absPath = g.context.AbsPathOf(g.opts.Path)
+	relPath= ""
 
 	if absPath != root {
 		if relPath, err = filepath.Rel(root, absPath); err != nil {
@@ -59,6 +59,17 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 	}
      
 	relPath = strings.Join([]string{"", relPath}, "/")
+	return 
+}
+    
+// Resolves the local path relative to the root directory
+// then performs either Push or Pull depending on 'isPush'
+func (g *Commands) syncByRelativePath(isPush bool) (err error) {
+	var relPath, absPath string
+	relPath, absPath, err = g.pathResolve()
+	if err != nil {
+		return
+	}
 	var r, l *File
 	if r, err = g.rem.FindByPath(relPath); err != nil {
 		// We cannot pull from a non-existant remote
