@@ -120,8 +120,8 @@ func printChangeList(changes []*Change, isNoPrompt bool) bool {
 	if isNoPrompt {
 		return true
 	}
-	var input string
+	input := "Y"
 	fmt.Print("Proceed with the changes? [Y/n]: ")
-	fmt.Scan(&input)
+	fmt.Scanln(&input)
 	return strings.ToUpper(input) == "Y"
 }
