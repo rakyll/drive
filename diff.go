@@ -69,7 +69,7 @@ func (g *Commands) Diff() (err error) {
 	if localinfo != nil {
 		l = NewLocalFile(absPath, localinfo)
 	}
-	if isSame(r, l) {
+	if isSameFile(r, l) {
 		fmt.Println("Everything is up-to-date.")
 		return nil
 	}
@@ -122,36 +122,38 @@ func (g *Commands) Diff() (err error) {
 	diff := difflib.Diff([]string{lBuffer}, []string{rBuffer})
 
 	// In an ideal world, they should already be merged.
+	// Otherwise we could use the clause below.
 	ldiff, rdiff := diff[0], diff[1]
 	if ldiff.Payload != rdiff.Payload {
 		fmt.Println(ldiff, rdiff)
 	}
     
 	/*
-	// Expecting one array with two elements, remote and local
+	// Expecting one array with two elements, local & remote
 	localChanges := diff[0]
 	remoteChanges := diff[1]
-	var i uint64
+	var i, j uint64
 	llen, rlen := len(localChanges), len(remoteChanges)
-	for i = 0; i < llen; i++ {
+	for i = j = 0; i < llen; i++ {
 		lline, rline := "", ""
-		if i < rlen {
-			rline = remoteChanges[i]
+		if j < rlen {
+			rline = remoteChanges[j]
+			j++
 		}
-		lline = localChanges[il]
+		lline = localChanges[i]
 		if lline != rline {
 			fmt.Println(lline)
 			fmt.Println(rline)
 		}
 	}
 
-	ir := i
 	for i = i; i < llen; i++ {
 		fmt.Print(localChanges[i])
 	}
-	for ir = ir; ir < rlen; ir++ {
-		fmt.Print(remoteChanges[ir])
+	for j = j; ir < rlen; j++ {
+		fmt.Print(remoteChanges[j])
 	}
 	*/
+
 	return
 }

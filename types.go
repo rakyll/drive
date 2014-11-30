@@ -111,7 +111,7 @@ func md5Checksum(f *File) string {
 
 // if it's a regular file, see it it's modified.
 // If the first test passes, then do an Md5 checksum comparison
-func isSame(src, dest *File) bool {
+func isSameFile(src, dest *File) bool {
 	if src.Size != dest.Size || !src.ModTime.Equal(dest.ModTime) {
 		return false
 	}
@@ -140,7 +140,7 @@ func (c *Change) Op() int {
 	}
 
 	if !c.Src.IsDir {
-		if !isSame(c.Src, c.Dest) {
+		if !isSameFile(c.Src, c.Dest) {
 			return OpMod
 		}
 	}
