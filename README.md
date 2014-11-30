@@ -17,6 +17,8 @@ Use `drive help` for further reference.
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive publish [path] # publishes a file, outputs URL
 
+To use your own Google Drive API credentials instead of the built-in credentials, set `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` appropriately in your environment before running `drive init`.  See [the Google API docs](https://developers.google.com/drive/web/quickstart/quickstart-go#step_1_enable_the_drive_api) for more information.
+
 ## Why another Google Drive client?
 Background sync is not just hard, it's stupid. My technical and philosophical rants about why it is not worth to implement:
 

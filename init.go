@@ -14,11 +14,23 @@
 
 package drive
 
+import "os"
+
+const (
+	clientIDEnvKey = "GOOGLE_API_CLIENT_ID"
+	clientSecretEnvKey = "GOOGLE_API_CLIENT_SECRET"
+)
+
 func (g *Commands) Init() (err error) {
 	var refresh string
-	// TODO: read from env variable.
-	g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
-	g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
+
+	g.context.ClientId = os.Getenv(clientIDEnvKey)
+	g.context.ClientSecret = os.Getenv(clientSecretEnvKey)
+	if len(g.context.ClientId) == 0 || len(g.context.ClientSecret) == 0 {
+		g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
+		g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
+	}
+
 	if refresh, err = RetrieveRefreshToken(g.context); err != nil {
 		return
 	}
