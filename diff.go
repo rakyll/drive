@@ -18,14 +18,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/aryann/difflib"
+	diffmp "github.com/sergi/go-diff/diffmatchpatch"
 )
 
-func readIntoBuffer(abspath string) (buf string, err error) {
+func fsFileToString(abspath string) (buf string, err error) {
 	var finfo os.FileInfo
 
 	finfo, err = os.Stat(abspath)
@@ -44,12 +44,11 @@ func readIntoBuffer(abspath string) (buf string, err error) {
 		return
 	}
 	bbuf := make([]byte, finfo.Size())
-	n := 0
-	n, err = fh.Read(bbuf)
+	_, err = fh.Read(bbuf)
 	if err != nil {
 		return
 	}
-	buf = string(bbuf[:n])
+	buf = string(bbuf)
 	return
 }
 
@@ -95,10 +94,10 @@ func (g *Commands) Diff() (err error) {
 		return err
 	}
 
-	// Next step will be to a temp file with an obscure name unlikely to clash.
+	// Next step: Create a temp file with an obscure name unlikely to clash.
 	tmpName := strings.Join([]string {
 		".",
-		fmt.Sprintf("tmp%vtmp", time.Now()),
+		fmt.Sprintf("tmp%v.tmp", rand.Int()),
 	}, "x")
 
 	frTmp, err = ioutil.TempFile(".", tmpName)
@@ -110,50 +109,18 @@ func (g *Commands) Diff() (err error) {
 		return
 	}
 	var rBuffer, lBuffer string
-	rBuffer, err = readIntoBuffer(frTmp.Name())
+	rBuffer, err = fsFileToString(frTmp.Name())
 	if err != nil {
 		return
 	}
-	lBuffer, err = readIntoBuffer(l.BlobAt)
+	lBuffer, err = fsFileToString(l.BlobAt)
 	if err != nil {
 		return
 	}
 
-	diff := difflib.Diff([]string{lBuffer}, []string{rBuffer})
-
-	// In an ideal world, they should already be merged.
-	// Otherwise we could use the clause below.
-	ldiff, rdiff := diff[0], diff[1]
-	if ldiff.Payload != rdiff.Payload {
-		fmt.Println(ldiff, rdiff)
-	}
-    
-	/*
-	// Expecting one array with two elements, local & remote
-	localChanges := diff[0]
-	remoteChanges := diff[1]
-	var i, j uint64
-	llen, rlen := len(localChanges), len(remoteChanges)
-	for i = j = 0; i < llen; i++ {
-		lline, rline := "", ""
-		if j < rlen {
-			rline = remoteChanges[j]
-			j++
-		}
-		lline = localChanges[i]
-		if lline != rline {
-			fmt.Println(lline)
-			fmt.Println(rline)
-		}
-	}
-
-	for i = i; i < llen; i++ {
-		fmt.Print(localChanges[i])
-	}
-	for j = j; ir < rlen; j++ {
-		fmt.Print(remoteChanges[j])
-	}
-	*/
+	diffo := diffmp.New()
+	patches := diffo.PatchMake(lBuffer, rBuffer)
+	fmt.Println("diffp", diffo.PatchToText(patches))
 
 	return
 }
