@@ -25,6 +25,10 @@ import (
 	diffmp "github.com/sergi/go-diff/diffmatchpatch"
 )
 
+// MaxFileSize is the max number of bytes we
+// can accept for diffing (Arbitrary value)
+const MaxFileSize = 70 * 1024 * 1024
+
 func fsFileToString(abspath string) (buf string, err error) {
 	var finfo os.FileInfo
 
@@ -59,18 +63,53 @@ func (g *Commands) Diff() (err error) {
 		return
 	}
 	var r, l *File
-	if r, err = g.rem.FindByPath(relPath); err != nil {
-		// We cannot diff a non-existant remote
-		fmt.Println("Local is a new file")
-        return
+
+	r, err = g.rem.FindByPath(relPath)
+	if err != nil || r == nil {
+		return
 	}
-	localinfo, err  := os.Stat(absPath)
+	var localinfo os.FileInfo
+	localinfo, err = os.Stat(absPath)
+	if err != nil || localinfo == nil {
+		return
+	}
 	if localinfo != nil {
 		l = NewLocalFile(absPath, localinfo)
 	}
+
+	// Pre-screening phase
+	if r.IsDir {
+		if l.IsDir {
+			fmt.Println("Both local and remote are directories")
+		} else {
+			fmt.Println("Remote is a directory while local is an ordinary file")
+		}
+		return
+	}
+	if l.IsDir {
+		if r.IsDir {
+			fmt.Println("Both local and remote are directories")
+		} else {
+			fmt.Println("Local is a directory while remote is an ordinary file")
+		}
+		return
+	}
+
+	if r.BlobAt == "" {
+		return fmt.Errorf("Could not find remote: '%v'", r.Name)
+	}
 	if isSameFile(r, l) {
-		fmt.Println("Everything is up-to-date.")
+		// No output when "no changes found"
 		return nil
+	}
+
+	if r.Size > MaxFileSize {
+		return fmt.Errorf(
+			"Remote too large for display \033[94m[%v bytes]\033[00m", r.Size)
+	}
+	if l.Size > MaxFileSize {
+		return fmt.Errorf(
+			"Local too large for display \033[92m[%v bytes]\033[00m", l.Size)
 	}
 
 	var frTmp, fl *os.File
@@ -95,7 +134,7 @@ func (g *Commands) Diff() (err error) {
 	}
 
 	// Next step: Create a temp file with an obscure name unlikely to clash.
-	tmpName := strings.Join([]string {
+	tmpName := strings.Join([]string{
 		".",
 		fmt.Sprintf("tmp%v.tmp", rand.Int()),
 	}, "x")
@@ -118,9 +157,8 @@ func (g *Commands) Diff() (err error) {
 		return
 	}
 
-	diffo := diffmp.New()
-	patches := diffo.PatchMake(lBuffer, rBuffer)
-	fmt.Println("diffp", diffo.PatchToText(patches))
-
+	dmp := diffmp.New()
+	patches := dmp.PatchMake(lBuffer, rBuffer)
+	fmt.Print(dmp.PatchToText(patches))
 	return
 }

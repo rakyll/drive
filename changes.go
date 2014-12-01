@@ -40,7 +40,7 @@ func (d *dirList) Name() string {
 func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	root := g.context.AbsPathOf("")
 	absPath = g.context.AbsPathOf(g.opts.Path)
-	relPath= ""
+	relPath = ""
 
 	if absPath != root {
 		if relPath, err = filepath.Rel(root, absPath); err != nil {
@@ -57,11 +57,11 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 			return
 		}
 	}
-     
+
 	relPath = strings.Join([]string{"", relPath}, "/")
-	return 
+	return
 }
-    
+
 // Resolves the local path relative to the root directory
 // then performs either Push or Pull depending on 'isPush'
 func (g *Commands) syncByRelativePath(isPush bool) (err error) {

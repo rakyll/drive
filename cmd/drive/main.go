@@ -19,8 +19,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 
 	"github.com/rakyll/command"
 	"github.com/rakyll/drive"
