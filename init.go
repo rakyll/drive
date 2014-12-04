@@ -21,13 +21,10 @@ import (
 func (g *Commands) Init() (err error) {
 	var refresh string
 
-	g.context.ClientId = os.Getenv("DRIVE_CLIENT_ID")
-	if g.context.ClientId == "" {
+	g.context.ClientId = os.Getenv("GOOGLE_API_CLIENT_ID")
+	g.context.ClientSecret = os.Getenv("GOOGLE_API_CLIENT_SECRET")
+	if g.context.ClientId == "" || g.context.ClientSecret == "" {
 		g.context.ClientId = "354790962074-7rrlnuanmamgg1i4feed12dpuq871bvd.apps.googleusercontent.com"
-	}
-
-	g.context.ClientSecret = os.Getenv("DRIVE_CLIENT_SECRET")
-	if g.context.ClientSecret == "" {
 		g.context.ClientSecret = "RHjKdah8RrHFwu6fcc0uEVCw"
 	}
 

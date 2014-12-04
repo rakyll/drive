@@ -19,7 +19,7 @@ Use `drive help` for further reference.
 
 ## Configuration
 
-If you would like to use your own client ID/client secret pair with `drive`, set the `DRIVE_CLIENT_ID` and `DRIVE_CLIENT_SECRET` variables in your environment
+If you would like to use your own client ID/client secret pair with `drive`, set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` variables in your environment
 
 ## Why another Google Drive client?
 Background sync is not just hard, it's stupid. My technical and philosophical rants about why it is not worth to implement:
