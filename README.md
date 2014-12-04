@@ -17,6 +17,10 @@ Use `drive help` for further reference.
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive publish [path] # publishes a file, outputs URL
 
+## Configuration
+
+If you would like to use your own client ID/client secret pair with `drive`, set the `DRIVE_CLIENT_ID` and `DRIVE_CLIENT_SECRET` variables in your environment
+
 ## Why another Google Drive client?
 Background sync is not just hard, it's stupid. My technical and philosophical rants about why it is not worth to implement:
 
