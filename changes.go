@@ -37,6 +37,12 @@ func (g *Commands) resolveChangeListRecv(
 	isPush bool, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
 	if isPush {
+		// Handle the case of doc files for which we don't have a direct download
+		// url but have exportable links. These files should not be clobbered on the cloud
+		if r != nil && !r.IsDir && r.BlobAt == "" {
+			return cl, nil
+		}
+
 		change = &Change{Path: p, Src: l, Dest: r}
 	} else {
 		change = &Change{Path: p, Src: r, Dest: l}

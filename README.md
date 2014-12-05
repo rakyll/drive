@@ -12,6 +12,7 @@ Use `drive help` for further reference.
 
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
+	$ drive pull [-r -no-prompt -export path] # pulls from remote and exports Docs + Sheets to one of its export formats.
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
 	$ drive diff [path] # outputs a diff of local and remote
@@ -53,6 +54,9 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
+* Google Docs + Sheets + Presentations data  cannot be downloaded raw but only
+as exported to different forms e.g docx, xlsx, csv etc hence doing a pull of
+these types will result in a exported document.
 
 ## License
 Copyright 2013 Google Inc. All Rights Reserved.
