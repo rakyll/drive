@@ -30,6 +30,7 @@ var context *config.Context
 
 const (
 	descInit    = "inits a directory and authenticates user"
+	descList    = "list files on google drive"
 	descPull    = "pulls remote changes from google drive"
 	descPush    = "push local changes to google drive"
 	descDiff    = "compares a local file with remote"
@@ -38,6 +39,7 @@ const (
 
 func main() {
 	command.On("init", descInit, &initCmd{}, []string{})
+	command.On("list", descList, &listCmd{}, []string{})
 	command.On("pull", descPull, &pullCmd{}, []string{})
 	command.On("push", descPush, &pushCmd{}, []string{})
 	command.On("diff", descDiff, &diffCmd{}, []string{})
@@ -54,6 +56,21 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *initCmd) Run(args []string) {
 	exitWithError(drive.New(initContext(args), nil).Init())
 }
+
+type listCmd struct {
+}
+
+func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *listCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path:        path,
+	}).List())
+}
+
 
 type pullCmd struct {
 	isRecursive *bool
