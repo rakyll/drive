@@ -27,22 +27,6 @@ const (
 	maxNumOfConcPullTasks = 4
 )
 
-func docExportsMap() *map[string][]string {
-	return &map[string][]string {
-		"text/plain": []string{"text/plain", "txt",},
-		"application/vnd.google-apps.drawing": []string{"image/svg+xml", "svg+xml",},
-		"application/vnd.google-apps.spreadsheet": []string{
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx",
-		},
-		"application/vnd.google-apps.document": []string{
-			"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx",
-		},
-		"application/vnd.google-apps.presentation": []string{
-			"application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx",
-		},
-	}
-}
-
 // Pull from remote if remote path exists and in a gd context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
@@ -162,12 +146,11 @@ func (g *Commands) download(change *Change, exportOnBackup bool) (err error) {
 	// exportable type since we cannot directly download the raw data.
 	// We also need to pay attention and add the exported extension
 	// to avoid overriding the original file on re-syncing.
-	if len(change.Src.BlobAt) < 1 && exportOnBackup {
+	if len(change.Src.BlobAt) < 1 && exportOnBackup && IsGoogleDoc(change.Src) {
 		var ok bool
 		var mimeKeyExtList[]string
 
-		exportsMap := *docExportsMap()
-		mimeKeyExtList, ok = exportsMap[change.Src.MimeType]
+		mimeKeyExtList, ok = docExportsMap[change.Src.MimeType]
 		if !ok {
 			mimeKeyExtList = []string{"text/plain", "txt"}
 		}

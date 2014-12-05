@@ -46,6 +46,8 @@ var (
 	ErrPathNotExists = errors.New("remote path doesn't exist")
 )
 
+var docExportsMap = *newDocExportsMap()
+
 type Remote struct {
 	transport *oauth.Transport
 	service   *drive.Service
@@ -55,6 +57,18 @@ func NewRemoteContext(context *config.Context) *Remote {
 	transport := newTransport(context)
 	service, _ := drive.New(transport.Client())
 	return &Remote{service: service, transport: transport}
+}
+
+func IsGoogleDoc(f *File) bool {
+	if f == nil || f.IsDir {
+		return false;
+	}
+
+	_, ok := docExportsMap[f.MimeType]
+	if !ok {
+		return f.BlobAt == "";
+	}
+	return true;
 }
 
 func RetrieveRefreshToken(context *config.Context) (string, error) {
@@ -200,6 +214,22 @@ func newTransport(context *config.Context) *oauth.Transport {
 		Token: &oauth.Token{
 			RefreshToken: context.RefreshToken,
 			Expiry:       time.Now(),
+		},
+	}
+}
+
+func newDocExportsMap() *map[string][]string {
+	return &map[string][]string {
+		"text/plain": []string{"text/plain", "txt",},
+		"application/vnd.google-apps.drawing": []string{"image/svg+xml", "svg+xml",},
+		"application/vnd.google-apps.spreadsheet": []string{
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx",
+		},
+		"application/vnd.google-apps.document": []string{
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx",
+		},
+		"application/vnd.google-apps.presentation": []string{
+			"application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx",
 		},
 	}
 }
