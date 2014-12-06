@@ -46,7 +46,26 @@ var (
 	ErrPathNotExists = errors.New("remote path doesn't exist")
 )
 
-var docExportsMap = *newDocExportsMap()
+var docExportsMap = map[string]string{
+	"csv":  "text/csv",
+	"html": "text/html",
+	"txt":  "text/plain",
+
+	"gif":  "image/gif",
+	"png":  "image/png",
+	"svg":  "image/svg+xml",
+	"jpeg": "image/jpeg",
+
+	"odt": "application/vnd.oasis.opendocument.text",
+	"rtf": "application/rtf",
+	"pdf": "application/pdf",
+
+	"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"pptx": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
+
+	"xls":  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 
 type Remote struct {
 	transport *oauth.Transport
@@ -59,16 +78,11 @@ func NewRemoteContext(context *config.Context) *Remote {
 	return &Remote{service: service, transport: transport}
 }
 
-func IsGoogleDoc(f *File) bool {
+func hasExportLinks(f *File) bool {
 	if f == nil || f.IsDir {
-		return false;
+		return false
 	}
-
-	_, ok := docExportsMap[f.MimeType]
-	if !ok {
-		return f.BlobAt == "";
-	}
-	return true;
+	return len(f.ExportLinks) >= 1
 }
 
 func RetrieveRefreshToken(context *config.Context) (string, error) {
@@ -134,12 +148,12 @@ func (r *Remote) Publish(id string) (string, error) {
 	return "https://googledrive.com/host/" + id, nil
 }
 
-func (r *Remote) Download(id string, exportUrl string) (io.ReadCloser, error) {
+func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
-	if len(exportUrl) < 1 {
+	if len(exportURL) < 1 {
 		url = "https://googledrive.com/host/" + id
 	} else {
-		url = exportUrl
+		url = exportURL
 	}
 	resp, err := r.transport.Client().Get(url)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -214,22 +228,6 @@ func newTransport(context *config.Context) *oauth.Transport {
 		Token: &oauth.Token{
 			RefreshToken: context.RefreshToken,
 			Expiry:       time.Now(),
-		},
-	}
-}
-
-func newDocExportsMap() *map[string][]string {
-	return &map[string][]string {
-		"text/plain": []string{"text/plain", "txt",},
-		"application/vnd.google-apps.drawing": []string{"image/svg+xml", "svg+xml",},
-		"application/vnd.google-apps.spreadsheet": []string{
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx",
-		},
-		"application/vnd.google-apps.document": []string{
-			"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx",
-		},
-		"application/vnd.google-apps.presentation": []string{
-			"application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx",
 		},
 	}
 }

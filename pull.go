@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -27,7 +28,7 @@ const (
 	maxNumOfConcPullTasks = 4
 )
 
-// Pull from remote if remote path exists and in a gd context. If path is a
+// Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
@@ -48,12 +49,12 @@ func (g *Commands) Pull() (err error) {
 	}
 
 	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
-		return g.playPullChangeList(cl, g.opts.ExportOnBackup)
+		return g.playPullChangeList(cl, g.opts.Exports)
 	}
 	return
 }
 
-func (g *Commands) playPullChangeList(cl []*Change, exportOnBackup bool) (err error) {
+func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
 	var next []*Change
 	g.taskStart(len(cl))
 
@@ -73,9 +74,9 @@ func (g *Commands) playPullChangeList(cl []*Change, exportOnBackup bool) (err er
 		for _, c := range next {
 			switch c.Op() {
 			case OpMod:
-				go g.localMod(&wg, c, exportOnBackup)
+				go g.localMod(&wg, c, exports)
 			case OpAdd:
-				go g.localAdd(&wg, c, exportOnBackup)
+				go g.localAdd(&wg, c, exports)
 			case OpDelete:
 				go g.localDelete(&wg, c)
 			}
@@ -87,21 +88,21 @@ func (g *Commands) playPullChangeList(cl []*Change, exportOnBackup bool) (err er
 	return err
 }
 
-func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exportOnBackup bool) (err error) {
+func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
 	if change.Src.BlobAt != "" || change.Src.ExportLinks != nil {
 		// download and replace
-		if err = g.download(change, exportOnBackup); err != nil {
+		if err = g.download(change, exports); err != nil {
 			return
 		}
 	}
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
-func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exportOnBackup bool) (err error) {
+func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 
 	defer g.taskDone()
 	defer wg.Done()
@@ -113,7 +114,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exportOnBackup b
 	}
 	if change.Src.BlobAt != "" || change.Src.ExportLinks != nil {
 		// download and create
-		if err = g.download(change, exportOnBackup); err != nil {
+		if err = g.download(change, exports); err != nil {
 			return
 		}
 	}
@@ -137,40 +138,93 @@ func touchFile(path string) (err error) {
 	return
 }
 
-func (g *Commands) download(change *Change, exportOnBackup bool) (err error) {
-	exportUrl := ""
-	baseName := change.Path
-
-	// If BlobAt is not set, we are most likely dealing with
-	// Document/SpreadSheet/Image. In this case we'll use the target
-	// exportable type since we cannot directly download the raw data.
-	// We also need to pay attention and add the exported extension
-	// to avoid overriding the original file on re-syncing.
-	if len(change.Src.BlobAt) < 1 && exportOnBackup && IsGoogleDoc(change.Src) {
-		var ok bool
-		var mimeKeyExtList[]string
-
-		mimeKeyExtList, ok = docExportsMap[change.Src.MimeType]
-		if !ok {
-			mimeKeyExtList = []string{"text/plain", "txt"}
-		}
-
-		// We need to touch an empty file for the
-		// non-downloadable version to avoid an erasal
-		// on later push. If there is a name conflict / data race,
-		// the original file won't be touched.
-		emptyFilepath := g.context.AbsPathOf(baseName)
-		err = touchFile(emptyFilepath)
-
-		// TODO: @odeke-em / @rakyll, if user selects all desired formats,
-		// should we be be downloading every single one of them?
-		exportUrl = change.Src.ExportLinks[mimeKeyExtList[0]]
-		fmt.Print("Exported ", baseName)
-		baseName = strings.Join([]string{baseName, mimeKeyExtList[1]}, ".")
-		fmt.Println(" to: ", baseName)
+func (g *Commands) export(f *File, destAbsPath string, exports []string) (manifest []string, err error) {
+	if len(exports) < 1 || f == nil {
+		return
 	}
 
+	dirPath := strings.Join([]string{destAbsPath, "exports"}, "_")
+	if err = os.MkdirAll(dirPath, os.ModeDir|0755); err != nil {
+		return
+	}
+
+	var ok bool
+	var mimeType, exportURL string
+
+	waitables := map[string]string{}
+	for _, ext := range exports {
+		mimeType, ok = docExportsMap[ext]
+		if !ok {
+			continue
+		}
+		exportURL, ok = f.ExportLinks[mimeType]
+		if !ok {
+			continue
+		}
+		exportPath := strings.Join([]string{filepath.Base(f.Name), ext}, ".")
+		pathName := path.Join(dirPath, exportPath)
+		waitables[pathName] = exportURL
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(waitables))
+
+	for pathName, exportURL := range waitables {
+		go func(wg *sync.WaitGroup, dest, id, url string) error {
+			var fo *os.File
+			var blob io.ReadCloser
+			var fErr, dlErr error
+
+			defer func() {
+				if blob != nil {
+					blob.Close()
+				}
+				if fo != nil {
+					fo.Close()
+				}
+				wg.Done()
+			}()
+
+			fo, fErr = os.Create(dest)
+			if fErr != nil {
+				return fErr
+			}
+
+			blob, dlErr = g.rem.Download(id, url)
+			if dlErr != nil {
+				return dlErr
+			}
+			_, err = io.Copy(fo, blob)
+			if err == nil {
+				manifest = append(manifest, dest)
+			}
+			return err
+		}(&wg, pathName, f.Id, exportURL)
+	}
+	wg.Wait()
+	return
+}
+
+func (g *Commands) download(change *Change, exports []string) (err error) {
+	baseName := change.Path
 	destAbsPath := g.context.AbsPathOf(baseName)
+
+	if hasExportLinks(change.Src) {
+		// We need to touch the empty file to ensure
+		// consistency during a push.
+		emptyFilepath := g.context.AbsPathOf(baseName)
+		if err = touchFile(emptyFilepath); err != nil {
+			return err
+		}
+		manifest, exportErr := g.export(change.Src, destAbsPath, exports)
+		if exportErr == nil {
+			for i, exportPath := range manifest {
+				fmt.Printf("# %d: %s\n", i+1, exportPath)
+			}
+		}
+		return exportErr
+	}
+
 	var fo *os.File
 	fo, err = os.Create(destAbsPath)
 	if err != nil {
@@ -190,7 +244,7 @@ func (g *Commands) download(change *Change, exportOnBackup bool) (err error) {
 			blob.Close()
 		}
 	}()
-	blob, err = g.rem.Download(change.Src.Id, exportUrl)
+	blob, err = g.rem.Download(change.Src.Id, "")
 	if err != nil {
 		return err
 	}

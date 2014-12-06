@@ -33,9 +33,9 @@ type Options struct {
 	IsForce     bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
-	// ExportOnBackup when set allows the exporting of Google Docs + Sheets to a
-	// downloadable format e.g *.presentation to pptx.
-	ExportOnBackup bool
+	// Exports contains the formats to export your Google Docs + Sheets to
+	// e.g ["csv" "txt"]
+	Exports []string
 }
 
 type Commands struct {

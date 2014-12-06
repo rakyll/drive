@@ -39,7 +39,7 @@ func (g *Commands) resolveChangeListRecv(
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
 		// url but have exportable links. These files should not be clobbered on the cloud
-		if IsGoogleDoc(r) {
+		if hasExportLinks(r) {
 			return cl, nil
 		}
 

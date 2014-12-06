@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/rakyll/drive.png?branch=master)](https://travis-ci.org/rakyll/drive)
 
-`drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need go1.2 installed in order to build the program.
+`drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need at least go1.2 installed in order to build the program.
 
 ## Installation
 
@@ -12,7 +12,11 @@ Use `drive help` for further reference.
 
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
-	$ drive pull [-r -no-prompt -export path] # pulls from remote and exports Docs + Sheets to one of its export formats.
+	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 path] # pulls from remote and exports Docs + Sheets to one of its export formats.
+    e.g:
+	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html ReportII.txt] # pull ReportII.txt from remote and 
+        export it to pdf, docx, rtf and html
+        
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
 	$ drive diff [path] # outputs a diff of local and remote
@@ -50,13 +54,27 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 
 * Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes. Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
 
+## Notes:
+* Google Docs cannot be directly downloaded but only
+exported to different forms e.g docx, xlsx, csv etc.
+When doing a pull remember to include option `-export ext1,ext2,ext3`
+where ext1, ext2, ... could be:
+    * docx
+    * jpeg
+    * html
+    * odt
+    * rtf
+    * pdf
+    * png
+    * pptx
+    * svg
+    * txt
+    * xlsx
+
 ## Known issues
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
-* Google Docs + Sheets + Presentations data  cannot be downloaded raw but only
-as exported to different forms e.g docx, xlsx, csv etc hence doing a pull of
-these types will result in a exported document.
 
 ## License
 Copyright 2013 Google Inc. All Rights Reserved.
