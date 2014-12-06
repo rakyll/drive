@@ -153,10 +153,7 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 
 	waitables := map[string]string{}
 	for _, ext := range exports {
-		mimeType, ok = docExportsMap[ext]
-		if !ok {
-			continue
-		}
+		mimeType = mimeTypeFromExt(ext)
 		exportURL, ok = f.ExportLinks[mimeType]
 		if !ok {
 			continue
