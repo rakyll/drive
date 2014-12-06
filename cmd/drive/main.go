@@ -64,7 +64,7 @@ type pullCmd struct {
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.export = fs.String(
-			"export", "", "comma separated list of formats to export your docs + sheets files")
+		"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	return fs
@@ -72,7 +72,17 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *pullCmd) Run(args []string) {
 	context, path := discoverContext(args)
-	exports := strings.Split(*cmd.export, ",")
+
+	// Filter out empty strings.
+	exports := func(v []string) (splits []string) {
+		for _, elem := range v {
+			if elem != "" {
+				splits = append(splits, elem)
+			}
+		}
+		return
+	}(strings.Split(*cmd.export, ","))
+
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
 		Exports:     exports,

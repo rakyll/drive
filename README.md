@@ -59,17 +59,27 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 exported to different forms e.g docx, xlsx, csv etc.
 When doing a pull remember to include option `-export ext1,ext2,ext3`
 where ext1, ext2, ... could be:
-    * docx
-    * jpeg
+    * doc, docx
+    * jpeg, jpg
+    * gif
     * html
     * odt
     * rtf
     * pdf
     * png
-    * pptx
+    * ppt, pptx
     * svg
-    * txt
-    * xlsx
+    * txt, text
+    * xls, xlsx
+
+The exported files will be placed in a directory in the same path
+as the source Doc but affixed with '\_exports' e.g
+drive pull -export gif,jpg,svg logo
+if successful will create a directory logo\_exports which will look like:
+|- logo\_exports
+                |- logo.gif
+                |- logo.png
+                |- logo.svg
 
 ## Known issues
 * Probably, it doesn't work on Windows.

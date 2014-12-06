@@ -153,10 +153,7 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 
 	waitables := map[string]string{}
 	for _, ext := range exports {
-		mimeType, ok = docExportsMap[ext]
-		if !ok {
-			continue
-		}
+		mimeType = mimeTypeFromExt(ext)
 		exportURL, ok = f.ExportLinks[mimeType]
 		if !ok {
 			continue
@@ -206,10 +203,14 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 }
 
 func (g *Commands) download(change *Change, exports []string) (err error) {
-	baseName := change.Path
-	destAbsPath := g.context.AbsPathOf(baseName)
+	var baseName, destAbsPath string
 
-	if hasExportLinks(change.Src) {
+	if change.Src != nil {
+		baseName = change.Src.Name
+		destAbsPath = g.context.AbsPathOf(baseName)
+	}
+
+	if hasExportLinks(change.Src) && len(exports) >= 1 {
 		// We need to touch the empty file to ensure
 		// consistency during a push.
 		emptyFilepath := g.context.AbsPathOf(baseName)
@@ -218,8 +219,8 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		}
 		manifest, exportErr := g.export(change.Src, destAbsPath, exports)
 		if exportErr == nil {
-			for i, exportPath := range manifest {
-				fmt.Printf("# %d: %s\n", i+1, exportPath)
+			for _, exportPath := range manifest {
+				fmt.Printf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
 			}
 		}
 		return exportErr

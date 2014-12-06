@@ -32,30 +32,30 @@ const (
 )
 
 type File struct {
-	Id          string
-	Name        string
-	IsDir       bool
-	ModTime     time.Time
-	Size        int64
 	BlobAt      string
-	MimeType    string
-	Md5Checksum string
 	ExportLinks map[string]string
+	Id          string
+	IsDir       bool
+	Md5Checksum string
+	MimeType    string
+	ModTime     time.Time
+	Name        string
+	Size        int64
 }
 
 func NewRemoteFile(f *drive.File) *File {
 	mtime, _ := time.Parse("2006-01-02T15:04:05.000Z", f.ModifiedDate)
 	mtime = mtime.Round(time.Second)
 	return &File{
-		Id:          f.Id,
-		Name:        f.Title,
-		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
-		ModTime:     mtime,
-		Size:        f.FileSize,
-		MimeType:    f.MimeType,
 		BlobAt:      f.DownloadUrl,
-		Md5Checksum: f.Md5Checksum,
 		ExportLinks: f.ExportLinks,
+		Id:          f.Id,
+		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
+		Md5Checksum: f.Md5Checksum,
+		MimeType:    f.MimeType,
+		ModTime:     mtime,
+		Name:        f.Title,
+		Size:        f.FileSize,
 	}
 }
 
