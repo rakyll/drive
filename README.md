@@ -14,6 +14,8 @@ Use `drive help` for further reference.
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
+	# To push from a location not on the drive:
+	$ drive push -m $LOCATION .
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive publish [path] # publishes a file, outputs URL
 

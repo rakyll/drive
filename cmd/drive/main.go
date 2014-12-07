@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rakyll/command"
 	"github.com/rakyll/drive"
@@ -79,22 +80,45 @@ type pushCmd struct {
 	hidden      *bool
 	isNoPrompt  *bool
 	isRecursive *bool
+	mountedPush *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
 	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
-	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
+	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	return fs
 }
 
 func (cmd *pushCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	argc := len(args)
+	var contextArgs, rest, sources []string
+	if *cmd.mountedPush && argc >= 1 {
+		rest = args[:argc-1]
+		contextArgs = args[argc-1:]
+	} else {
+		contextArgs = args
+		sources = make([]string, argc)
+		for i, path := range args {
+			sources[i] = strings.Join([]string{"/", path}, "")
+		}
+	}
+
+	context, path := discoverContext(contextArgs)
+	contextAbsPath, err := filepath.Abs(path)
+	exitWithError(err)
+
+	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
+	sources = append(sources, auxSrcs...)
+
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
 		Hidden:      *cmd.hidden,
 		IsNoPrompt:  *cmd.isNoPrompt,
 		IsRecursive: *cmd.isRecursive,
+		Mounts:      mountPoints,
+		Sources:     sources,
 	}).Push())
 }
 
