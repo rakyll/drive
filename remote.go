@@ -89,21 +89,31 @@ func (r *Remote) FindByPath(p string) (file *File, err error) {
 	return r.findByPathRecv("root", parts[1:])
 }
 
-func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
-	req := r.service.Files.List()
-	// TODO: use field selectors
-	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
-	results, err := req.Do()
-	// TODO: handle paging
-	if err != nil {
-		return
-	}
-	for _, f := range results.Items {
-		if !strings.HasPrefix(f.Title, ".") { // ignore hidden files
-			files = append(files, NewRemoteFile(f))
+func (r *Remote) FindByParentID(parentID string, hidden bool) ([]*File, error) {
+
+	pageToken := ""
+	var files []*File
+	for {
+		req := r.service.Files.List()
+		// TODO: use field selectors
+		req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentID))
+		if pageToken != "" {
+			req.PageToken(pageToken)
+		}
+		results, err := req.Do()
+		if err != nil {
+			return files, err
+		}
+		for _, f := range results.Items {
+			if hidden || !strings.HasPrefix(f.Title, ".") { // ignore hidden files
+				files = append(files, NewRemoteFile(f))
+			}
+		}
+		pageToken = results.NextPageToken
+		if pageToken == "" {
+			return files, err
 		}
 	}
-	return
 }
 
 func (r *Remote) Trash(id string) error {
