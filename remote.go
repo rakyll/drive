@@ -111,6 +111,10 @@ func (r *Remote) Trash(id string) error {
 	return err
 }
 
+func (r *Remote) Unpublish(id string) error {
+	return r.service.Permissions.Delete(id, "anyone").Do()
+}
+
 func (r *Remote) Publish(id string) (string, error) {
 	perm := &drive.Permission{Type: "anyone", Role: "reader"}
 	_, err := r.service.Permissions.Insert(id, perm).Do()

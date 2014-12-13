@@ -30,3 +30,11 @@ func (c *Commands) Publish() (err error) {
 	fmt.Println("Published on", link)
 	return
 }
+
+func (c *Commands) Unpublish() error {
+	file, err := c.rem.FindByPath(c.opts.Path)
+	if err != nil {
+		return err
+	}
+	return c.rem.Unpublish(file.Id)
+}

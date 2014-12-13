@@ -29,11 +29,12 @@ import (
 var context *config.Context
 
 const (
-	descInit    = "inits a directory and authenticates user"
-	descPull    = "pulls remote changes from google drive"
-	descPush    = "push local changes to google drive"
-	descDiff    = "compares a local file with remote"
-	descPublish = "publishes a file and prints its publicly available url"
+	descInit      = "inits a directory and authenticates user"
+	descPull      = "pulls remote changes from google drive"
+	descPush      = "push local changes to google drive"
+	descDiff      = "compares a local file with remote"
+	descPublish   = "publishes a file and prints its publicly available url"
+	descUnpublish = "revokes public access to a file"
 )
 
 func main() {
@@ -42,6 +43,7 @@ func main() {
 	command.On("push", descPush, &pushCmd{}, []string{})
 	command.On("diff", descDiff, &diffCmd{}, []string{})
 	command.On("pub", descPublish, &publishCmd{}, []string{})
+	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
 	command.ParseAndRun()
 }
 
@@ -112,6 +114,18 @@ func (cmd *diffCmd) Run(args []string) {
 }
 
 type publishCmd struct{}
+type unpublishCmd struct{}
+
+func (cmd *unpublishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *unpublishCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).Unpublish())
+}
 
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
