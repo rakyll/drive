@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rakyll/command"
 	"github.com/rakyll/drive"
@@ -58,11 +59,14 @@ func (cmd *initCmd) Run(args []string) {
 }
 
 type pullCmd struct {
+	export      *string
 	isRecursive *bool
 	isNoPrompt  *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.export = fs.String(
+			"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	return fs
@@ -70,10 +74,12 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *pullCmd) Run(args []string) {
 	context, path := discoverContext(args)
+	exports := strings.Split(*cmd.export, ",")
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
-		IsRecursive: *cmd.isRecursive,
+		Exports:     exports,
 		IsNoPrompt:  *cmd.isNoPrompt,
+		IsRecursive: *cmd.isRecursive,
 	}).Pull())
 }
 

@@ -38,7 +38,9 @@ type File struct {
 	ModTime     time.Time
 	Size        int64
 	BlobAt      string
+	MimeType    string
 	Md5Checksum string
+	ExportLinks map[string]string
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -50,8 +52,10 @@ func NewRemoteFile(f *drive.File) *File {
 		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
 		ModTime:     mtime,
 		Size:        f.FileSize,
+		MimeType:    f.MimeType,
 		BlobAt:      f.DownloadUrl,
 		Md5Checksum: f.Md5Checksum,
+		ExportLinks: f.ExportLinks,
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -46,6 +47,48 @@ var (
 	ErrPathNotExists = errors.New("remote path doesn't exist")
 )
 
+var regExtStrMap = map[string]string{
+	"csv":   "text/csv",
+	"html?": "text/html",
+	"te?xt": "text/plain",
+
+	"gif":   "image/gif",
+	"png":   "image/png",
+	"svg":   "image/svg+xml",
+	"jpe?g": "image/jpeg",
+
+	"odt": "application/vnd.oasis.opendocument.text",
+	"rtf": "application/rtf",
+	"pdf": "application/pdf",
+
+	"docx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"pptx?": "application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
+	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+func compileRegExtMap() *map[*regexp.Regexp]string {
+	regExpMap := make(map[*regexp.Regexp]string)
+	for regStr, mimeType := range regExtStrMap {
+		regExComp, err := regexp.Compile(regStr)
+		if err == nil {
+			regExpMap[regExComp] = mimeType
+		}
+	}
+	return &regExpMap
+}
+
+var regExtMap = *compileRegExtMap()
+
+func mimeTypeFromExt(ext string) string {
+	bExt := []byte(ext)
+	for regEx, mimeType := range regExtMap {
+		if regEx != nil && regEx.Match(bExt) {
+			return mimeType
+		}
+	}
+	return ""
+}
+
 type Remote struct {
 	transport *oauth.Transport
 	service   *drive.Service
@@ -55,6 +98,13 @@ func NewRemoteContext(context *config.Context) *Remote {
 	transport := newTransport(context)
 	service, _ := drive.New(transport.Client())
 	return &Remote{service: service, transport: transport}
+}
+
+func hasExportLinks(f *File) bool {
+	if f == nil || f.IsDir {
+		return false
+	}
+	return len(f.ExportLinks) >= 1
 }
 
 func RetrieveRefreshToken(context *config.Context) (string, error) {
@@ -124,8 +174,14 @@ func (r *Remote) Publish(id string) (string, error) {
 	return "https://googledrive.com/host/" + id, nil
 }
 
-func (r *Remote) Download(id string) (io.ReadCloser, error) {
-	resp, err := r.transport.Client().Get("https://googledrive.com/host/" + id)
+func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
+	var url string
+	if len(exportURL) < 1 {
+		url = "https://googledrive.com/host/" + id
+	} else {
+		url = exportURL
+	}
+	resp, err := r.transport.Client().Get(url)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return resp.Body, err
 	}

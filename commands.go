@@ -33,6 +33,9 @@ type Options struct {
 	IsForce     bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
+	// Exports contains the formats to export your Google Docs + Sheets to
+	// e.g ["csv" "txt"]
+	Exports []string
 }
 
 type Commands struct {

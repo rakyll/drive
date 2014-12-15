@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/rakyll/drive.png?branch=master)](https://travis-ci.org/rakyll/drive)
 
-`drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need go1.2 installed in order to build the program.
+`drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need at least go1.2 installed in order to build the program.
 
 ## Installation
 
@@ -12,6 +12,11 @@ Use `drive help` for further reference.
 
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
+	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 path] # pulls from remote and exports Docs + Sheets to one of its export formats.
+    e.g:
+	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html ReportII.txt] # pull ReportII.txt from remote and 
+        export it to pdf, docx, rtf and html
+        
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
 	$ drive diff [path] # outputs a diff of local and remote
@@ -49,6 +54,33 @@ Background sync is not just hard, it's stupid. My technical and philosophical ra
 * Better I/O scheduling. One of the major goals is to provide better scheduling to improve upload/download times.
 
 * Possibility to support multiple accounts. Pull from or push to multiple Google Drive remotes. Possibility to support multiple backends. Why not to push to Dropbox or Box as well?
+
+## Notes:
+* Google Docs cannot be directly downloaded but only
+exported to different forms e.g docx, xlsx, csv etc.
+When doing a pull remember to include option `-export ext1,ext2,ext3`
+where ext1, ext2, ... could be:
+    * doc, docx
+    * jpeg, jpg
+    * gif
+    * html
+    * odt
+    * rtf
+    * pdf
+    * png
+    * ppt, pptx
+    * svg
+    * txt, text
+    * xls, xlsx
+
+The exported files will be placed in a directory in the same path
+as the source Doc but affixed with '\_exports' e.g
+drive pull -export gif,jpg,svg logo
+if successful will create a directory logo\_exports which will look like:
+|- logo\_exports
+                |- logo.gif
+                |- logo.png
+                |- logo.svg
 
 ## Known issues
 * Probably, it doesn't work on Windows.
