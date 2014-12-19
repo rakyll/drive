@@ -33,6 +33,12 @@ type Options struct {
 	IsForce     bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
+	// Mounts is a list of all mountpoints
+	// of paths that are not in the current drive context
+	Mounts []*config.MountPoint
+	// Sources is a of list all paths that are
+	// within the scope/path of the current gd context
+	Sources []string
 }
 
 type Commands struct {

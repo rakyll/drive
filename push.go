@@ -27,32 +27,61 @@ import (
 // Pushes to remote if local path exists and in a god context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
-func (g *Commands) Push() (err error) {
-	absPath := g.context.AbsPathOf(g.opts.Path)
-	r, err := g.rem.FindByPath(g.opts.Path)
+func lonePush(g *Commands, absPath, path string) (cl []*Change, err error) {
+	r, err := g.rem.FindByPath(absPath)
 	if err != nil && err != ErrPathNotExists {
-		return err
+		return
 	}
 
 	var l *File
-	localinfo, _ := os.Stat(absPath)
+	localinfo, _ := os.Stat(path)
 	if localinfo != nil {
 		l = NewLocalFile(absPath, localinfo)
 	}
 
-	fmt.Println("Resolving...")
+	return g.resolveChangeListRecv(true, absPath, r, l)
+}
+
+func (g *Commands) Push() (err error) {
 	var cl []*Change
-	if cl, err = g.resolveChangeListRecv(true, g.opts.Path, r, l); err != nil {
-		return err
+	fmt.Println("Resolving...")
+
+	absPath := g.context.AbsPathOf("/")
+	for _, indrivePath := range g.opts.Sources {
+		lcl, eerr := lonePush(g, indrivePath, absPath)
+		if eerr == nil {
+			cl = append(cl, lcl...)
+		}
 	}
 
+	for _, mt := range g.opts.Mounts {
+		ccl, cerr := lonePush(g, mt.Name, mt.MountPath)
+		if cerr == nil {
+			cl = append(cl, ccl...)
+		}
+	}
+	return g.resolve(cl, nil)
+}
+
+func (g *Commands) resolve(cl []*Change, lastErr error) (err error) {
+	if lastErr != nil {
+		return lastErr
+	}
 	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
 		return g.playPushChangeList(cl)
 	}
+	g.clearMountPoints()
 	return
 }
 
+func (g *Commands) clearMountPoints() {
+	for _, mtpt := range g.opts.Mounts {
+		mtpt.Unmount()
+	}
+}
+
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
+	defer g.clearMountPoints()
 	g.taskStart(len(cl))
 	for _, c := range cl {
 		switch c.Op() {
