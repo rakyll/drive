@@ -34,12 +34,13 @@ func (d *dirList) Name() string {
 }
 
 func (g *Commands) resolveChangeListRecv(
-	isPush bool, p string, r *File, l *File) (cl []*Change, err error) {
+	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
+	// fmt.Printf("Parent: %s Path: %s\n", d, p)
 	if isPush {
-		change = &Change{Path: p, Src: l, Dest: r}
+		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
 	} else {
-		change = &Change{Path: p, Src: r, Dest: l}
+		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
 	}
 	if change.Op() != OpNone {
 		cl = append(cl, change)
@@ -59,7 +60,9 @@ func (g *Commands) resolveChangeListRecv(
 	// look-up for children
 	var localChildren []*File
 	if l != nil {
-		localChildren, err = list(g.context, p, g.opts.Hidden)
+		fullPath := urlToPath(path.Join(d, p), false)
+		// fmt.Printf("d: %s p: %s fmp: %s\n", d, p, fullPath)
+		localChildren, err = list(g.context, fullPath, g.opts.Hidden, isPush)
 		if err != nil {
 			return
 		}
@@ -76,10 +79,16 @@ func (g *Commands) resolveChangeListRecv(
 	dirlist := merge(remoteChildren, localChildren)
 	var wg sync.WaitGroup
 	wg.Add(len(dirlist))
+	// m := p
+	// p = path.Join(d, p)
+	// fmt.Printf("pax: %s p: %s d: %s\n", p, m, d)
 	for _, l := range dirlist {
 		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, l *dirList) {
 			defer wg.Done()
-			childChanges, _ := g.resolveChangeListRecv(isPush, path.Join(p, l.Name()), l.remote, l.local)
+			// Note that using path.Join converts an '//'* to '/' so better to use strings.Join
+			joined := strings.Join([]string{p, l.Name()}, "/")
+			// fmt.Printf("p: %s v: %s joined  now: %s\n", p, l.Name(), joined)
+			childChanges, _ := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
 			*cl = append(*cl, childChanges...)
 		}(&wg, isPush, &cl, p, l)
 	}

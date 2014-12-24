@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -160,6 +161,14 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 		return
 	}
 	return NewRemoteFile(uploaded), nil
+}
+
+func urlToPath(s string, fsBound bool) string {
+	if fsBound {
+		return url.QueryEscape(s)
+	}
+	undone, _ := url.QueryUnescape(s)
+	return undone
 }
 
 func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {

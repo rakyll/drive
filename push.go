@@ -42,7 +42,7 @@ func (g *Commands) Push() (err error) {
 
 	fmt.Println("Resolving...")
 	var cl []*Change
-	if cl, err = g.resolveChangeListRecv(true, g.opts.Path, r, l); err != nil {
+	if cl, err = g.resolveChangeListRecv(true, "", g.opts.Path, r, l); err != nil {
 		return err
 	}
 
@@ -104,15 +104,21 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return g.rem.Trash(change.Dest.Id)
 }
 
-func list(context *config.Context, path string, hidden bool) (files []*File, err error) {
+func list(context *config.Context, path string, hidden, isPush bool) (files []*File, err error) {
 	absPath := context.AbsPathOf(path)
+	// fmt.Println("abp", absPath)
 	var f []os.FileInfo
 	if f, err = ioutil.ReadDir(absPath); err != nil {
+		// println(err)
 		return
 	}
 	for _, file := range f {
 		if hidden || !strings.HasPrefix(file.Name(), ".") {
-			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
+			// This resolution is necessary because names pulled
+			// from urls should be reverted for successful comparison
+			path := gopath.Join(absPath, urlToPath(file.Name(), false))
+			// fmt.Printf("\033[92mFpath: %s fN: %s\033[00m\n", path, file.Name())
+			files = append(files, NewLocalFile(path, file))
 		}
 	}
 	return
