@@ -168,30 +168,11 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 
 	for pathName, exportURL := range waitables {
 		go func(wg *sync.WaitGroup, dest, id, url string) error {
-			var fo *os.File
-			var blob io.ReadCloser
-			var fErr, dlErr error
-
 			defer func() {
-				if blob != nil {
-					blob.Close()
-				}
-				if fo != nil {
-					fo.Close()
-				}
 				wg.Done()
 			}()
 
-			fo, fErr = os.Create(dest)
-			if fErr != nil {
-				return fErr
-			}
-
-			blob, dlErr = g.rem.Download(id, url)
-			if dlErr != nil {
-				return dlErr
-			}
-			_, err = io.Copy(fo, blob)
+			err := g.singleDownload(dest, id, url)
 			if err == nil {
 				manifest = append(manifest, dest)
 			}
@@ -203,16 +184,15 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 }
 
 func (g *Commands) download(change *Change, exports []string) (err error) {
-	var baseName, destAbsPath string
-
-	if change.Src != nil {
-		baseName = change.Src.Name
-		destAbsPath = g.context.AbsPathOf(baseName)
+	if change.Src == nil {
+		return fmt.Errorf("Tried to download nil change.Src")
 	}
 
 	if hasExportLinks(change.Src) && len(exports) >= 1 {
-		// We need to touch the empty file to ensure
-		// consistency during a push.
+		baseName := change.Src.Name
+		destAbsPath := g.context.AbsPathOf(baseName)
+		// We need to touch the empty file to
+		// ensure consistency during a push.
 		emptyFilepath := g.context.AbsPathOf(baseName)
 		if err = touchFile(emptyFilepath); err != nil {
 			return err
@@ -226,17 +206,24 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		return exportErr
 	}
 
+	destAbsPath := g.context.AbsPathOf(change.Path)
+	return g.singleDownload(destAbsPath, change.Src.Id, "")
+}
+
+func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 	var fo *os.File
-	fo, err = os.Create(destAbsPath)
+	fo, err = os.Create(p)
 	if err != nil {
 		return
 	}
 
 	// close fo on exit and check for its returned error
 	defer func() {
-		if err := fo.Close(); err != nil {
-			return
+		fErr := fo.Close()
+		if fErr != nil {
+			err = fErr
 		}
+		return
 	}()
 
 	var blob io.ReadCloser
@@ -245,7 +232,8 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 			blob.Close()
 		}
 	}()
-	blob, err = g.rem.Download(change.Src.Id, "")
+
+	blob, err = g.rem.Download(id, exportURL)
 	if err != nil {
 		return err
 	}
