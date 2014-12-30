@@ -154,7 +154,8 @@ func discoverContext(args []string) (*config.Context, string) {
 	relPath := ""
 	if len(args) > 0 {
 		var headAbsArg string
-		if headAbsArg, err = filepath.Abs(args[0]); err == nil {
+		headAbsArg, err = filepath.Abs(args[0])
+        if err == nil {
 			relPath, err = filepath.Rel(context.AbsPath, headAbsArg)
 		}
 	}
