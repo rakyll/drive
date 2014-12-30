@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/odeke-em/drive"
+	"github.com/odeke-em/drive/config"
 	"github.com/rakyll/command"
-	"github.com/rakyll/drive"
-	"github.com/rakyll/drive/config"
 )
 
 var context *config.Context
@@ -153,15 +153,21 @@ func discoverContext(args []string) (*config.Context, string) {
 	exitWithError(err)
 	relPath := ""
 	if len(args) > 0 {
-		relPath, err = filepath.Rel(context.AbsPath, args[0])
+		var headAbsArg string
+		if headAbsArg, err = filepath.Abs(args[0]); err == nil {
+			relPath, err = filepath.Rel(context.AbsPath, headAbsArg)
+		}
 	}
+
 	exitWithError(err)
+
+	relPath = strings.Join([]string{"", relPath}, "/")
 	return context, relPath
 }
 
 func getContextPath(args []string) (contextPath string) {
 	if len(args) > 0 {
-		contextPath = args[0]
+		contextPath, _ = filepath.Abs(args[0])
 	}
 	if contextPath == "" {
 		contextPath, _ = os.Getwd()
