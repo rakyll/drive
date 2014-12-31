@@ -27,6 +27,8 @@ var (
 )
 
 type Options struct {
+	// When set prevents overwriting of stale content
+	NoClobber   bool
 	Path        string
 	IsNoPrompt  bool
 	IsRecursive bool
