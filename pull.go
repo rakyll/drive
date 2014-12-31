@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"sync"
 )
 
@@ -42,7 +42,7 @@ func (g *Commands) Pull() (err error) {
 
 	var cl []*Change
 	fmt.Println("Resolving...")
-	if cl, err = g.resolveChangeListRecv(false, g.opts.Path, r, l); err != nil {
+	if cl, err = g.resolveChangeListRecv(false, "", g.opts.Path, r, l); err != nil {
 		return
 	}
 
@@ -104,7 +104,10 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change) (err error) {
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
 	// make parent's dir if not exists
-	os.MkdirAll(filepath.Dir(destAbsPath), os.ModeDir|0755)
+
+	destAbsDir := g.context.AbsPathOf(change.Parent)
+	os.MkdirAll(destAbsDir, os.ModeDir|0755)
+
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
 	}
@@ -124,7 +127,10 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 }
 
 func (g *Commands) download(change *Change) (err error) {
-	destAbsPath := g.context.AbsPathOf(change.Path)
+	fsFriendlyPath := urlToPath(change.Path, true)
+	joined := path.Join(change.Parent, fsFriendlyPath)
+	destAbsPath := g.context.AbsPathOf(joined)
+
 	var fo *os.File
 	fo, err = os.Create(destAbsPath)
 	if err != nil {

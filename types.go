@@ -58,7 +58,7 @@ func NewRemoteFile(f *drive.File) *File {
 func NewLocalFile(absPath string, f os.FileInfo) *File {
 	return &File{
 		Id:      "",
-		Name:    f.Name(),
+		Name:    urlToPath(f.Name(), false),
 		ModTime: f.ModTime(),
 		IsDir:   f.IsDir(),
 		Size:    f.Size(),
@@ -67,9 +67,10 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 }
 
 type Change struct {
-	Path string
-	Src  *File
-	Dest *File
+	Parent string
+	Path   string
+	Src    *File
+	Dest   *File
 }
 
 func (c *Change) Symbol() string {

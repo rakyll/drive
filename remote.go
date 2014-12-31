@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
 	drive "code.google.com/p/google-api-go-client/drive/v2"
-	"github.com/rakyll/drive/config"
+	"github.com/odeke-em/drive/config"
 )
 
 const (
@@ -160,6 +161,14 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 		return
 	}
 	return NewRemoteFile(uploaded), nil
+}
+
+func urlToPath(s string, fsBound bool) string {
+	if fsBound {
+		return url.QueryEscape(s)
+	}
+	undone, _ := url.QueryUnescape(s)
+	return undone
 }
 
 func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
