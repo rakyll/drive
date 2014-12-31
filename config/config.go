@@ -141,16 +141,26 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 		err = os.Symlink(path, mountPath)
 
 		if err != nil {
-			if !os.IsExist(err) { // Most definitely exists within the drive
+			if !os.IsExist(err) {
 				continue
 			}
+			// This is an old symlink with probably due to a name clash.
+			// TODO: Due to the name clash, find a good name for this symlink.
 			canClean = false
 		}
+
+		var relPath = ""
+		if contextPath == "" {
+			relPath = strings.Join([]string{"", base}, "/")
+		} else {
+			relPath = strings.Join([]string{"", contextPath, base}, "/")
+		}
+
 		mtPoints = append(mtPoints, &MountPoint{
 			AbsPath:   path,
 			CanClean:  canClean,
 			MountPath: mountPath,
-			Name:      strings.Join([]string{"", contextPath, base}, "/"),
+			Name:      relPath,
 		})
 	}
 	return

@@ -1,5 +1,3 @@
-Welcome to the drive wiki!
-
 **System pre-requisites for Drive:**
 ======
 

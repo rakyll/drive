@@ -170,20 +170,20 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 	}
 
 	if change.Src.BlobAt != "" {
-	    destAbsPath := g.context.AbsPathOf(change.Path)
-	    return g.singleDownload(destAbsPath, change.Src.Id, "")
+		destAbsPath := g.context.AbsPathOf(change.Path)
+		return g.singleDownload(destAbsPath, change.Src.Id, "")
 
-    }
-	
+	}
+
 	destAbsPath := g.context.AbsPathOf(change.Path)
-    // We need to touch the empty file to
+	// We need to touch the empty file to
 	// ensure consistency during a push.
 	emptyFilepath := destAbsPath
 	if err = touchFile(emptyFilepath); err != nil {
-	    return err
-    }
+		return err
+	}
 
-    if len(exports) >= 1 && hasExportLinks(change.Src) {
+	if len(exports) >= 1 && hasExportLinks(change.Src) {
 		manifest, exportErr := g.export(change.Src, destAbsPath, exports)
 		if exportErr == nil {
 			for _, exportPath := range manifest {
@@ -192,7 +192,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		}
 		return exportErr
 	}
-    return
+	return
 }
 
 func (g *Commands) singleDownload(p, id, exportURL string) (err error) {

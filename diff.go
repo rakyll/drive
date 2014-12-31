@@ -27,7 +27,7 @@ import (
 
 // MaxFileSize is the max number of bytes we
 // can accept for diffing (Arbitrary value)
-const MaxFileSize = 70 * 1024 * 1024
+const MaxFileSize = 50 * 1024 * 1024
 
 func fsFileToString(abspath string) (buf string, err error) {
 	var finfo os.FileInfo
@@ -96,7 +96,7 @@ func (g *Commands) Diff() (err error) {
 	}
 
 	if r.BlobAt == "" {
-		return fmt.Errorf("Could not find remote: '%v'", r.Name)
+		return fmt.Errorf("Cannot access download link for '%v'", r.Name)
 	}
 	if isSameFile(r, l) {
 		// No output when "no changes found"
