@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -172,6 +173,14 @@ func (r *Remote) Publish(id string) (string, error) {
 		return "", err
 	}
 	return "https://googledrive.com/host/" + id, nil
+}
+
+func urlToPath(p string, fsBound bool) string {
+	if fsBound {
+		return url.QueryEscape(p)
+	}
+	undone, _ := url.QueryUnescape(p)
+	return undone
 }
 
 func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {

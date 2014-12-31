@@ -82,8 +82,8 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return g.rem.Trash(change.Dest.Id)
 }
 
-func list(context *config.Context, path string, hidden bool) (files []*File, err error) {
-	absPath := context.AbsPathOf(path)
+func list(context *config.Context, p string, hidden bool) (files []*File, err error) {
+	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
 	if f, err = ioutil.ReadDir(absPath); err != nil {
 		return

@@ -17,7 +17,6 @@ package drive
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -85,7 +84,7 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 
 	var cl []*Change
 	fmt.Println("Resolving...")
-	cl, err = g.resolveChangeListRecv(isPush, relPath, r, l)
+	cl, err = g.resolveChangeListRecv(isPush, relPath, relPath, r, l)
 	if err != nil {
 		return
 	}
@@ -107,14 +106,14 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 func clForPush(g *Commands) (cl []*Change) {
 	absPath := g.context.AbsPathOf("/")
 	for _, indrivePath := range g.opts.Sources {
-		lcl, eerr := lonePush(g, indrivePath, absPath)
+		lcl, eerr := lonePush(g, absPath, indrivePath, absPath)
 		if eerr == nil {
 			cl = append(cl, lcl...)
 		}
 	}
 
 	for _, mt := range g.opts.Mounts {
-		ccl, cerr := lonePush(g, mt.Name, mt.MountPath)
+		ccl, cerr := lonePush(g, absPath, mt.Name, mt.MountPath)
 		if cerr == nil {
 			cl = append(cl, ccl...)
 		}
@@ -129,7 +128,7 @@ func (g *Commands) clearMountPoints() {
 	}
 }
 
-func lonePush(g *Commands, absPath, path string) (cl []*Change, err error) {
+func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
 	r, err := g.rem.FindByPath(absPath)
 	if err != nil && err != ErrPathNotExists {
 		return
@@ -141,11 +140,11 @@ func lonePush(g *Commands, absPath, path string) (cl []*Change, err error) {
 		l = NewLocalFile(absPath, localinfo)
 	}
 
-	return g.resolveChangeListRecv(true, absPath, r, l)
+	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
 func (g *Commands) resolveChangeListRecv(
-	isPush bool, p string, r *File, l *File) (cl []*Change, err error) {
+	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
@@ -153,9 +152,9 @@ func (g *Commands) resolveChangeListRecv(
 		if hasExportLinks(r) {
 			return cl, nil
 		}
-		change = &Change{Path: p, Src: l, Dest: r}
+		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
 	} else {
-		change = &Change{Path: p, Src: r, Dest: l}
+		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
 	}
 
 	if change.CoercedOp(g.opts.NoClobber) != OpNone {
@@ -196,7 +195,9 @@ func (g *Commands) resolveChangeListRecv(
 	for _, l := range dirlist {
 		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, l *dirList) {
 			defer wg.Done()
-			childChanges, _ := g.resolveChangeListRecv(isPush, path.Join(p, l.Name()), l.remote, l.local)
+			// Note that using path.Join normalizes '//*' to '/'
+			joined := strings.Join([]string{p, l.Name()}, "/")
+			childChanges, _ := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
 			*cl = append(*cl, childChanges...)
 		}(&wg, isPush, &cl, p, l)
 	}

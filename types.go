@@ -54,8 +54,9 @@ func NewRemoteFile(f *drive.File) *File {
 		Md5Checksum: f.Md5Checksum,
 		MimeType:    f.MimeType,
 		ModTime:     mtime,
-		Name:        f.Title,
-		Size:        f.FileSize,
+		// We must convert each title to match that on the FS.
+		Name: urlToPath(f.Title, true),
+		Size: f.FileSize,
 	}
 }
 
@@ -71,9 +72,10 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 }
 
 type Change struct {
-	Path string
-	Src  *File
-	Dest *File
+	Dest   *File
+	Parent string
+	Path   string
+	Src    *File
 }
 
 func (c *Change) Symbol() string {

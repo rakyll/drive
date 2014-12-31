@@ -88,8 +88,10 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	defer g.taskDone()
 	defer wg.Done()
 	destAbsPath := g.context.AbsPathOf(change.Path)
+
 	// make parent's dir if not exists
-	os.MkdirAll(filepath.Dir(destAbsPath), os.ModeDir|0755)
+	destAbsDir := g.context.AbsPathOf(change.Parent)
+	os.MkdirAll(filepath.Dir(destAbsDir), os.ModeDir|0755)
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
 	}
@@ -169,13 +171,11 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		return fmt.Errorf("Tried to download nil change.Src")
 	}
 
+	destAbsPath := g.context.AbsPathOf(change.Path)
 	if change.Src.BlobAt != "" {
-		destAbsPath := g.context.AbsPathOf(change.Path)
 		return g.singleDownload(destAbsPath, change.Src.Id, "")
-
 	}
 
-	destAbsPath := g.context.AbsPathOf(change.Path)
 	// We need to touch the empty file to
 	// ensure consistency during a push.
 	emptyFilepath := destAbsPath
