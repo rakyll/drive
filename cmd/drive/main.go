@@ -179,7 +179,8 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *diffCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		IsRecursive: true,
+		Path:        path,
 	}).Diff())
 }
 

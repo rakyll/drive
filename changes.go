@@ -62,10 +62,7 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
-// Resolves the local path relative to the root directory
-// then performs either Push or Pull depending on 'isPush'
-func (g *Commands) syncByRelativePath(isPush bool) (err error) {
-	defer g.clearMountPoints()
+func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
 	var relPath, absPath string
 	relPath, absPath, err = g.pathResolve()
 	if err != nil {
@@ -83,7 +80,6 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 		l = NewLocalFile(relPath, localinfo)
 	}
 
-	var cl []*Change
 	fmt.Println("Resolving...")
 	cl, err = g.resolveChangeListRecv(isPush, relPath, r, l)
 	if err != nil {
@@ -93,6 +89,16 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 	if isPush {
 		cl = append(cl, clForPush(g)...)
 	}
+	return
+}
+
+// Resolves the local path relative to the root directory
+// then performs either Push or Pull depending on 'isPush'
+func (g *Commands) syncByRelativePath(isPush bool) (err error) {
+	defer g.clearMountPoints()
+
+	var cl []*Change
+	cl, err = g.changeListResolve(isPush)
 
 	ok := printChangeList(cl, g.opts.IsNoPrompt, g.opts.NoClobber)
 	if ok {
