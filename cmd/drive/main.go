@@ -72,18 +72,20 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
+func nonEmptyStrings(v []string) (splits []string) {
+	for _, elem := range v {
+		if elem != "" {
+			splits = append(splits, elem)
+		}
+	}
+	return
+}
+
 func (cmd *pullCmd) Run(args []string) {
 	context, path := discoverContext(args)
 
 	// Filter out empty strings.
-	exports := func(v []string) (splits []string) {
-		for _, elem := range v {
-			if elem != "" {
-				splits = append(splits, elem)
-			}
-		}
-		return
-	}(strings.Split(*cmd.export, ","))
+	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
@@ -97,22 +99,67 @@ type pushCmd struct {
 	hidden      *bool
 	isNoPrompt  *bool
 	isRecursive *bool
+	mountedPush *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
 	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
-	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
+	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	return fs
 }
 
 func (cmd *pushCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	if *cmd.mountedPush {
+		pushMounted(cmd, args)
+	} else {
+		context, path := discoverContext(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:        path,
+			Hidden:      *cmd.hidden,
+			IsNoPrompt:  *cmd.isNoPrompt,
+			IsRecursive: *cmd.isRecursive,
+		}).Push())
+	}
+}
+
+func pushMounted(cmd *pushCmd, args []string) {
+	argc := len(args)
+
+	var contextArgs, rest, sources []string
+
+	if !*cmd.mountedPush {
+		contextArgs = args
+	} else {
+		// Expectation is that at least one path has to be passed
+		if argc < 2 {
+			cwd, cerr := os.Getwd()
+			if cerr != nil {
+				contextArgs = []string{cwd}
+			}
+			rest = args
+		} else {
+			rest = args[:argc-1]
+			contextArgs = args[argc-1:]
+		}
+	}
+
+	rest = nonEmptyStrings(rest)
+	context, path := discoverContext(contextArgs)
+	contextAbsPath, err := filepath.Abs(path)
+	exitWithError(err)
+
+	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
+	sources = append(sources, auxSrcs...)
+
 	exitWithError(drive.New(context, &drive.Options{
 		Path:        path,
 		Hidden:      *cmd.hidden,
 		IsNoPrompt:  *cmd.isNoPrompt,
 		IsRecursive: *cmd.isRecursive,
+		Mounts:      mountPoints,
+		Sources:     sources,
 	}).Push())
 }
 
@@ -169,14 +216,14 @@ func discoverContext(args []string) (*config.Context, string) {
 	if len(args) > 0 {
 		var headAbsArg string
 		headAbsArg, err = filepath.Abs(args[0])
-        if err == nil {
+		if err == nil {
 			relPath, err = filepath.Rel(context.AbsPath, headAbsArg)
 		}
 	}
 
 	exitWithError(err)
 
-	relPath = strings.Join([]string{"", relPath}, "/")
+	// relPath = strings.Join([]string{"", relPath}, "/")
 	return context, relPath
 }
 

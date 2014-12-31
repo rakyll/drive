@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 )
 
 type Context struct {
@@ -27,6 +29,25 @@ type Context struct {
 	ClientSecret string `json:"client_secret"`
 	RefreshToken string `json:"refresh_token"`
 	AbsPath      string `json:"-"`
+}
+
+type MountPoint struct {
+	CanClean  bool
+	Name      string
+	AbsPath   string
+	MountPath string
+}
+
+func (mpt *MountPoint) mounted() bool {
+	// TODO: Find proper scheme for resolving symlinks
+	return mpt.CanClean
+}
+
+func (mpt *MountPoint) Unmount() error {
+	if mpt.mounted() {
+		return os.RemoveAll(mpt.MountPath)
+	}
+	return nil
 }
 
 func (c *Context) AbsPathOf(fileOrDirPath string) string {
@@ -92,4 +113,45 @@ func gdPath(absPath string) string {
 
 func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
+}
+
+func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool) (
+	mtPoints []*MountPoint, sources []string) {
+	visitors := map[string]bool{}
+
+	for _, path := range paths {
+		_, visited := visitors[path]
+		if visited {
+			continue
+		}
+		visitors[path] = true
+
+		localinfo, err := os.Stat(path)
+		if err != nil || localinfo == nil {
+			continue
+		}
+
+		base := filepath.Base(path)
+		if !hidden && strings.HasPrefix(base, ".") {
+			continue
+		}
+
+		canClean := true
+		mountPath := filepath.Join(contextAbsPath, base)
+		err = os.Symlink(path, mountPath)
+
+		if err != nil {
+			if !os.IsExist(err) { // Most definitely exists within the drive
+				continue
+			}
+			canClean = false
+		}
+		mtPoints = append(mtPoints, &MountPoint{
+			AbsPath:   path,
+			CanClean:  canClean,
+			MountPath: mountPath,
+			Name:      strings.Join([]string{"", contextPath, base}, "/"),
+		})
+	}
+	return
 }

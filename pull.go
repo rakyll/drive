@@ -169,15 +169,21 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		return fmt.Errorf("Tried to download nil change.Src")
 	}
 
-	if hasExportLinks(change.Src) && len(exports) >= 1 {
-		baseName := change.Src.Name
-		destAbsPath := g.context.AbsPathOf(baseName)
-		// We need to touch the empty file to
-		// ensure consistency during a push.
-		emptyFilepath := g.context.AbsPathOf(baseName)
-		if err = touchFile(emptyFilepath); err != nil {
-			return err
-		}
+	if change.Src.BlobAt != "" {
+	    destAbsPath := g.context.AbsPathOf(change.Path)
+	    return g.singleDownload(destAbsPath, change.Src.Id, "")
+
+    }
+	
+	destAbsPath := g.context.AbsPathOf(change.Path)
+    // We need to touch the empty file to
+	// ensure consistency during a push.
+	emptyFilepath := destAbsPath
+	if err = touchFile(emptyFilepath); err != nil {
+	    return err
+    }
+
+    if len(exports) >= 1 && hasExportLinks(change.Src) {
 		manifest, exportErr := g.export(change.Src, destAbsPath, exports)
 		if exportErr == nil {
 			for _, exportPath := range manifest {
@@ -186,9 +192,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		}
 		return exportErr
 	}
-
-	destAbsPath := g.context.AbsPathOf(change.Path)
-	return g.singleDownload(destAbsPath, change.Src.Id, "")
+    return
 }
 
 func (g *Commands) singleDownload(p, id, exportURL string) (err error) {

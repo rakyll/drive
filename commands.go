@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	ErrNoContext = errors.New("not in a gd context")
+	ErrNoContext = errors.New("not in a drive context")
 )
 
 type Options struct {
@@ -31,11 +31,17 @@ type Options struct {
 	IsNoPrompt  bool
 	IsRecursive bool
 	IsForce     bool
-	// Hidden discovers hidden paths if set
-	Hidden bool
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
 	Exports []string
+	// Hidden discovers hidden paths if set
+	Hidden bool
+	// Mounts is a list of all mountpoints
+	// of paths that are not in the current drive context
+	Mounts []*config.MountPoint
+	// Sources is a of list all paths that are
+	// within the scope/path of the current gd context
+	Sources []string
 }
 
 type Commands struct {
