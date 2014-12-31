@@ -61,7 +61,18 @@ Welcome to the drive wiki!
   ** You can also pull from a specific path
   ![drive pull](https://github.com/odeke-em/wiki_content/blob/master/drive/pull_specific.png)
 
+ + Can I export documents?
+ 
+  Yes, by default Google Docs + Sheets cannot be downloaded raw but only exported. To export
 
+  your documents pass in: -export and a list of desired exports e.g:
+  
+  * After creating a new document:
+  
+  ![drive newdoc](https://github.com/odeke-em/wiki_content/blob/master/drive/testDocument1.png)
+  
+  * Now the exported pull:
+  ![drive exported pull](https://github.com/odeke-em/wiki_content/blob/master/drive/export_usage.png)
 
 **Push:**
 ====
@@ -120,3 +131,4 @@ Welcome to the drive wiki!
        * The moving can be performed with a rename, move or delete (rm)
 
         ![drive unpub](https://github.com/odeke-em/wiki_content/blob/master/drive/push_to_trash.png)
+
