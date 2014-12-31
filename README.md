@@ -4,6 +4,10 @@
 
 `drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need at least go1.2 installed in order to build the program.
 
+ `drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team.
+
+However, she no longer has the time to work on it so I am it's new maintainer.
+
 ## Installation
 
     go get github.com/odeke-em/drive/cmd/drive
@@ -124,9 +128,9 @@ if successful will create a directory logo\_exports which will look like:
 =======
 
 
-   $> go get github.com/rakyll/drive/cmd/drive
+   $> go get github.com/odeke-em/drive/cmd/drive
 
-   Note: Running go install or go get github.com/rakyll/drive will not create an executable.
+   Note: Running go install or go get github.com/odeke-em/drive will not create an executable.
 
 
 **Initializing a drive:**
