@@ -84,6 +84,8 @@ if successful will create a directory logo\_exports which will look like:
                 |- logo.png
                 |- logo.svg
 
+## [Sample usage](https://github.com/odeke-em/drive/blob/master/Sample_Usage.md):
+
 ## Known issues
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
