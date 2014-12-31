@@ -158,7 +158,7 @@ func (g *Commands) resolveChangeListRecv(
 		change = &Change{Path: p, Src: r, Dest: l}
 	}
 
-	if change.Op(g.opts.NoClobber) != OpNone {
+	if change.CoercedOp(g.opts.NoClobber) != OpNone {
 		cl = append(cl, change)
 	}
 	if !g.opts.IsRecursive {
@@ -226,7 +226,7 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 
 func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
 	for _, c := range changes {
-		if c.Op(noClobber) != OpNone {
+		if c.Op() != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
 	}

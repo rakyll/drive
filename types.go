@@ -77,7 +77,7 @@ type Change struct {
 }
 
 func (c *Change) Symbol() string {
-	op := c.Op(false)
+	op := c.Op()
 	switch op {
 	case OpAdd:
 		return "\x1b[32m+\x1b[0m"
@@ -129,30 +129,41 @@ func isSameFile(src, dest *File) bool {
 	return true
 }
 
-func (c *Change) Op(noClobber bool) int {
-	if c.Src == nil {
-		if c.Dest == nil || noClobber {
-			return OpNone
-		}
-		return OpDelete
+// Will turn any other op but an Addition into a noop
+func (c *Change) CoercedOp(noClobber bool) int {
+	op := c.Op()
+	if op != OpAdd && noClobber {
+		return OpNone
 	}
+	return op
+}
 
-	if c.Dest == nil {
+func (c *Change) Op() int {
+	if c.Src == nil && c.Dest == nil {
+		return OpNone
+	}
+	if c.Src != nil && c.Dest == nil {
 		return OpAdd
 	}
-
+	if c.Src == nil && c.Dest != nil {
+		return OpDelete
+	}
 	if c.Src.IsDir != c.Dest.IsDir {
-		if noClobber {
-			return OpNone
-		}
 		return OpMod
 	}
 
 	if !c.Src.IsDir {
-		if noClobber {
-			return OpNone
+		// if it's a regular file, see it it's modified.
+		// If the first test passes then do an Md5 checksum comparison
+
+		if c.Src.Size != c.Dest.Size || !c.Src.ModTime.Equal(c.Dest.ModTime) {
+			return OpMod
 		}
-		if !isSameFile(c.Src, c.Dest) {
+
+		ssum := md5Checksum(c.Src)
+		dsum := md5Checksum(c.Dest)
+
+		if dsum != ssum {
 			return OpMod
 		}
 	}

@@ -33,7 +33,7 @@ func (g *Commands) Push() (err error) {
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	g.taskStart(len(cl))
 	for _, c := range cl {
-		switch c.Op(g.opts.NoClobber) {
+		switch c.CoercedOp(g.opts.NoClobber) {
 		case OpMod:
 			g.remoteMod(c)
 		case OpAdd:
