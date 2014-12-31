@@ -94,7 +94,8 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 		cl = append(cl, clForPush(g)...)
 	}
 
-	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
+	ok := printChangeList(cl, g.opts.IsNoPrompt, g.opts.NoClobber)
+	if ok {
 		if isPush {
 			return g.playPushChangeList(cl)
 		}
@@ -148,16 +149,16 @@ func (g *Commands) resolveChangeListRecv(
 	var change *Change
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
-		// url but have exportable links. These files should not be clobbered on the cloud
+		// url but have exportable links. These files should not be clobbered on push
 		if hasExportLinks(r) {
 			return cl, nil
 		}
-
 		change = &Change{Path: p, Src: l, Dest: r}
 	} else {
 		change = &Change{Path: p, Src: r, Dest: l}
 	}
-	if change.Op() != OpNone {
+
+	if change.Op(g.opts.NoClobber) != OpNone {
 		cl = append(cl, change)
 	}
 	if !g.opts.IsRecursive {
@@ -223,9 +224,9 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 	return
 }
 
-func printChangeList(changes []*Change, isNoPrompt bool) bool {
+func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
 	for _, c := range changes {
-		if c.Op() != OpNone {
+		if c.Op(noClobber) != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
 	}

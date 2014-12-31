@@ -53,7 +53,7 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 		// play the changes
 		// TODO: add timeouts
 		for _, c := range next {
-			switch c.Op() {
+			switch c.Op(g.opts.NoClobber) {
 			case OpMod:
 				go g.localMod(&wg, c, exports)
 			case OpAdd:

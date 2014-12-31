@@ -14,8 +14,8 @@ Use `drive help` for further reference.
 	$ drive pull [-r -no-prompt path] # pulls from remote
 	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 path] # pulls from remote and exports Docs + Sheets to one of its export formats.
     e.g:
-	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html ReportII.txt] # pull ReportII.txt from remote and 
-        export it to pdf, docx, rtf and html
+	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html ReportII.txt] # pull ReportII.txt from
+	 remote and export it to pdf, docx, rtf and html.
         
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
@@ -26,6 +26,11 @@ Use `drive help` for further reference.
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive pub [path] # publishes a file, outputs URL
 	$ drive unpub [path] # revokes public access to the file
+
+	# Note using the no-clobber option for push or pull ensures that only ADDITIONS are made
+	# any modifications or deletions are ignored and those files are safe.
+	$ drive pull -no-clobber
+	$ drive push -no-clobber
 
 ## Configuration
 

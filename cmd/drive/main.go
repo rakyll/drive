@@ -62,9 +62,11 @@ type pullCmd struct {
 	export      *string
 	isRecursive *bool
 	isNoPrompt  *bool
+	noClobber   *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.noClobber = fs.Bool("no-clobber", false, "prevents overwriting of old content")
 	cmd.export = fs.String(
 		"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
@@ -88,14 +90,16 @@ func (cmd *pullCmd) Run(args []string) {
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
-		Path:        path,
 		Exports:     exports,
 		IsNoPrompt:  *cmd.isNoPrompt,
 		IsRecursive: *cmd.isRecursive,
+		NoClobber:   *cmd.noClobber,
+		Path:        path,
 	}).Pull())
 }
 
 type pushCmd struct {
+	noClobber   *bool
 	hidden      *bool
 	isNoPrompt  *bool
 	isRecursive *bool
@@ -103,6 +107,7 @@ type pushCmd struct {
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.noClobber = fs.Bool("no-clobber", false, "allows overwriting of old content")
 	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
 	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
@@ -116,10 +121,11 @@ func (cmd *pushCmd) Run(args []string) {
 	} else {
 		context, path := discoverContext(args)
 		exitWithError(drive.New(context, &drive.Options{
-			Path:        path,
+			NoClobber:   *cmd.noClobber,
 			Hidden:      *cmd.hidden,
 			IsNoPrompt:  *cmd.isNoPrompt,
 			IsRecursive: *cmd.isRecursive,
+			Path:        path,
 		}).Push())
 	}
 }
@@ -154,11 +160,12 @@ func pushMounted(cmd *pushCmd, args []string) {
 	sources = append(sources, auxSrcs...)
 
 	exitWithError(drive.New(context, &drive.Options{
-		Path:        path,
 		Hidden:      *cmd.hidden,
 		IsNoPrompt:  *cmd.isNoPrompt,
 		IsRecursive: *cmd.isRecursive,
 		Mounts:      mountPoints,
+		NoClobber:   *cmd.noClobber,
+		Path:        path,
 		Sources:     sources,
 	}).Push())
 }

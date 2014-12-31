@@ -77,7 +77,7 @@ type Change struct {
 }
 
 func (c *Change) Symbol() string {
-	op := c.Op()
+	op := c.Op(false)
 	switch op {
 	case OpAdd:
 		return "\x1b[32m+\x1b[0m"
@@ -129,21 +129,29 @@ func isSameFile(src, dest *File) bool {
 	return true
 }
 
-func (c *Change) Op() int {
-	if c.Src == nil && c.Dest == nil {
-		return OpNone
-	}
-	if c.Src != nil && c.Dest == nil {
-		return OpAdd
-	}
-	if c.Src == nil && c.Dest != nil {
+func (c *Change) Op(noClobber bool) int {
+	if c.Src == nil {
+		if c.Dest == nil || noClobber {
+			return OpNone
+		}
 		return OpDelete
 	}
+
+	if c.Dest == nil {
+		return OpAdd
+	}
+
 	if c.Src.IsDir != c.Dest.IsDir {
+		if noClobber {
+			return OpNone
+		}
 		return OpMod
 	}
 
 	if !c.Src.IsDir {
+		if noClobber {
+			return OpNone
+		}
 		if !isSameFile(c.Src, c.Dest) {
 			return OpMod
 		}
