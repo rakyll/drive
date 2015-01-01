@@ -104,12 +104,14 @@ func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
 		return
 	}
 	var r, l *File
-	if r, err = g.rem.FindByPath(relPath); err != nil {
+	r, err = g.rem.FindByPath(relPath)
+	if err != nil || r == nil {
 		// We cannot pull from a non-existant remote
 		if !isPush {
 			return
 		}
 	}
+
 	localinfo, _ := os.Stat(absPath)
 	if localinfo != nil {
 		l = NewLocalFile(relPath, localinfo)

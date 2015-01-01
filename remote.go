@@ -266,10 +266,11 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	req := r.service.Files.List()
 	// TODO: use field selectors
 	var expr string
+	head := urlToPath(p[0], false)
 	if trashed {
-		expr = fmt.Sprintf("title = '%s' and trashed=true", p[0])
+		expr = fmt.Sprintf("title = '%s' and trashed=true", head)
 	} else {
-		expr = fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, p[0])
+		expr = fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, head)
 	}
 	req.Q(expr)
 	files, err := req.Do()
