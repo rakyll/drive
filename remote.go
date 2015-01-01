@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -46,6 +47,11 @@ const (
 
 var (
 	ErrPathNotExists = errors.New("remote path doesn't exist")
+)
+
+var (
+	UnescapedPathSep = fmt.Sprintf("%c", os.PathSeparator)
+	EscapedPathSep   = url.QueryEscape(UnescapedPathSep)
 )
 
 var regExtStrMap = map[string]string{
@@ -206,10 +212,9 @@ func (r *Remote) Publish(id string) (string, error) {
 
 func urlToPath(p string, fsBound bool) string {
 	if fsBound {
-		return url.QueryEscape(p)
+		return strings.Replace(p, UnescapedPathSep, EscapedPathSep, -1)
 	}
-	undone, _ := url.QueryUnescape(p)
-	return undone
+	return strings.Replace(p, EscapedPathSep, UnescapedPathSep, -1)
 }
 
 func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
