@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -35,15 +36,19 @@ const (
 	descPush      = "push local changes to google drive"
 	descDiff      = "compares a local file with remote"
 	descPublish   = "publishes a file and prints its publicly available url"
+	descTrash     = "moves the file to trash"
+	descUntrash   = "restores the file from trash"
 	descUnpublish = "revokes public access to a file"
 )
 
 func main() {
+	command.On("diff", descDiff, &diffCmd{}, []string{})
 	command.On("init", descInit, &initCmd{}, []string{})
 	command.On("pull", descPull, &pullCmd{}, []string{})
 	command.On("push", descPush, &pushCmd{}, []string{})
-	command.On("diff", descDiff, &diffCmd{}, []string{})
 	command.On("pub", descPublish, &publishCmd{}, []string{})
+	command.On("trash", descTrash, &trashCmd{}, []string{})
+	command.On("untrash", descUntrash, &untrashCmd{}, []string{})
 	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
 	command.ParseAndRun()
 }
@@ -179,7 +184,8 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *diffCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		IsRecursive: true,
+		Path:        path,
 	}).Diff())
 }
 
@@ -197,6 +203,32 @@ func (cmd *unpublishCmd) Run(args []string) {
 	}).Unpublish())
 }
 
+type trashCmd struct{}
+
+func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *trashCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).Trash())
+}
+
+type untrashCmd struct{}
+
+func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *untrashCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).Untrash())
+}
+
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
@@ -210,7 +242,23 @@ func (cmd *publishCmd) Run(args []string) {
 
 func initContext(args []string) *config.Context {
 	var err error
-	context, err = config.Initialize(getContextPath(args))
+	var gdPath string
+	var firstInit bool
+
+	gdPath, firstInit, context, err = config.Initialize(getContextPath(args))
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+
+	// The signal handler should clean up the .gd path if this is the first time
+	go func() {
+		_ = <-c
+		if firstInit {
+			os.RemoveAll(gdPath)
+		}
+		os.Exit(1)
+	}()
+
 	exitWithError(err)
 	return context
 }

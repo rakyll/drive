@@ -140,10 +140,26 @@ func (r *Remote) FindByPath(p string) (file *File, err error) {
 	return r.findByPathRecv("root", parts[1:])
 }
 
-func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
+func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
+	if p == "/" {
+		return r.FindById("root")
+	}
+	parts := strings.Split(p, "/") // TODO: use path.Split instead
+	return r.findByPathTrashed("root", parts[1:])
+}
+
+func (r *Remote) findByParentIdRaw(parentId string, trashed bool) (files []*File, err error) {
 	req := r.service.Files.List()
+
 	// TODO: use field selectors
-	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
+	var expr string
+	if trashed {
+		expr = fmt.Sprintf("'%s' in parents and trashed=true", parentId)
+	} else {
+		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
+	}
+
+	req.Q(expr)
 	results, err := req.Do()
 	// TODO: handle paging
 	if err != nil {
@@ -157,8 +173,21 @@ func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
 	return
 }
 
+func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
+	return r.findByParentIdRaw(parentId, false)
+}
+
+func (r *Remote) FindByParentIdTrashed(parentId string) (files []*File, err error) {
+	return r.findByParentIdRaw(parentId, true)
+}
+
 func (r *Remote) Trash(id string) error {
 	_, err := r.service.Files.Trash(id).Do()
+	return err
+}
+
+func (r *Remote) Untrash(id string) error {
+	_, err := r.service.Files.Untrash(id).Do()
 	return err
 }
 
@@ -227,11 +256,17 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 	return NewRemoteFile(uploaded), nil
 }
 
-func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
+func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
 	// TODO: use field selectors
-	req.Q(fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, p[0]))
+	var expr string
+	if trashed {
+		expr = fmt.Sprintf("title = '%s' and trashed=true", p[0])
+	} else {
+		expr = fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, p[0])
+	}
+	req.Q(expr)
 	files, err := req.Do()
 	if err != nil || len(files.Items) < 1 {
 		// TODO: make sure only 404s are handled here
@@ -241,7 +276,15 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err er
 	if len(p) == 1 {
 		return file, nil
 	}
-	return r.findByPathRecv(file.Id, p[1:])
+	return r.findByPathRecvRaw(file.Id, p[1:], trashed)
+}
+
+func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {
+	return r.findByPathRecvRaw(parentId, p, false)
+}
+
+func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
+	return r.findByPathRecvRaw(parentId, p, true)
 }
 
 func newAuthConfig(context *config.Context) *oauth.Config {

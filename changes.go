@@ -61,10 +61,42 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
-// Resolves the local path relative to the root directory
-// then performs either Push or Pull depending on 'isPush'
-func (g *Commands) syncByRelativePath(isPush bool) (err error) {
-	defer g.clearMountPoints()
+func (g *Commands) trashListResolve(trashed bool) (cl []*Change, err error) {
+	var relPath string
+	relPath, _, err = g.pathResolve()
+
+	if relPath == "/" {
+		err = fmt.Errorf("Cannot delete from root")
+		return
+	}
+
+	fmt.Println("Resolving...")
+	var r *File
+
+	f := g.rem.FindByPath
+	if trashed {
+		f = g.rem.FindByPathTrashed
+	}
+
+	r, err = f(relPath)
+	if err != nil {
+		return
+	}
+	return g.resolveTrashChangeList(trashed, relPath, r)
+}
+
+func (g *Commands) trashByRelativePath(trashed bool) (err error) {
+	var cl []*Change
+	cl, err = g.trashListResolve(trashed)
+
+	ok := printChangeList(cl, g.opts.IsNoPrompt, false)
+	if ok {
+		return g.playTrashChangeList(cl, trashed)
+	}
+	return
+}
+
+func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
 	var relPath, absPath string
 	relPath, absPath, err = g.pathResolve()
 	if err != nil {
@@ -82,7 +114,6 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 		l = NewLocalFile(relPath, localinfo)
 	}
 
-	var cl []*Change
 	fmt.Println("Resolving...")
 	cl, err = g.resolveChangeListRecv(isPush, relPath, relPath, r, l)
 	if err != nil {
@@ -92,6 +123,16 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 	if isPush {
 		cl = append(cl, clForPush(g)...)
 	}
+	return
+}
+
+// Resolves the local path relative to the root directory
+// then performs either Push or Pull depending on 'isPush'
+func (g *Commands) syncByRelativePath(isPush bool) (err error) {
+	defer g.clearMountPoints()
+
+	var cl []*Change
+	cl, err = g.changeListResolve(isPush)
 
 	ok := printChangeList(cl, g.opts.IsNoPrompt, g.opts.NoClobber)
 	if ok {
@@ -141,6 +182,46 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	}
 
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
+}
+
+func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl []*Change, err error) {
+	var change *Change
+	if trashed {
+		change = &Change{Path: p, Src: r, Dest: nil}
+	} else {
+		change = &Change{Path: p, Src: nil, Dest: r}
+	}
+
+	if change.Op() != OpNone {
+		cl = append(cl, change)
+	}
+	if !g.opts.IsRecursive {
+		return cl, nil
+	}
+
+	var remoteChildren []*File
+	f := g.rem.FindByParentId
+	if trashed {
+		f = g.rem.FindByParentIdTrashed
+	}
+	if r != nil {
+		if remoteChildren, err = f(r.Id); err != nil {
+			return
+		}
+	}
+
+	dirlist := merge(remoteChildren, []*File{})
+	var wg sync.WaitGroup
+	wg.Add(len(dirlist))
+	for _, l := range dirlist {
+		go func(wg *sync.WaitGroup, cl *[]*Change, p string, l *dirList) {
+			defer wg.Done()
+			childChanges, _ := g.resolveTrashChangeList(trashed, path.Join(p, l.Name()), l.remote)
+			*cl = append(*cl, childChanges...)
+		}(&wg, &cl, p, l)
+	}
+	wg.Wait()
+	return cl, nil
 }
 
 func (g *Commands) resolveChangeListRecv(
@@ -226,14 +307,15 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 }
 
 func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
+	if len(changes) == 0 {
+		fmt.Println("Everything is up-to-date.")
+		return false
+	}
+
 	for _, c := range changes {
 		if c.Op() != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
-	}
-	if len(changes) == 0 {
-		fmt.Println("Everything is up-to-date.")
-		return false
 	}
 	if isNoPrompt {
 		return true

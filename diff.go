@@ -20,96 +20,81 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/exec"
 	"strings"
-
-	diffmp "github.com/sergi/go-diff/diffmatchpatch"
 )
 
 // MaxFileSize is the max number of bytes we
 // can accept for diffing (Arbitrary value)
 const MaxFileSize = 50 * 1024 * 1024
 
-func fsFileToString(abspath string) (buf string, err error) {
-	var finfo os.FileInfo
+var Ruler = strings.Repeat("*", 80)
 
-	finfo, err = os.Stat(abspath)
+func (g *Commands) Diff() (err error) {
+	var cl []*Change
+	cl, err = g.changeListResolve(true)
 	if err != nil {
 		return
 	}
 
-	var fh *os.File
-	fh, err = os.Open(abspath)
-	defer func() {
-		if fh != nil {
-			fh.Close()
+	var diffUtilPath string
+	diffUtilPath, err = exec.LookPath("diff")
+	if err != nil {
+		return
+	}
+
+	for _, c := range cl {
+		dErr := g.perDiff(c, diffUtilPath, ".")
+		if dErr != nil {
+			fmt.Println(dErr)
 		}
-	}()
-	if err != nil {
-		return
 	}
-	bbuf := make([]byte, finfo.Size())
-	_, err = fh.Read(bbuf)
-	if err != nil {
-		return
-	}
-	buf = string(bbuf)
 	return
 }
 
-func (g *Commands) Diff() (err error) {
-	var relPath, absPath string
-	relPath, absPath, err = g.pathResolve()
-	if err != nil {
-		return
-	}
-	var r, l *File
+func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error) {
+	defer func() {
+		fmt.Println(Ruler)
+	}()
 
-	r, err = g.rem.FindByPath(relPath)
-	if err != nil || r == nil {
-		return
+	l, r := change.Src, change.Dest
+	if l == nil && r == nil {
+		return fmt.Errorf("Neither remote nor local exists")
 	}
-	var localinfo os.FileInfo
-	localinfo, err = os.Stat(absPath)
-	if err != nil || localinfo == nil {
-		return
+	if r == nil && l != nil {
+		return fmt.Errorf("%s only on local", change.Path)
 	}
-	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
+	if l == nil && r != nil {
+		return fmt.Errorf("%s only on remote", change.Path)
 	}
-
 	// Pre-screening phase
-	if r.IsDir {
-		if l.IsDir {
-			fmt.Println("Both local and remote are directories")
-		} else {
-			fmt.Println("Remote is a directory while local is an ordinary file")
-		}
-		return
+	if r.IsDir && l.IsDir {
+		return fmt.Errorf("Both local and remote are directories")
 	}
-	if l.IsDir {
-		if r.IsDir {
-			fmt.Println("Both local and remote are directories")
-		} else {
-			fmt.Println("Local is a directory while remote is an ordinary file")
-		}
-		return
+	if r.IsDir && !l.IsDir {
+		return fmt.Errorf("Remote is a directory while local is an ordinary file")
+	}
+
+	if l.IsDir && !r.IsDir {
+		return fmt.Errorf("Local is a directory while remote is an ordinary file")
 	}
 
 	if r.BlobAt == "" {
 		return fmt.Errorf("Cannot access download link for '%v'", r.Name)
 	}
+
+	if r.Size > MaxFileSize {
+		return fmt.Errorf("%s Remote too large for display \033[94m[%v bytes]\033[00m",
+			change.Path, r.Size)
+	}
+	if l.Size > MaxFileSize {
+		return fmt.Errorf("%s Local too large for display \033[92m[%v bytes]\033[00m",
+			change.Path, l.Size)
+	}
+
 	if isSameFile(r, l) {
 		// No output when "no changes found"
 		return nil
-	}
-
-	if r.Size > MaxFileSize {
-		return fmt.Errorf(
-			"Remote too large for display \033[94m[%v bytes]\033[00m", r.Size)
-	}
-	if l.Size > MaxFileSize {
-		return fmt.Errorf(
-			"Local too large for display \033[92m[%v bytes]\033[00m", l.Size)
 	}
 
 	var frTmp, fl *os.File
@@ -147,18 +132,19 @@ func (g *Commands) Diff() (err error) {
 	if err != nil {
 		return
 	}
-	var rBuffer, lBuffer string
-	rBuffer, err = fsFileToString(frTmp.Name())
-	if err != nil {
-		return
-	}
-	lBuffer, err = fsFileToString(l.BlobAt)
-	if err != nil {
-		return
+
+	fmt.Printf("%s\n%s %s\n", Ruler, l.Name, r.Name)
+
+	diffCmd := exec.Cmd{
+		Args:   []string{diffProgPath, l.BlobAt, frTmp.Name()},
+		Dir:    cwd,
+		Path:   diffProgPath,
+		Stdin:  nil,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
 
-	dmp := diffmp.New()
-	patches := dmp.PatchMake(lBuffer, rBuffer)
-	fmt.Print(dmp.PatchToText(patches))
+	// Normally when elements differ diff returns a non-zero code
+	_ = diffCmd.Run()
 	return
 }
