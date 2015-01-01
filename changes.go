@@ -279,8 +279,13 @@ func (g *Commands) resolveChangeListRecv(
 	for _, l := range dirlist {
 		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, l *dirList) {
 			defer wg.Done()
-			// Note that using path.Join normalizes '//*' to '/'
-			joined := strings.Join([]string{p, l.Name()}, "/")
+			// Avoiding path.Join which normalizes '/+' to '/'
+			var joined string
+			if p == "/" {
+				joined = "/" + l.Name()
+			} else {
+				joined = strings.Join([]string{p, l.Name()}, "/")
+			}
 			childChanges, _ := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
 			*cl = append(*cl, childChanges...)
 		}(&wg, isPush, &cl, p, l)

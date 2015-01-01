@@ -219,10 +219,10 @@ if successful will create a directory logo\_exports which will look like:
   ![drive unpub](https://github.com/odeke-em/wiki_content/blob/master/drive/unpub.png)
 
 
-**Deleting files**
+**Trashing and Untrashing files**
 ======
 
-  + How do I delete a file on the cloud?
+  + How do I trash/untrash a file on the cloud?
 
     The options here are:
 
@@ -232,13 +232,13 @@ if successful will create a directory logo\_exports which will look like:
 
     2) Using your terminal, take that file out of its position and then perform a push on only that file.
 
-       * The moving can be performed with a rename, move or delete (rm)
+   ![drive trash/untrash](https://github.com/odeke-em/wiki_content/blob/master/drive/trash-untrash.png)
 
-        ![drive unpub](https://github.com/odeke-em/wiki_content/blob/master/drive/push_to_trash.png)
+=======
 
 
 ## LICENSE
-Copyright 2014 Google Inc. All Rights Reserved.
+Copyright 2013 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
