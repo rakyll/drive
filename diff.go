@@ -20,41 +20,15 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/exec"
 	"strings"
-
-	diffmp "github.com/sergi/go-diff/diffmatchpatch"
 )
 
 // MaxFileSize is the max number of bytes we
 // can accept for diffing (Arbitrary value)
-const MaxFileSize = 5 * 1024 * 1024
+const MaxFileSize = 50 * 1024 * 1024
 
-func fsFileToString(abspath string) (buf string, err error) {
-	var finfo os.FileInfo
-
-	finfo, err = os.Stat(abspath)
-	if err != nil {
-		return
-	}
-
-	var fh *os.File
-	fh, err = os.Open(abspath)
-	defer func() {
-		if fh != nil {
-			fh.Close()
-		}
-	}()
-	if err != nil {
-		return
-	}
-	bbuf := make([]byte, finfo.Size())
-	_, err = fh.Read(bbuf)
-	if err != nil {
-		return
-	}
-	buf = string(bbuf)
-	return
-}
+var Ruler = strings.Repeat("*", 80)
 
 func (g *Commands) Diff() (err error) {
 	var cl []*Change
@@ -63,8 +37,14 @@ func (g *Commands) Diff() (err error) {
 		return
 	}
 
+    var diffUtilPath string
+    diffUtilPath, err = exec.LookPath("diff")
+    if err != nil {
+        return
+    }
+
 	for _, c := range cl {
-		dErr := g.perDiff(c)
+		dErr := g.perDiff(c, diffUtilPath, ".")
 		if dErr != nil {
 			fmt.Println(dErr)
 		}
@@ -72,16 +52,25 @@ func (g *Commands) Diff() (err error) {
 	return
 }
 
-func (g *Commands) perDiff(change *Change) (err error) {
+func sysHasDiff() bool {
+    _, err := exec.LookPath("diff")
+    return err == nil
+}
+
+func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error) {
+    defer func() {
+        fmt.Println(Ruler)
+    }()
+
 	l, r := change.Src, change.Dest
 	if l == nil && r == nil {
 		return fmt.Errorf("Neither remote nor local exists")
 	}
 	if r == nil && l != nil {
-		return fmt.Errorf("\033[94m< %s\033[00m\n", change.Path)
+		return fmt.Errorf("%s only on local", change.Path)
 	}
 	if l == nil && r != nil {
-		return fmt.Errorf("\033[92m> %s\033[00m\n", change.Path)
+		return fmt.Errorf("%s only on remote", change.Path)
 	}
 	// Pre-screening phase
 	if r.IsDir && l.IsDir {
@@ -148,22 +137,19 @@ func (g *Commands) perDiff(change *Change) (err error) {
 	if err != nil {
 		return
 	}
-	var rBuffer, lBuffer string
-	rBuffer, err = fsFileToString(frTmp.Name())
-	if err != nil {
-		return
-	}
-	lBuffer, err = fsFileToString(l.BlobAt)
-	if err != nil {
-		return
-	}
 
-	dmp := diffmp.New()
-	patches := dmp.PatchMake(lBuffer, rBuffer)
-	fmt.Print(dmp.PatchToText(patches))
-	return
-}
+    fmt.Printf("%s\n%s %s\n", Ruler, l.Name, r.Name)
 
-func (g *Commands) playDiffChangeList(cl []*Change) (err error) {
+    diffCmd := exec.Cmd {
+        Args: []string{ diffProgPath, l.BlobAt, frTmp.Name() },
+        Dir: cwd,
+        Path: diffProgPath,
+        Stdin: nil,
+        Stdout: os.Stdout,
+        Stderr: os.Stderr,
+    }
+
+    // Normally when elements differ diff returns a non-zero code
+    _ = diffCmd.Run()
 	return
 }
