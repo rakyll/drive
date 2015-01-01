@@ -212,8 +212,7 @@ func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *trashCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
-		IsRecursive: true,
-		Path:        path,
+		Path: path,
 	}).Trash())
 }
 
@@ -226,8 +225,7 @@ func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *untrashCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
-		IsRecursive: true,
-		Path:        path,
+		Path: path,
 	}).Untrash())
 }
 
