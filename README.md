@@ -5,10 +5,6 @@ Find the latest and updated code at https://github.com/odeke-em/drive
 # drive
 drive` is a tiny program to pull or push [Google Drive](https://drive.google.com) files. You need at least go1.2 installed in order to build the program.
 
-## Installation
-
-    go get github.com/rakyll/drive/cmd/drive
-
 ## License
 Copyright 2013 Google Inc. All Rights Reserved.
 
