@@ -77,6 +77,11 @@ func (g *Commands) remoteAdd(change *Change) (err error) {
 	return g.remoteMod(change)
 }
 
+func (g *Commands) remoteUntrash(change *Change) (err error) {
+	defer g.taskDone()
+	return g.rem.Untrash(change.Src.Id)
+}
+
 func (g *Commands) remoteDelete(change *Change) (err error) {
 	defer g.taskDone()
 	return g.rem.Trash(change.Dest.Id)

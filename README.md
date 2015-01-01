@@ -36,6 +36,9 @@ Use `drive help` for further reference.
 	$ drive pull -no-clobber
 	$ drive push -no-clobber
 
+	$ drive trash
+	$ drive untrash
+
 ## Configuration
 
 If you would like to use your own client ID/client secret pair with `drive`, set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` variables in your environment

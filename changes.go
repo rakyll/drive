@@ -62,6 +62,41 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
+func (g *Commands) trashListResolve(trashed bool) (cl []*Change, err error) {
+	var relPath string
+	relPath, _, err = g.pathResolve()
+
+	if relPath == "/" {
+		err = fmt.Errorf("Cannot delete from root")
+		return
+	}
+
+	fmt.Println("Resolving...")
+	var r *File
+
+	f := g.rem.FindByPath
+	if trashed {
+		f = g.rem.FindByPathTrashed
+	}
+
+	r, err = f(relPath)
+	if err != nil {
+		return
+	}
+	return g.resolveTrashChangeList(trashed, relPath, r)
+}
+
+func (g *Commands) trashByRelativePath(trashed bool) (err error) {
+	var cl []*Change
+	cl, err = g.trashListResolve(trashed)
+
+	ok := printChangeList(cl, g.opts.IsNoPrompt, false)
+	if ok {
+		return g.playTrashChangeList(cl, trashed)
+	}
+	return
+}
+
 func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
 	var relPath, absPath string
 	relPath, absPath, err = g.pathResolve()
@@ -150,6 +185,46 @@ func lonePush(g *Commands, absPath, path string) (cl []*Change, err error) {
 	return g.resolveChangeListRecv(true, absPath, r, l)
 }
 
+func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl []*Change, err error) {
+	var change *Change
+	if trashed {
+		change = &Change{Path: p, Src: r, Dest: nil}
+	} else {
+		change = &Change{Path: p, Src: nil, Dest: r}
+	}
+
+	if change.Op() != OpNone {
+		cl = append(cl, change)
+	}
+	if !g.opts.IsRecursive {
+		return cl, nil
+	}
+
+	var remoteChildren []*File
+	f := g.rem.FindByParentId
+	if trashed {
+		f = g.rem.FindByParentIdTrashed
+	}
+	if r != nil {
+		if remoteChildren, err = f(r.Id); err != nil {
+			return
+		}
+	}
+
+	dirlist := merge(remoteChildren, []*File{})
+	var wg sync.WaitGroup
+	wg.Add(len(dirlist))
+	for _, l := range dirlist {
+		go func(wg *sync.WaitGroup, cl *[]*Change, p string, l *dirList) {
+			defer wg.Done()
+			childChanges, _ := g.resolveTrashChangeList(trashed, path.Join(p, l.Name()), l.remote)
+			*cl = append(*cl, childChanges...)
+		}(&wg, &cl, p, l)
+	}
+	wg.Wait()
+	return cl, nil
+}
+
 func (g *Commands) resolveChangeListRecv(
 	isPush bool, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
@@ -231,14 +306,15 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 }
 
 func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
+	if len(changes) == 0 {
+		fmt.Println("Everything is up-to-date.")
+		return false
+	}
+
 	for _, c := range changes {
 		if c.Op() != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
-	}
-	if len(changes) == 0 {
-		fmt.Println("Everything is up-to-date.")
-		return false
 	}
 	if isNoPrompt {
 		return true
