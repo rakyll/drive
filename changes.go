@@ -67,7 +67,7 @@ func (g *Commands) resolveChangeListRecv(
 
 	var remoteChildren []*File
 	if r != nil {
-		if remoteChildren, err = g.rem.FindByParentId(r.Id); err != nil {
+		if remoteChildren, err = g.rem.FindByParentID(r.Id, g.opts.Hidden); err != nil {
 			return
 		}
 	}
