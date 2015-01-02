@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
+    "runtime"
 	"github.com/rakyll/command"
 	"github.com/rakyll/drive"
 	"github.com/rakyll/drive/config"
@@ -38,6 +38,7 @@ const (
 )
 
 func main() {
+    runtime.GOMAXPROCS(runtime.NumCPU()) // Use all the machine's cores
 	command.On("init", descInit, &initCmd{}, []string{})
 	command.On("pull", descPull, &pullCmd{}, []string{})
 	command.On("push", descPush, &pushCmd{}, []string{})
