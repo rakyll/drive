@@ -36,6 +36,9 @@ type Options struct {
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
 	Exports []string
+	// Directory to put the exported Google Docs + Sheets, if not
+	// provided will export them to the same dir as the source files are.
+	ExportsDir string
 	// Hidden discovers hidden paths if set
 	Hidden bool
 	// Mounts is a list of all mountpoints

@@ -16,10 +16,12 @@ Use `drive help` for further reference.
 
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
-	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 path] # pulls from remote and exports Docs + Sheets to one of its export formats.
+	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 -export-dir <export-dir> path] # pulls from remote and exports Docs + Sheets to one of its export formats.
     e.g:
 	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html ReportII.txt] # pull ReportII.txt from
 	 remote and export it to pdf, docx, rtf and html.
+	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html -export-dir ~/Desktop/exports ReportII.txt] # pull ReportII.txt from
+	 remote and export it to pdf, docx, rtf and html and save it in ~/Desktop/exports
         
 	$ drive push [-r -no-prompt path] # pushes to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote

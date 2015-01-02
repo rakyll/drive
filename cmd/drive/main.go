@@ -64,6 +64,7 @@ func (cmd *initCmd) Run(args []string) {
 }
 
 type pullCmd struct {
+	exportsDir  *string
 	export      *string
 	isRecursive *bool
 	isNoPrompt  *bool
@@ -76,6 +77,8 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 		"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
+	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
+
 	return fs
 }
 
@@ -96,6 +99,7 @@ func (cmd *pullCmd) Run(args []string) {
 
 	exitWithError(drive.New(context, &drive.Options{
 		Exports:     exports,
+		ExportsDir:  strings.Trim(*cmd.exportsDir, " "),
 		IsNoPrompt:  *cmd.isNoPrompt,
 		IsRecursive: *cmd.isRecursive,
 		NoClobber:   *cmd.noClobber,

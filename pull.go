@@ -113,7 +113,7 @@ func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 func touchFile(path string) (err error) {
 	var ef *os.File
 	defer func() {
-		if err != nil && ef != nil {
+		if err == nil && ef != nil {
 			ef.Close()
 		}
 	}()
@@ -178,13 +178,17 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
-	emptyFilepath := destAbsPath
-	if err = touchFile(emptyFilepath); err != nil {
+	if err = touchFile(destAbsPath); err != nil {
 		return err
 	}
 
 	if len(exports) >= 1 && hasExportLinks(change.Src) {
-		manifest, exportErr := g.export(change.Src, destAbsPath, exports)
+		exportDirPath := destAbsPath
+		if g.opts.ExportsDir != "" {
+			exportDirPath = path.Join(g.opts.ExportsDir, change.Src.Name)
+		}
+
+		manifest, exportErr := g.export(change.Src, exportDirPath, exports)
 		if exportErr == nil {
 			for _, exportPath := range manifest {
 				fmt.Printf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
@@ -208,7 +212,6 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 		if fErr != nil {
 			err = fErr
 		}
-		return
 	}()
 
 	var blob io.ReadCloser
