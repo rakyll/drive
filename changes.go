@@ -329,39 +329,47 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 	return
 }
 
+func summarizeChanges(changes []*Change, reduce bool) {
+	if !reduce {
+		for _, c := range changes {
+			if c.Op() != OpNone {
+				fmt.Println(c.Symbol(), c.Path)
+			}
+		}
+	} else {
+		opMap := map[int]int{}
+
+		for _, c := range changes {
+			op := c.Op()
+			if op != OpNone {
+				fmt.Println(c.Symbol(), c.Path)
+			}
+			count := opMap[op]
+			count += 1
+			opMap[op] = count
+		}
+
+		for op, count := range opMap {
+			if count < 1 {
+				continue
+			}
+			_, name := opToString(op)
+			fmt.Printf("%s: %d\n", name, count)
+		}
+	}
+}
+
 func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
 	if len(changes) == 0 {
 		fmt.Println("Everything is up-to-date.")
 		return false
 	}
 
-	opMap := map[int]int{
-		OpNone:   0,
-		OpAdd:    0,
-		OpDelete: 0,
-		OpMod:    0,
-	}
-
-	for _, c := range changes {
-		op := c.Op()
-		if op != OpNone {
-			fmt.Println(c.Symbol(), c.Path)
-		}
-		count := opMap[op]
-		count += 1
-		opMap[op] = count
-	}
+	// noop for stats summaries for now
+	summarizeChanges(changes, false)
 
 	if isNoPrompt {
 		return true
-	}
-
-	for op, count := range opMap {
-		if count < 1 {
-			continue
-		}
-		_, name := opToString(op)
-		fmt.Printf("%s: %d\n", name, count)
 	}
 
 	input := "Y"
