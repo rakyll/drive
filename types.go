@@ -78,18 +78,26 @@ type Change struct {
 	Src    *File
 }
 
-func (c *Change) Symbol() string {
-	op := c.Op()
+func (self *File) sameDirType(other *File) bool {
+	return other != nil && self.IsDir == other.IsDir
+}
+
+func opToString(op int) (string, string) {
 	switch op {
 	case OpAdd:
-		return "\x1b[32m+\x1b[0m"
+		return "\x1b[32m+\x1b[0m", "Addition"
 	case OpDelete:
-		return "\x1b[31m-\x1b[0m"
+		return "\x1b[31m-\x1b[0m", "Deletion"
 	case OpMod:
-		return "\x1b[33mM\x1b[0m"
+		return "\x1b[33mM\x1b[0m", "Modification"
 	default:
-		return ""
+		return "", ""
 	}
+}
+
+func (c *Change) Symbol() string {
+	symbol, _ := opToString(c.Op())
+	return symbol
 }
 
 func md5Checksum(f *File) string {

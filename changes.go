@@ -295,21 +295,40 @@ func (g *Commands) resolveChangeListRecv(
 }
 
 func merge(remotes, locals []*File) (merged []*dirList) {
+	localMap := map[string][]*File{}
+
+	// TODO: compare by respective path hierachies and only match
+	// if there is a high confidence since Google Drive allows same names
+	// Currently if x exists in both y/x and z/x or even z/x z/x, there will be a clash
+
+	for _, l := range locals {
+		lst := localMap[l.Name]
+		lst = append(lst, l)
+		localMap[l.Name] = lst
+	}
+
 	for _, r := range remotes {
 		list := &dirList{remote: r}
+
 		// look for local
-		for i, l := range locals {
-			if l.Name == r.Name {
-				list.local = l
-				locals = append(locals[:i], locals[i+1:]...)
-				break
+		lst, ok := localMap[r.Name]
+		if ok {
+			if len(lst) < 1 {
+				delete(localMap, r.Name)
+			} else if r.sameDirType(lst[0]) {
+				list.local = lst[0]
+				lst = lst[1:]
+				localMap[r.Name] = lst
 			}
 		}
 		merged = append(merged, list)
 	}
+
 	// if anything left in locals, add to the dir listing
-	for _, l := range locals {
-		merged = append(merged, &dirList{local: l})
+	for _, lst := range localMap {
+		for _, l := range lst {
+			merged = append(merged, &dirList{local: l})
+		}
 	}
 	return
 }
@@ -320,14 +339,35 @@ func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
 		return false
 	}
 
+	opMap := map[int]int{
+		OpNone:   0,
+		OpAdd:    0,
+		OpDelete: 0,
+		OpMod:    0,
+	}
+
 	for _, c := range changes {
-		if c.Op() != OpNone {
+		op := c.Op()
+		if op != OpNone {
 			fmt.Println(c.Symbol(), c.Path)
 		}
+		count := opMap[op]
+		count += 1
+		opMap[op] = count
 	}
+
 	if isNoPrompt {
 		return true
 	}
+
+	for op, count := range opMap {
+		if count < 1 {
+			continue
+		}
+		_, name := opToString(op)
+		fmt.Printf("%s: %d\n", name, count)
+	}
+
 	input := "Y"
 	fmt.Print("Proceed with the changes? [Y/n]: ")
 	fmt.Scanln(&input)
