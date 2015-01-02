@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -291,44 +292,39 @@ func (g *Commands) resolveChangeListRecv(
 		}(&wg, isPush, &cl, p, l)
 	}
 	wg.Wait()
+
+	// Only provide precedence ordering if all the other options are allowed
+	if !g.opts.Noclobber {
+		sort.Sort(ByPrecedence(cl))
+	}
+
 	return cl, nil
 }
 
 func merge(remotes, locals []*File) (merged []*dirList) {
-	localMap := map[string][]*File{}
+	localMap := map[string]*File{}
 
-	// TODO: compare by respective path hierachies and only match
-	// if there is a high confidence since Google Drive allows same names
-	// Currently if x exists in both y/x and z/x or even z/x z/x, there will be a clash
+	// Add support for FileSystems that allow same names but different files.
 
 	for _, l := range locals {
-		lst := localMap[l.Name]
-		lst = append(lst, l)
-		localMap[l.Name] = lst
+		localMap[l.Name] = l
 	}
 
 	for _, r := range remotes {
 		list := &dirList{remote: r}
 
 		// look for local
-		lst, ok := localMap[r.Name]
+		l, ok := localMap[r.Name]
 		if ok {
-			if len(lst) < 1 {
-				delete(localMap, r.Name)
-			} else if r.sameDirType(lst[0]) {
-				list.local = lst[0]
-				lst = lst[1:]
-				localMap[r.Name] = lst
-			}
+			list.local = l
+			delete(localMap, r.Name)
 		}
 		merged = append(merged, list)
 	}
 
 	// if anything left in locals, add to the dir listing
-	for _, lst := range localMap {
-		for _, l := range lst {
-			merged = append(merged, &dirList{local: l})
-		}
+	for _, l := range localMap {
+		merged = append(merged, &dirList{local: l})
 	}
 	return
 }

@@ -31,6 +31,13 @@ const (
 	OpMod
 )
 
+var opPrecedence = map[int]int{
+	OpNone:   0,
+	OpDelete: 1,
+	OpAdd:    2,
+	OpMod:    3,
+}
+
 type File struct {
 	BlobAt      string
 	ExportLinks map[string]string
@@ -76,6 +83,28 @@ type Change struct {
 	Parent string
 	Path   string
 	Src    *File
+}
+
+type ByPrecedence []*Change
+
+func (cl ByPrecedence) Less(i, j int) bool {
+	if cl[i] == nil {
+		return false
+	}
+	if cl[j] == nil {
+		return true
+	}
+
+	rank1, rank2 := opPrecedence[cl[i].Op()], opPrecedence[cl[j].Op()]
+	return rank1 < rank2
+}
+
+func (cl ByPrecedence) Len() int {
+	return len(cl)
+}
+
+func (cl ByPrecedence) Swap(i, j int) {
+	cl[i], cl[j] = cl[j], cl[i]
 }
 
 func (self *File) sameDirType(other *File) bool {
