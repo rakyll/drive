@@ -294,7 +294,7 @@ func (g *Commands) resolveChangeListRecv(
 	wg.Wait()
 
 	// Only provide precedence ordering if all the other options are allowed
-	if !g.opts.Noclobber {
+	if !g.opts.NoClobber {
 		sort.Sort(ByPrecedence(cl))
 	}
 
