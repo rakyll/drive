@@ -64,19 +64,21 @@ func (cmd *initCmd) Run(args []string) {
 }
 
 type pullCmd struct {
-	exportsDir  *string
-	export      *string
-	isRecursive *bool
-	isNoPrompt  *bool
-	noClobber   *bool
+	exportsDir *string
+	export     *string
+	force      *bool
+	noPrompt   *bool
+	noClobber  *bool
+	recursive  *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noClobber = fs.Bool("no-clobber", false, "prevents overwriting of old content")
 	cmd.export = fs.String(
 		"export", "", "comma separated list of formats to export your docs + sheets files")
-	cmd.isRecursive = fs.Bool("r", true, "performs the pull action recursively")
-	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
+	cmd.recursive = fs.Bool("r", true, "performs the pull action recursively")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
+	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 
 	return fs
@@ -98,28 +100,31 @@ func (cmd *pullCmd) Run(args []string) {
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
-		Exports:     exports,
-		ExportsDir:  strings.Trim(*cmd.exportsDir, " "),
-		IsNoPrompt:  *cmd.isNoPrompt,
-		IsRecursive: *cmd.isRecursive,
-		NoClobber:   *cmd.noClobber,
-		Path:        path,
+		Exports:    exports,
+		ExportsDir: strings.Trim(*cmd.exportsDir, " "),
+		Force:      *cmd.force,
+		NoPrompt:   *cmd.noPrompt,
+		NoClobber:  *cmd.noClobber,
+		Path:       path,
+		Recursive:  *cmd.recursive,
 	}).Pull())
 }
 
 type pushCmd struct {
 	noClobber   *bool
 	hidden      *bool
-	isNoPrompt  *bool
-	isRecursive *bool
+	force       *bool
+	noPrompt    *bool
+	recursive   *bool
 	mountedPush *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noClobber = fs.Bool("no-clobber", false, "allows overwriting of old content")
 	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
-	cmd.isRecursive = fs.Bool("r", true, "performs the push action recursively")
-	cmd.isNoPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	return fs
 }
@@ -130,11 +135,12 @@ func (cmd *pushCmd) Run(args []string) {
 	} else {
 		context, path := discoverContext(args)
 		exitWithError(drive.New(context, &drive.Options{
-			NoClobber:   *cmd.noClobber,
-			Hidden:      *cmd.hidden,
-			IsNoPrompt:  *cmd.isNoPrompt,
-			IsRecursive: *cmd.isRecursive,
-			Path:        path,
+			Force:     *cmd.force,
+			Hidden:    *cmd.hidden,
+			NoClobber: *cmd.noClobber,
+			NoPrompt:  *cmd.noPrompt,
+			Path:      path,
+			Recursive: *cmd.recursive,
 		}).Push())
 	}
 }
@@ -169,13 +175,13 @@ func pushMounted(cmd *pushCmd, args []string) {
 	sources = append(sources, auxSrcs...)
 
 	exitWithError(drive.New(context, &drive.Options{
-		Hidden:      *cmd.hidden,
-		IsNoPrompt:  *cmd.isNoPrompt,
-		IsRecursive: *cmd.isRecursive,
-		Mounts:      mountPoints,
-		NoClobber:   *cmd.noClobber,
-		Path:        path,
-		Sources:     sources,
+		Hidden:    *cmd.hidden,
+		NoPrompt:  *cmd.noPrompt,
+		Recursive: *cmd.recursive,
+		Mounts:    mountPoints,
+		NoClobber: *cmd.noClobber,
+		Path:      path,
+		Sources:   sources,
 	}).Push())
 }
 
@@ -188,8 +194,8 @@ func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (cmd *diffCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
-		IsRecursive: true,
-		Path:        path,
+		Recursive: true,
+		Path:      path,
 	}).Diff())
 }
 

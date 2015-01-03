@@ -91,7 +91,7 @@ func (g *Commands) trashByRelativePath(trashed bool) (err error) {
 	var cl []*Change
 	cl, err = g.trashListResolve(trashed)
 
-	ok := printChangeList(cl, g.opts.IsNoPrompt, false)
+	ok := printChangeList(cl, g.opts.NoPrompt, false)
 	if ok {
 		return g.playTrashChangeList(cl, trashed)
 	}
@@ -138,7 +138,7 @@ func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 	var cl []*Change
 	cl, err = g.changeListResolve(isPush)
 
-	ok := printChangeList(cl, g.opts.IsNoPrompt, g.opts.NoClobber)
+	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
 	if ok {
 		if isPush {
 			return g.playPushChangeList(cl)
@@ -199,7 +199,7 @@ func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl [
 	if change.Op() != OpNone {
 		cl = append(cl, change)
 	}
-	if !g.opts.IsRecursive {
+	if !g.opts.Recursive {
 		return cl, nil
 	}
 
@@ -237,22 +237,22 @@ func (g *Commands) resolveChangeListRecv(
 		if hasExportLinks(r) {
 			return cl, nil
 		}
-		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
+		change = &Change{Path: p, Src: l, Dest: r, Parent: d, Force: g.opts.Force}
 	} else {
-		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
+		change = &Change{Path: p, Src: r, Dest: l, Parent: d, Force: g.opts.Force}
 	}
 
-	if change.CoercedOp(g.opts.NoClobber) != OpNone {
+	if g.opts.Force || change.CoercedOp(g.opts.NoClobber) != OpNone {
 		cl = append(cl, change)
 	}
-	if !g.opts.IsRecursive {
+	if !g.opts.Recursive {
 		return cl, nil
 	}
+
 	// TODO: handle cases where remote and local type don't match
 	if !isPush && r != nil && !r.IsDir {
 		return cl, nil
 	}
-
 	if isPush && l != nil && !l.IsDir {
 		return cl, nil
 	}
@@ -360,7 +360,7 @@ func summarizeChanges(changes []*Change, reduce bool) {
 	}
 }
 
-func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
+func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 	if len(changes) == 0 {
 		fmt.Println("Everything is up-to-date.")
 		return false
@@ -369,7 +369,7 @@ func printChangeList(changes []*Change, isNoPrompt bool, noClobber bool) bool {
 	// noop for stats summaries for now
 	summarizeChanges(changes, false)
 
-	if isNoPrompt {
+	if noPrompt {
 		return true
 	}
 

@@ -83,6 +83,7 @@ type Change struct {
 	Parent string
 	Path   string
 	Src    *File
+	Force  bool
 }
 
 type ByPrecedence []*Change
@@ -178,6 +179,9 @@ func (c *Change) CoercedOp(noClobber bool) int {
 }
 
 func (c *Change) Op() int {
+	if c.Force {
+		return OpAdd
+	}
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
@@ -190,7 +194,6 @@ func (c *Change) Op() int {
 	if c.Src.IsDir != c.Dest.IsDir {
 		return OpMod
 	}
-
 	if !c.Src.IsDir {
 		// if it's a regular file, see it it's modified.
 		// If the first test passes then do an Md5 checksum comparison

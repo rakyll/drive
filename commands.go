@@ -27,23 +27,24 @@ var (
 )
 
 type Options struct {
-	// When set prevents overwriting of stale content
-	NoClobber   bool
-	Path        string
-	IsNoPrompt  bool
-	IsRecursive bool
-	IsForce     bool
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
 	Exports []string
 	// Directory to put the exported Google Docs + Sheets, if not
 	// provided will export them to the same dir as the source files are.
 	ExportsDir string
+	// Force once set always converts NoChange into an Addition
+	Force bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
 	// Mounts is a list of all mountpoints
 	// of paths that are not in the current drive context
 	Mounts []*config.MountPoint
+	// NoClobber when set prevents overwriting of stale content
+	NoClobber bool
+	NoPrompt  bool
+	Path      string
+	Recursive bool
 	// Sources is a of list all paths that are
 	// within the scope/path of the current gd context
 	Sources []string
