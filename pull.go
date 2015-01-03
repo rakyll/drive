@@ -53,6 +53,10 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 		// play the changes
 		// TODO: add timeouts
 		for _, c := range next {
+			if c.Src == nil {
+				// fmt.Println("Pull: BUG ON", c.Path, c.Symbol())
+				continue
+			}
 			switch c.CoercedOp(g.opts.NoClobber) {
 			case OpMod:
 				go g.localMod(&wg, c, exports)

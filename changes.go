@@ -239,10 +239,10 @@ func (g *Commands) resolveChangeListRecv(
 		}
 		change = &Change{Path: p, Src: l, Dest: r, Parent: d, Force: g.opts.Force}
 	} else {
-		if !g.opts.Force {
+		if !g.opts.Force && hasExportLinks(r) {
 			// The case when we have files that don't provide the download urls
-			// but exportable links, we just need to check that the mod times are the same.
-			if r != nil && hasExportLinks(r) && r.MatchDirness(l) && r.ModTime.Equal(l.ModTime) {
+			// but exportable links, we just need to check that mod times are the same.
+			if r.MatchDirness(l) && r.ModTime.Equal(l.ModTime) {
 				return cl, nil
 			}
 		}

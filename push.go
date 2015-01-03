@@ -33,6 +33,10 @@ func (g *Commands) Push() (err error) {
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	g.taskStart(len(cl))
 	for _, c := range cl {
+		if c.Src == nil {
+			// fmt.Println("Push: BUG ON", c.Path, c.Symbol())
+			continue
+		}
 		switch c.CoercedOp(g.opts.NoClobber) {
 		case OpMod:
 			g.remoteMod(c)
@@ -56,7 +60,8 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	p := strings.Split(change.Path, "/")
 	p = append([]string{"/"}, p[:len(p)-1]...)
-	if parent, err = g.rem.FindByPath(gopath.Join(p...)); err != nil {
+	parent, err = g.rem.FindByPath(gopath.Join(p...))
+	if err != nil {
 		return
 	}
 
@@ -67,7 +72,8 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 			return err
 		}
 	}
-	if updated, err = g.rem.Upsert(parent.Id, change.Src, body); err != nil {
+	updated, err = g.rem.Upsert(parent.Id, change.Src, body)
+	if err != nil {
 		return
 	}
 	return os.Chtimes(absPath, updated.ModTime, updated.ModTime)
@@ -90,7 +96,8 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 func list(context *config.Context, p string, hidden bool) (files []*File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
-	if f, err = ioutil.ReadDir(absPath); err != nil {
+	f, err = ioutil.ReadDir(absPath)
+	if err != nil {
 		return
 	}
 	for _, file := range f {
