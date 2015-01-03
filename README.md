@@ -34,6 +34,7 @@ Use `drive help` for further reference.
 	$ drive diff [path] # outputs a diff of local and remote
 	$ drive pub [path] # publishes a file, outputs URL
 	$ drive unpub [path] # revokes public access to the file
+	$ drive list [-d x path1 path2 path3 ...] # list contents of paths on remote.
 
 	# Note using the no-clobber option for push or pull ensures that only ADDITIONS are made
 	# any modifications or deletions are ignored and those files are safe.
@@ -238,7 +239,18 @@ if successful will create a directory logo\_exports which will look like:
 
    ![drive trash/untrash](https://github.com/odeke-em/wiki_content/blob/master/drive/trash-untrash.png)
 
-=======
+
+**Listing on the remote**
+======
+
+  + What does list do ?
+    
+    list performs a paginated list of paths on the cloud.
+ 
+  + How is it done ?
+
+   ![drive list](https://github.com/odeke-em/wiki_content/blob/master/drive/list.png)
+
 
 
 ## LICENSE

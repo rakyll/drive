@@ -73,7 +73,7 @@ type listCmd struct {
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int("d", 0, "maximum recursion depth")
+	cmd.depth = fs.Int("d", 1, "maximum recursion depth")
 	cmd.hidden = fs.Bool("a", false, "list all paths even hidden ones")
 	cmd.pageCount = fs.Int("p", -1, "number of results per pagination")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
