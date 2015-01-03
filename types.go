@@ -153,10 +153,17 @@ func md5Checksum(f *File) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+func (f *File) MatchDirness(g *File) bool {
+	return g != nil && f.IsDir == g.IsDir
+}
+
 // if it's a regular file, see it it's modified.
 // If the first test passes, then do an Md5 checksum comparison
 func isSameFile(src, dest *File) bool {
 	if src.Size != dest.Size || !src.ModTime.Equal(dest.ModTime) {
+		return false
+	}
+	if src.IsDir != dest.IsDir {
 		return false
 	}
 

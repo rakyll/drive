@@ -239,6 +239,13 @@ func (g *Commands) resolveChangeListRecv(
 		}
 		change = &Change{Path: p, Src: l, Dest: r, Parent: d, Force: g.opts.Force}
 	} else {
+		if !g.opts.Force {
+			// The case when we have files that don't provide the download urls
+			// but exportable links, we just need to check that the mod times are the same.
+			if r != nil && hasExportLinks(r) && r.MatchDirness(l) && r.ModTime.Equal(l.ModTime) {
+				return cl, nil
+			}
+		}
 		change = &Change{Path: p, Src: r, Dest: l, Parent: d, Force: g.opts.Force}
 	}
 
@@ -331,13 +338,12 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 }
 
 func summarizeChanges(changes []*Change, reduce bool) {
-	if !reduce {
-		for _, c := range changes {
-			if c.Op() != OpNone {
-				fmt.Println(c.Symbol(), c.Path)
-			}
+	for _, c := range changes {
+		if c.Op() != OpNone {
+			fmt.Println(c.Symbol(), c.Path)
 		}
-	} else {
+	}
+	if reduce {
 		opMap := map[int]int{}
 
 		for _, c := range changes {
