@@ -27,6 +27,8 @@ var (
 )
 
 type Options struct {
+	// Depth is the number of pages/ listing recursion depth
+	Depth int
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
 	Exports []string

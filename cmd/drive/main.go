@@ -35,6 +35,7 @@ const (
 	descPull      = "pulls remote changes from google drive"
 	descPush      = "push local changes to google drive"
 	descDiff      = "compares a local file with remote"
+	descList      = "lists the contents of remote path"
 	descPublish   = "publishes a file and prints its publicly available url"
 	descTrash     = "moves the file to trash"
 	descUntrash   = "restores the file from trash"
@@ -44,6 +45,7 @@ const (
 func main() {
 	command.On("diff", descDiff, &diffCmd{}, []string{})
 	command.On("init", descInit, &initCmd{}, []string{})
+	command.On("list", descList, &listCmd{}, []string{})
 	command.On("pull", descPull, &pullCmd{}, []string{})
 	command.On("push", descPush, &pushCmd{}, []string{})
 	command.On("pub", descPublish, &publishCmd{}, []string{})
@@ -61,6 +63,41 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *initCmd) Run(args []string) {
 	exitWithError(drive.New(initContext(args), nil).Init())
+}
+
+type listCmd struct {
+	hidden    *bool
+	pageCount *int
+	recursive *bool
+	depth     *int
+}
+
+func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.depth = fs.Int("d", 0, "maximum recursion depth")
+	cmd.hidden = fs.Bool("a", false, "list all paths even hidden ones")
+	cmd.pageCount = fs.Int("p", -1, "number of results per pagination")
+	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
+
+	return fs
+}
+
+func (cmd *listCmd) Run(args []string) {
+	cwd, err := os.Getwd()
+	exitWithError(err)
+
+	context, path := discoverContext([]string{cwd})
+	uniqArgv := uniqOrderedStr(args)
+	if len(uniqArgv) < 1 {
+		uniqArgv = append(uniqArgv, "")
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Depth:     *cmd.depth,
+		Hidden:    *cmd.hidden,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   uniqArgv,
+	}).List())
 }
 
 type pullCmd struct {
@@ -300,6 +337,20 @@ func getContextPath(args []string) (contextPath string) {
 		contextPath, _ = os.Getwd()
 	}
 	return
+}
+
+func uniqOrderedStr(sources []string) []string {
+	cache := map[string]bool{}
+	var uniqPaths []string
+	for _, p := range sources {
+		ok := cache[p]
+		if ok {
+			continue
+		}
+		uniqPaths = append(uniqPaths, p)
+		cache[p] = true
+	}
+	return uniqPaths
 }
 
 func exitWithError(err error) {
