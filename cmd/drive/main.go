@@ -173,11 +173,10 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func preprocessArgs(args []string) ([]string, *config.Context, string) {
 	var relPaths []string
 	context, path := discoverContext(args)
-	cwd, _ := os.Getwd()
 	root := context.AbsPathOf("")
 
 	if len(args) < 1 {
-		args = []string{cwd}
+		args = []string{"."}
 	}
 
 	var err error
@@ -189,6 +188,9 @@ func preprocessArgs(args []string) ([]string, *config.Context, string) {
 		}
 
 		relPath, err := filepath.Rel(root, p)
+		if relPath == "." {
+			relPath = ""
+		}
 
 		exitWithError(err)
 
@@ -240,6 +242,9 @@ func pushMounted(cmd *pushCmd, args []string) {
 	rest = nonEmptyStrings(rest)
 	context, path := discoverContext(contextArgs)
 	contextAbsPath, err := filepath.Abs(path)
+	if path == "." {
+		path = ""
+	}
 	exitWithError(err)
 
 	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)

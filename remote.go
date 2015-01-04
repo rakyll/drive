@@ -154,7 +154,7 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPathTrashed("root", parts[1:])
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed bool) (files []*File, err error) {
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files []*File, err error) {
 	req := r.service.Files.List()
 
 	// TODO: use field selectors
@@ -165,26 +165,41 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed bool) (files []*File
 		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
 	}
 
+	pageToken := ""
+	var results *drive.FileList
+	// TODO: Support channeling of results as they arrive to avoid long waits for results
+
 	req.Q(expr)
-	results, err := req.Do()
-	// TODO: handle paging
-	if err != nil {
-		return
-	}
-	for _, f := range results.Items {
-		if !strings.HasPrefix(f.Title, ".") { // ignore hidden files
+
+	for {
+		if pageToken != "" {
+			req = req.PageToken(pageToken)
+		}
+		results, err = req.Do()
+		if err != nil {
+			return
+		}
+		for _, f := range results.Items {
+			if !hidden && strings.HasPrefix(f.Title, ".") { // ignore hidden files
+				continue
+			}
 			files = append(files, NewRemoteFile(f))
+		}
+
+		pageToken = results.NextPageToken
+		if pageToken == "" {
+			break
 		}
 	}
 	return
 }
 
-func (r *Remote) FindByParentId(parentId string) (files []*File, err error) {
-	return r.findByParentIdRaw(parentId, false)
+func (r *Remote) FindByParentId(parentId string, hidden bool) (files []*File, err error) {
+	return r.findByParentIdRaw(parentId, false, hidden)
 }
 
-func (r *Remote) FindByParentIdTrashed(parentId string) (files []*File, err error) {
-	return r.findByParentIdRaw(parentId, true)
+func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) (files []*File, err error) {
+	return r.findByParentIdRaw(parentId, true, hidden)
 }
 
 func (r *Remote) Trash(id string) error {

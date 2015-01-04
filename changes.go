@@ -146,7 +146,7 @@ func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl [
 		f = g.rem.FindByParentIdTrashed
 	}
 	if r != nil {
-		if remoteChildren, err = f(r.Id); err != nil {
+		if remoteChildren, err = f(r.Id, g.opts.Hidden); err != nil {
 			return
 		}
 	}
@@ -212,7 +212,8 @@ func (g *Commands) resolveChangeListRecv(
 
 	var remoteChildren []*File
 	if r != nil {
-		if remoteChildren, err = g.rem.FindByParentId(r.Id); err != nil {
+		remoteChildren, err = g.rem.FindByParentId(r.Id, g.opts.Hidden)
+		if err != nil {
 			return
 		}
 	}

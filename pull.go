@@ -32,11 +32,10 @@ const (
 // directory, it recursively pulls from the remote if there are remote changes.
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
-	root := g.context.AbsPathOf("")
 	var cl []*Change
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
-		ccl, cErr := lonePull(g, root, relToRootPath, fsPath)
+		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
 		if cErr == nil && len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
@@ -48,21 +47,6 @@ func (g *Commands) Pull() (err error) {
 	}
 
 	return
-}
-
-func lonePull(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
-	r, err := g.rem.FindByPath(absPath)
-	if err != nil && err != ErrPathNotExists {
-		return
-	}
-
-	var l *File
-	localinfo, _ := os.Stat(absPath)
-	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
-	}
-
-	return g.resolveChangeListRecv(false, parent, absPath, r, l)
 }
 
 func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
@@ -141,7 +125,6 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
-	fmt.Println("LD", change.Dest.BlobAt)
 	return os.RemoveAll(change.Dest.BlobAt)
 }
 
@@ -260,7 +243,6 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 
 	blob, err = g.rem.Download(id, exportURL)
 	if err != nil {
-		fmt.Println("dl", err)
 		return err
 	}
 	_, err = io.Copy(fo, blob)
