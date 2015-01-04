@@ -21,6 +21,8 @@ import (
 	"strings"
 )
 
+var BytesPerKB = int64(1000)
+
 type byteDescription func(b int64) string
 
 func memoizeBytes() byteDescription {
@@ -36,10 +38,10 @@ func memoizeBytes() byteDescription {
 
 		i := 0
 		for {
-			if b/1024 < 1 || i >= maxLen {
+			if b/BytesPerKB < 1 || i >= maxLen {
 				return fmt.Sprintf("%v%s", b, suffixes[i])
 			}
-			b /= 1024
+			b /= BytesPerKB
 			i += 1
 		}
 	}
