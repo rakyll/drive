@@ -32,9 +32,14 @@ var Ruler = strings.Repeat("*", 80)
 
 func (g *Commands) Diff() (err error) {
 	var cl []*Change
-	cl, err = g.changeListResolve(true)
-	if err != nil {
-		return
+
+	for _, relToRootPath := range g.opts.Sources {
+		fmt.Println(relToRootPath, g.context.AbsPathOf(relToRootPath))
+		fsPath := g.context.AbsPathOf(relToRootPath)
+		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
+		if cErr == nil && len(ccl) > 0 {
+			cl = append(cl, ccl...)
+		}
 	}
 
 	var diffUtilPath string

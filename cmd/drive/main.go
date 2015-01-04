@@ -104,6 +104,7 @@ type pullCmd struct {
 	exportsDir *string
 	export     *string
 	force      *bool
+	hidden     *bool
 	noPrompt   *bool
 	noClobber  *bool
 	recursive  *bool
@@ -115,6 +116,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 		"export", "", "comma separated list of formats to export your docs + sheets files")
 	cmd.recursive = fs.Bool("r", true, "performs the pull action recursively")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
+	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 
@@ -131,7 +133,7 @@ func nonEmptyStrings(v []string) (splits []string) {
 }
 
 func (cmd *pullCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 
 	// Filter out empty strings.
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
@@ -140,10 +142,12 @@ func (cmd *pullCmd) Run(args []string) {
 		Exports:    exports,
 		ExportsDir: strings.Trim(*cmd.exportsDir, " "),
 		Force:      *cmd.force,
+		Hidden:     *cmd.hidden,
 		NoPrompt:   *cmd.noPrompt,
 		NoClobber:  *cmd.noClobber,
 		Path:       path,
 		Recursive:  *cmd.recursive,
+		Sources:    sources,
 	}).Pull())
 }
 
@@ -158,7 +162,7 @@ type pushCmd struct {
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noClobber = fs.Bool("no-clobber", false, "allows overwriting of old content")
-	cmd.hidden = fs.Bool("hidden", false, "allows syncing of hidden paths")
+	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
 	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
@@ -166,11 +170,61 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
+func walkTillNoResolve(root, p string) string {
+	sep := fmt.Sprintf("%c", os.PathSeparator)
+	for {
+		fmt.Println(p, root)
+		p = strings.Trim(p, " ")
+		if p == "." || p == "" {
+			return root
+		}
+		if strings.HasPrefix(p, "./") {
+			return filepath.Join(root, filepath.Base(p))
+		}
+		if !strings.HasPrefix(p, "..") {
+			return filepath.Join(root, p)
+		}
+		p = strings.TrimLeft(p, ".."+sep)
+		root = filepath.Base(root)
+	}
+	fmt.Println("Done", p, root)
+	return filepath.Join(root, p)
+}
+
+func preprocessArgs(args []string) ([]string, *config.Context, string) {
+	var relPaths []string
+	context, path := discoverContext(args)
+	cwd, _ := os.Getwd()
+	root := context.AbsPathOf("")
+
+	if len(args) < 1 {
+		args = []string{cwd}
+	}
+
+	var err error
+	for _, p := range args {
+		p, err = filepath.Abs(p)
+		fmt.Println(p)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		relPath, err := filepath.Rel(root, p)
+
+		exitWithError(err)
+
+		relPath = "/" + relPath
+		relPaths = append(relPaths, relPath)
+	}
+
+	return uniqOrderedStr(relPaths), context, path
+}
+
 func (cmd *pushCmd) Run(args []string) {
 	if *cmd.mountedPush {
 		pushMounted(cmd, args)
 	} else {
-		context, path := discoverContext(args)
+		sources, context, path := preprocessArgs(args)
 		exitWithError(drive.New(context, &drive.Options{
 			Force:     *cmd.force,
 			Hidden:    *cmd.hidden,
@@ -178,6 +232,7 @@ func (cmd *pushCmd) Run(args []string) {
 			NoPrompt:  *cmd.noPrompt,
 			Path:      path,
 			Recursive: *cmd.recursive,
+			Sources:   sources,
 		}).Push())
 	}
 }
@@ -222,68 +277,90 @@ func pushMounted(cmd *pushCmd, args []string) {
 	}).Push())
 }
 
-type diffCmd struct{}
+type diffCmd struct {
+	hidden *bool
+}
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	return fs
 }
 
 func (cmd *diffCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Recursive: true,
 		Path:      path,
+		Hidden:    *cmd.hidden,
+		Sources:   sources,
 	}).Diff())
 }
 
-type publishCmd struct{}
-type unpublishCmd struct{}
+type publishCmd struct {
+	hidden *bool
+}
+
+type unpublishCmd struct {
+	hidden *bool
+}
 
 func (cmd *unpublishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	return fs
 }
 
 func (cmd *unpublishCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		Path:    path,
+		Sources: sources,
 	}).Unpublish())
 }
 
-type trashCmd struct{}
+type trashCmd struct {
+	hidden *bool
+}
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
 	return fs
 }
 
 func (cmd *trashCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		Path:    path,
+		Sources: sources,
 	}).Trash())
 }
 
-type untrashCmd struct{}
+type untrashCmd struct {
+	hidden *bool
+}
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
 	return fs
 }
 
 func (cmd *untrashCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		Path:    path,
+		Sources: sources,
 	}).Untrash())
 }
 
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows publishing of hidden paths")
 	return fs
 }
 
 func (cmd *publishCmd) Run(args []string) {
-	context, path := discoverContext(args)
+	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Path: path,
+		Path:    path,
+		Sources: sources,
 	}).Publish())
 }
 

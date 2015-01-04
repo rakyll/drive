@@ -15,8 +15,10 @@
 package drive
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	gopath "path"
 	"strings"
 
@@ -27,7 +29,43 @@ import (
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
-	return g.syncByRelativePath(true)
+	defer g.clearMountPoints()
+
+	root := g.context.AbsPathOf("")
+	var cl []*Change
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+
+	// To Ensure mount points are cleared in the event of external exceptios
+	go func() {
+		_ = <-c
+		g.clearMountPoints()
+		os.Exit(1)
+	}()
+
+	for _, relToRootPath := range g.opts.Sources {
+		fmt.Println(relToRootPath, g.context.AbsPathOf(relToRootPath))
+		fsPath := g.context.AbsPathOf(relToRootPath)
+		ccl, cErr := lonePush(g, root, relToRootPath, fsPath)
+		if cErr == nil && len(ccl) > 0 {
+			cl = append(cl, ccl...)
+		}
+	}
+
+	for _, mt := range g.opts.Mounts {
+		ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
+		if cerr == nil {
+			cl = append(cl, ccl...)
+		}
+	}
+
+	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
+	if ok {
+		return g.playPushChangeList(cl)
+	}
+
+	return
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
@@ -48,6 +86,21 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	}
 	g.taskFinish()
 	return err
+}
+
+func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
+	r, err := g.rem.FindByPath(absPath)
+	if err != nil && err != ErrPathNotExists {
+		return
+	}
+
+	var l *File
+	localinfo, _ := os.Stat(path)
+	if localinfo != nil {
+		l = NewLocalFile(absPath, localinfo)
+	}
+
+	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
 func (g *Commands) remoteMod(change *Change) (err error) {

@@ -19,20 +19,41 @@ import (
 )
 
 func (c *Commands) Publish() (err error) {
+	for _, relToRoot := range c.opts.Sources {
+		if pubErr := c.pub(relToRoot); pubErr != nil {
+			fmt.Printf("\033[91mPub\033[00m %s:  %v\n", relToRoot, pubErr)
+		}
+	}
+	return
+}
+
+func (c *Commands) pub(relToRoot string) (err error) {
 	var file *File
+	file, err = c.rem.FindByPath(relToRoot)
+	if err != nil {
+		return err
+	}
+
 	var link string
-	if file, err = c.rem.FindByPath(c.opts.Path); err != nil {
+	link, err = c.rem.Publish(file.Id)
+	if err != nil {
 		return
 	}
-	if link, err = c.rem.Publish(file.Id); err != nil {
-		return
-	}
-	fmt.Println("Published on", link)
+	fmt.Printf("%s Published on %s\n", relToRoot, link)
 	return
 }
 
 func (c *Commands) Unpublish() error {
-	file, err := c.rem.FindByPath(c.opts.Path)
+	for _, relToRoot := range c.opts.Sources {
+		if unpubErr := c.unpub(relToRoot); unpubErr != nil {
+			fmt.Printf("\033[91mUnpub\033[00m %s:  %v\n", relToRoot, unpubErr)
+		}
+	}
+	return nil
+}
+
+func (c *Commands) unpub(relToRoot string) error {
+	file, err := c.rem.FindByPath(relToRoot)
 	if err != nil {
 		return err
 	}

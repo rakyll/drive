@@ -17,7 +17,6 @@ package drive
 import (
 	"fmt"
 	"os"
-	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
@@ -99,82 +98,24 @@ func (g *Commands) trashByRelativePath(trashed bool) (err error) {
 	return
 }
 
-func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
-	var relPath, absPath string
-	relPath, absPath, err = g.pathResolve()
-	if err != nil {
-		return
-	}
+func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl []*Change, err error) {
 	var r, l *File
-	r, err = g.rem.FindByPath(relPath)
-	if err != nil || r == nil {
+	r, err = g.rem.FindByPath(relToRoot)
+	if err != nil {
+		fmt.Println(err)
 		// We cannot pull from a non-existant remote
 		if !isPush {
 			return
 		}
 	}
 
-	localinfo, _ := os.Stat(absPath)
+	localinfo, _ := os.Stat(fsPath)
 	if localinfo != nil {
-		l = NewLocalFile(relPath, localinfo)
+		l = NewLocalFile(relToRoot, localinfo)
 	}
 
 	fmt.Println("Resolving...")
-	cl, err = g.resolveChangeListRecv(isPush, relPath, relPath, r, l)
-	if err != nil {
-		return
-	}
-
-	if isPush {
-		cl = append(cl, clForPush(g)...)
-	}
-	return
-}
-
-// Resolves the local path relative to the root directory
-// then performs either Push or Pull depending on 'isPush'
-func (g *Commands) syncByRelativePath(isPush bool) (err error) {
-	defer g.clearMountPoints()
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
-
-	// To Ensure mount points are cleared in the event of external exceptios
-	go func() {
-		_ = <-c
-		g.clearMountPoints()
-		os.Exit(1)
-	}()
-
-	var cl []*Change
-	cl, err = g.changeListResolve(isPush)
-
-	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
-	if ok {
-		if isPush {
-			return g.playPushChangeList(cl)
-		}
-		return g.playPullChangeList(cl, g.opts.Exports)
-	}
-	return
-}
-
-func clForPush(g *Commands) (cl []*Change) {
-	absPath := g.context.AbsPathOf("/")
-	for _, indrivePath := range g.opts.Sources {
-		lcl, eerr := lonePush(g, absPath, indrivePath, absPath)
-		if eerr == nil {
-			cl = append(cl, lcl...)
-		}
-	}
-
-	for _, mt := range g.opts.Mounts {
-		ccl, cerr := lonePush(g, absPath, mt.Name, mt.MountPath)
-		if cerr == nil {
-			cl = append(cl, ccl...)
-		}
-	}
-
+	cl, err = g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
 	return
 }
 
@@ -182,21 +123,6 @@ func (g *Commands) clearMountPoints() {
 	for _, mtpt := range g.opts.Mounts {
 		mtpt.Unmount()
 	}
-}
-
-func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
-	r, err := g.rem.FindByPath(absPath)
-	if err != nil && err != ErrPathNotExists {
-		return
-	}
-
-	var l *File
-	localinfo, _ := os.Stat(path)
-	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
-	}
-
-	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
 func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl []*Change, err error) {
