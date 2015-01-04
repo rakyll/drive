@@ -139,7 +139,7 @@ func (cmd *pullCmd) Run(args []string) {
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
-		Exports:    exports,
+		Exports:    uniqOrderedStr(exports),
 		ExportsDir: strings.Trim(*cmd.exportsDir, " "),
 		Force:      *cmd.force,
 		Hidden:     *cmd.hidden,

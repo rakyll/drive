@@ -20,12 +20,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
 
 const (
-	maxNumOfConcPullTasks = 4
+	maxNumOfConcPullTasks  = 4
+	maxChkSumHeuristicSize = 50 * 1000 * 1000
 )
 
 // Pull from remote if remote path exists and in a god context. If path is a
@@ -52,6 +54,12 @@ func (g *Commands) Pull() (err error) {
 func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
 	var next []*Change
 	g.taskStart(len(cl))
+
+	// TODO: Only provide precedence ordering if all the other options are allowed
+	// Currently noop on sorting by precedence
+	if false && !g.opts.NoClobber {
+		sort.Sort(ByPrecedence(cl))
+	}
 
 	for {
 		if len(cl) > maxNumOfConcPullTasks {
@@ -86,9 +94,12 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
 	defer g.taskDone()
 	defer wg.Done()
+
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
-	if change.Src.BlobAt != "" || change.Src.ExportLinks != nil {
+	// Simple heuristic to avoid downloading all the
+	// content yet it could just be a modTime difference
+	if !chksumSizeEqual(change.Src, change.Dest) {
 		// download and replace
 		if err = g.download(change, exports); err != nil {
 			return
@@ -113,12 +124,12 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
 	}
-	if change.Src.BlobAt != "" || change.Src.ExportLinks != nil {
-		// download and create
-		if err = g.download(change, exports); err != nil {
-			return
-		}
+
+	// download and create
+	if err = g.download(change, exports); err != nil {
+		return
 	}
+
 	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
 }
 
@@ -182,6 +193,31 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 	}
 	wg.Wait()
 	return
+}
+
+func isLocalFile(f *File) bool {
+	// TODO: Better check
+	return f != nil && f.Etag == ""
+}
+
+func chksumSizeEqual(a, b *File) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if a.Size != b.Size || a.IsDir != b.IsDir {
+		return false
+	}
+	if a.IsDir {
+		return false
+	}
+
+	if isLocalFile(a) && a.Size > maxChkSumHeuristicSize {
+		return false
+	}
+	if isLocalFile(b) && b.Size > maxChkSumHeuristicSize {
+		return false
+	}
+	return md5Checksum(a) == md5Checksum(b)
 }
 
 func (g *Commands) download(change *Change, exports []string) (err error) {

@@ -15,15 +15,48 @@
 package drive
 
 import (
+	"fmt"
 	"sync"
 )
 
 func (g *Commands) Trash() (err error) {
-	return g.trashByRelativePath(false)
+	for _, relToRoot := range g.opts.Sources {
+		tErr := g.trash(relToRoot)
+		if tErr != nil {
+			fmt.Printf("\033[91mFailed to trash %s: %v\033[00m\n", relToRoot, tErr)
+		} else {
+			fmt.Printf("%s successfully trashed\n", relToRoot)
+		}
+	}
+	return
+}
+
+func (g *Commands) trash(relToRoot string) error {
+	file, err := g.rem.FindByPath(relToRoot)
+	if err != nil {
+		return err
+	}
+	return g.rem.Trash(file.Id)
 }
 
 func (g *Commands) Untrash() (err error) {
-	return g.trashByRelativePath(true)
+	for _, relToRoot := range g.opts.Sources {
+		uErr := g.untrash(relToRoot)
+		if uErr != nil {
+			fmt.Printf("\033[91mFailed to untrash: '%s': %v\033[00m\n", relToRoot, uErr)
+		} else {
+			fmt.Printf("\033[92mSuccessfully untrashed: '%s'\033[00m\n", relToRoot)
+		}
+	}
+	return
+}
+
+func (g *Commands) untrash(relToRoot string) error {
+	file, err := g.rem.FindByPathTrashed(relToRoot)
+	if err != nil {
+		return err
+	}
+	return g.rem.Untrash(file.Id)
 }
 
 func (g *Commands) playTrashChangeList(cl []*Change, trashed bool) (err error) {

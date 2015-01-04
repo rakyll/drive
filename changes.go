@@ -17,9 +17,7 @@ package drive
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -44,7 +42,8 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	relPath = ""
 
 	if absPath != root {
-		if relPath, err = filepath.Rel(root, absPath); err != nil {
+		relPath, err = filepath.Rel(root, absPath)
+		if err != nil {
 			return
 		}
 	} else {
@@ -63,41 +62,6 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
-func (g *Commands) trashListResolve(trashed bool) (cl []*Change, err error) {
-	var relPath string
-	relPath, _, err = g.pathResolve()
-
-	if relPath == "/" {
-		err = fmt.Errorf("Cannot delete from root")
-		return
-	}
-
-	fmt.Println("Resolving...")
-	var r *File
-
-	f := g.rem.FindByPath
-	if trashed {
-		f = g.rem.FindByPathTrashed
-	}
-
-	r, err = f(relPath)
-	if err != nil {
-		return
-	}
-	return g.resolveTrashChangeList(trashed, relPath, r)
-}
-
-func (g *Commands) trashByRelativePath(trashed bool) (err error) {
-	var cl []*Change
-	cl, err = g.trashListResolve(trashed)
-
-	ok := printChangeList(cl, g.opts.NoPrompt, false)
-	if ok {
-		return g.playTrashChangeList(cl, trashed)
-	}
-	return
-}
-
 func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl []*Change, err error) {
 	var r, l *File
 	r, err = g.rem.FindByPath(relToRoot)
@@ -111,7 +75,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 
 	localinfo, _ := os.Stat(fsPath)
 	if localinfo != nil {
-		l = NewLocalFile(relToRoot, localinfo)
+		l = NewLocalFile(fsPath, localinfo)
 	}
 
 	fmt.Println("Resolving...")
@@ -123,46 +87,6 @@ func (g *Commands) clearMountPoints() {
 	for _, mtpt := range g.opts.Mounts {
 		mtpt.Unmount()
 	}
-}
-
-func (g *Commands) resolveTrashChangeList(trashed bool, p string, r *File) (cl []*Change, err error) {
-	var change *Change
-	if trashed {
-		change = &Change{Path: p, Src: r, Dest: nil}
-	} else {
-		change = &Change{Path: p, Src: nil, Dest: r}
-	}
-
-	if change.Op() != OpNone {
-		cl = append(cl, change)
-	}
-	if !g.opts.Recursive {
-		return cl, nil
-	}
-
-	var remoteChildren []*File
-	f := g.rem.FindByParentId
-	if trashed {
-		f = g.rem.FindByParentIdTrashed
-	}
-	if r != nil {
-		if remoteChildren, err = f(r.Id, g.opts.Hidden); err != nil {
-			return
-		}
-	}
-
-	dirlist := merge(remoteChildren, []*File{})
-	var wg sync.WaitGroup
-	wg.Add(len(dirlist))
-	for _, l := range dirlist {
-		go func(wg *sync.WaitGroup, cl *[]*Change, p string, l *dirList) {
-			defer wg.Done()
-			childChanges, _ := g.resolveTrashChangeList(trashed, path.Join(p, l.Name()), l.remote)
-			*cl = append(*cl, childChanges...)
-		}(&wg, &cl, p, l)
-	}
-	wg.Wait()
-	return cl, nil
 }
 
 func (g *Commands) resolveChangeListRecv(
@@ -237,12 +161,6 @@ func (g *Commands) resolveChangeListRecv(
 		}(&wg, isPush, &cl, p, l)
 	}
 	wg.Wait()
-
-	// TODO: Only provide precedence ordering if all the other options are allowed
-	// Currently noop on sorting by precedence
-	if false && !g.opts.NoClobber {
-		sort.Sort(ByPrecedence(cl))
-	}
 
 	return cl, nil
 }

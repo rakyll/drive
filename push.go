@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	gopath "path"
+	"sort"
 	"strings"
 
 	"github.com/odeke-em/drive/config"
@@ -68,6 +69,13 @@ func (g *Commands) Push() (err error) {
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	g.taskStart(len(cl))
+
+	// TODO: Only provide precedence ordering if all the other options are allowed
+	// Currently noop on sorting by precedence
+	if false && !g.opts.NoClobber {
+		sort.Sort(ByPrecedence(cl))
+	}
+
 	for _, c := range cl {
 		if c.Src == nil {
 			// fmt.Println("Push: BUG ON", c.Path, c.Symbol())
