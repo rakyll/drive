@@ -202,6 +202,10 @@ func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) (files []*F
 	return r.findByParentIdRaw(parentId, true, hidden)
 }
 
+func (r *Remote) EmptyTrash() error {
+	return r.service.Files.EmptyTrash().Do()
+}
+
 func (r *Remote) Trash(id string) error {
 	_, err := r.service.Files.Trash(id).Do()
 	return err

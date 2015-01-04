@@ -33,16 +33,17 @@ var context *config.Context
 const Version = "0.0.3"
 
 const (
-	descInit      = "inits a directory and authenticates user"
-	descPull      = "pulls remote changes from google drive"
-	descPush      = "push local changes to google drive"
-	descDiff      = "compares a local file with remote"
-	descList      = "lists the contents of remote path"
-	descPublish   = "publishes a file and prints its publicly available url"
-	descTrash     = "moves the file to trash"
-	descUntrash   = "restores the file from trash"
-	descUnpublish = "revokes public access to a file"
-	descVersion   = "prints the version"
+	descInit       = "inits a directory and authenticates user"
+	descPull       = "pulls remote changes from google drive"
+	descPush       = "push local changes to google drive"
+	descDiff       = "compares a local file with remote"
+	descEmptyTrash = "cleans out your trash"
+	descList       = "lists the contents of remote path"
+	descPublish    = "publishes a file and prints its publicly available url"
+	descTrash      = "moves the file to trash"
+	descUntrash    = "restores the file from trash"
+	descUnpublish  = "revokes public access to a file"
+	descVersion    = "prints the version"
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 	command.On("pull", descPull, &pullCmd{}, []string{})
 	command.On("push", descPush, &pushCmd{}, []string{})
 	command.On("pub", descPublish, &publishCmd{}, []string{})
+	command.On("emptytrash", descEmptyTrash, &emptyTrashCmd{}, []string{})
 	command.On("trash", descTrash, &trashCmd{}, []string{})
 	command.On("untrash", descUntrash, &untrashCmd{}, []string{})
 	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
@@ -66,8 +68,8 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-    fmt.Printf("drive version %s\n", Version)
-    exitWithError(nil)
+	fmt.Printf("drive version %s\n", Version)
+	exitWithError(nil)
 }
 
 type initCmd struct{}
@@ -314,6 +316,18 @@ func (cmd *unpublishCmd) Run(args []string) {
 		Path:    path,
 		Sources: sources,
 	}).Unpublish())
+}
+
+type emptyTrashCmd struct {
+}
+
+func (cmd *emptyTrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *emptyTrashCmd) Run(args []string) {
+	_, context, _ := preprocessArgs(args)
+	exitWithError(drive.New(context, &drive.Options{}).EmptyTrash())
 }
 
 type trashCmd struct {

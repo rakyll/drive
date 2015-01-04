@@ -16,6 +16,7 @@ package drive
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -29,6 +30,25 @@ func (g *Commands) Trash() (err error) {
 		}
 	}
 	return
+}
+
+func (g *Commands) EmptyTrash() error {
+	fmt.Println("Empty trash: (Yn)? ")
+
+	input := "Y"
+	fmt.Print("Proceed with the changes? [Y/n]: ")
+	fmt.Scanln(&input)
+
+	if strings.ToUpper(input) != "Y" {
+		fmt.Println("Aborted emptying trash")
+		return nil
+	}
+
+	err := g.rem.EmptyTrash()
+	if err == nil {
+		fmt.Println("Successfully emptied trash")
+	}
+	return err
 }
 
 func (g *Commands) trash(relToRoot string) error {
