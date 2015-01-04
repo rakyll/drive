@@ -17,6 +17,7 @@ package drive
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
@@ -134,6 +135,16 @@ func (g *Commands) changeListResolve(isPush bool) (cl []*Change, err error) {
 // then performs either Push or Pull depending on 'isPush'
 func (g *Commands) syncByRelativePath(isPush bool) (err error) {
 	defer g.clearMountPoints()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill)
+
+	// To Ensure mount points are cleared in the event of external exceptios
+	go func() {
+		_ = <-c
+		g.clearMountPoints()
+		os.Exit(1)
+	}()
 
 	var cl []*Change
 	cl, err = g.changeListResolve(isPush)
@@ -348,9 +359,6 @@ func summarizeChanges(changes []*Change, reduce bool) {
 
 		for _, c := range changes {
 			op := c.Op()
-			if op != OpNone {
-				fmt.Println(c.Symbol(), c.Path)
-			}
 			count := opMap[op]
 			count += 1
 			opMap[op] = count
@@ -372,8 +380,7 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		return false
 	}
 
-	// noop for stats summaries for now
-	summarizeChanges(changes, false)
+	summarizeChanges(changes, !noPrompt)
 
 	if noPrompt {
 		return true

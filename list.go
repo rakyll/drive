@@ -15,11 +15,38 @@
 package drive
 
 import (
-	drive "code.google.com/p/google-api-go-client/drive/v2"
 	"fmt"
 	"path/filepath"
 	"strings"
 )
+
+type byteDescription func(b int64) string
+
+func memoizeBytes() byteDescription {
+	cache := map[int64]string{}
+	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	maxLen := len(suffixes) - 1
+
+	f := func(b int64) string {
+		description, ok := cache[b]
+		if ok {
+			return description
+		}
+
+		i := 0
+		for {
+			if b/1024 < 1 || i >= maxLen {
+				return fmt.Sprintf("%v%s", b, suffixes[i])
+			}
+			b /= 1024
+			i += 1
+		}
+	}
+
+	return f
+}
+
+var prettyBytes = memoizeBytes()
 
 func (g *Commands) List() (err error) {
 	root := g.context.AbsPathOf("")
@@ -53,11 +80,28 @@ func (g *Commands) List() (err error) {
 	return
 }
 
-func breakdownFile(p string, f *drive.File) {
-	if f == nil {
-		return
+type attribute struct {
+	human  bool
+	parent string
+}
+
+func (f *File) pretty(opt attribute) {
+	if f.IsDir {
+		fmt.Printf("d")
+	} else {
+		fmt.Printf("-")
 	}
-	fmt.Printf("%s/%s\n", p, f.Title)
+	if f.Shared {
+		fmt.Printf("s ")
+	} else {
+		fmt.Printf("- ")
+	}
+	if f.UserPermission != nil {
+		fmt.Printf("%-10s ", f.UserPermission.Role)
+	}
+	fPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
+	fmt.Printf("%-10s %-6s %s", prettyBytes(f.Size), fPath, f.ModTime)
+	fmt.Println()
 }
 
 func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
@@ -69,12 +113,13 @@ func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
 	}
 	pageToken := ""
 
-	for {
-		req := g.rem.service.Files.List()
-		req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
-		// TODO: Get pageSize from g.opts
-		req.MaxResults(30)
+	req := g.rem.service.Files.List()
+	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
 
+	// TODO: Get pageSize from g.opts
+	req.MaxResults(30)
+
+	for {
 		if pageToken != "" {
 			req = req.PageToken(pageToken)
 		}
@@ -83,8 +128,13 @@ func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
 			return false
 		}
 
+		opt := attribute{
+			human:  true,
+			parent: parentName,
+		}
 		for _, file := range res.Items {
-			breakdownFile(parentName, file)
+			rem := NewRemoteFile(file)
+			rem.pretty(opt)
 			g.depthFirst(file.Id, parentName+"/"+file.Title, depth)
 		}
 

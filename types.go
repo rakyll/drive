@@ -48,6 +48,10 @@ type File struct {
 	ModTime     time.Time
 	Name        string
 	Size        int64
+	Etag        string
+	Shared      bool
+	// The permissions for the authenticated user on this file
+	UserPermission *drive.Permission
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -55,6 +59,7 @@ func NewRemoteFile(f *drive.File) *File {
 	mtime = mtime.Round(time.Second)
 	return &File{
 		BlobAt:      f.DownloadUrl,
+		Etag:        f.Etag,
 		ExportLinks: f.ExportLinks,
 		Id:          f.Id,
 		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
@@ -62,8 +67,10 @@ func NewRemoteFile(f *drive.File) *File {
 		MimeType:    f.MimeType,
 		ModTime:     mtime,
 		// We must convert each title to match that on the FS.
-		Name: urlToPath(f.Title, true),
-		Size: f.FileSize,
+		Name:           urlToPath(f.Title, true),
+		Size:           f.FileSize,
+		Shared:         f.Shared,
+		UserPermission: f.UserPermission,
 	}
 }
 
