@@ -15,6 +15,7 @@
 package drive
 
 import (
+	drive "code.google.com/p/google-api-go-client/drive/v2"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,9 @@ func (g *Commands) List() (err error) {
 	}
 
 	for _, r := range remotes {
-		g.depthFirst(r.Id, "/"+r.Name, g.opts.Depth)
+		if !g.breadthFirst(r.Id, "/"+r.Name, g.opts.Depth) {
+			break
+		}
 	}
 
 	return
@@ -104,7 +107,7 @@ func (f *File) pretty(opt attribute) {
 	fmt.Println()
 }
 
-func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
+func (g *Commands) breadthFirst(parentId, parentName string, depth int) bool {
 	if depth == 0 {
 		return false
 	}
@@ -117,7 +120,9 @@ func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
 	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
 
 	// TODO: Get pageSize from g.opts
-	req.MaxResults(30)
+	req.MaxResults(20)
+
+	var children []*drive.File
 
 	for {
 		if pageToken != "" {
@@ -135,7 +140,7 @@ func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
 		for _, file := range res.Items {
 			rem := NewRemoteFile(file)
 			rem.pretty(opt)
-			g.depthFirst(file.Id, parentName+"/"+file.Title, depth)
+			children = append(children, file)
 		}
 
 		pageToken = res.NextPageToken
@@ -143,12 +148,25 @@ func (g *Commands) depthFirst(parentId, parentName string, depth int) bool {
 			break
 		}
 
-		var input string
-		fmt.Printf("---Next---")
-		fmt.Scanln(&input)
-		if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
+		if !nextPage() {
 			return false
 		}
+	}
+
+	for _, file := range children {
+		if !g.breadthFirst(file.Id, parentName+"/"+file.Title, depth) {
+			return false
+		}
+	}
+	return true
+}
+
+func nextPage() bool {
+	var input string
+	fmt.Printf("---More---")
+	fmt.Scanln(&input)
+	if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
+		return false
 	}
 	return true
 }
