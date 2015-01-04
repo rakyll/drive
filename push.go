@@ -15,7 +15,6 @@
 package drive
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -45,7 +44,6 @@ func (g *Commands) Push() (err error) {
 	}()
 
 	for _, relToRootPath := range g.opts.Sources {
-		fmt.Println(relToRootPath, g.context.AbsPathOf(relToRootPath))
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := lonePush(g, root, relToRootPath, fsPath)
 		if cErr == nil && len(ccl) > 0 {

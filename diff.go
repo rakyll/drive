@@ -34,7 +34,6 @@ func (g *Commands) Diff() (err error) {
 	var cl []*Change
 
 	for _, relToRootPath := range g.opts.Sources {
-		fmt.Println(relToRootPath, g.context.AbsPathOf(relToRootPath))
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		if cErr == nil && len(ccl) > 0 {

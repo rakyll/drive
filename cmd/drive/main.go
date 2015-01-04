@@ -170,27 +170,6 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func walkTillNoResolve(root, p string) string {
-	sep := fmt.Sprintf("%c", os.PathSeparator)
-	for {
-		fmt.Println(p, root)
-		p = strings.Trim(p, " ")
-		if p == "." || p == "" {
-			return root
-		}
-		if strings.HasPrefix(p, "./") {
-			return filepath.Join(root, filepath.Base(p))
-		}
-		if !strings.HasPrefix(p, "..") {
-			return filepath.Join(root, p)
-		}
-		p = strings.TrimLeft(p, ".."+sep)
-		root = filepath.Base(root)
-	}
-	fmt.Println("Done", p, root)
-	return filepath.Join(root, p)
-}
-
 func preprocessArgs(args []string) ([]string, *config.Context, string) {
 	var relPaths []string
 	context, path := discoverContext(args)
@@ -204,9 +183,9 @@ func preprocessArgs(args []string) ([]string, *config.Context, string) {
 	var err error
 	for _, p := range args {
 		p, err = filepath.Abs(p)
-		fmt.Println(p)
 		if err != nil {
 			fmt.Println(err)
+			continue
 		}
 
 		relPath, err := filepath.Rel(root, p)

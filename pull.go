@@ -35,7 +35,6 @@ func (g *Commands) Pull() (err error) {
 	root := g.context.AbsPathOf("")
 	var cl []*Change
 	for _, relToRootPath := range g.opts.Sources {
-		fmt.Println(relToRootPath, g.context.AbsPathOf(relToRootPath))
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := lonePull(g, root, relToRootPath, fsPath)
 		if cErr == nil && len(ccl) > 0 {
