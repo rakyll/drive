@@ -14,8 +14,10 @@ However, she no longer has the time to work on it so I am it's new maintainer.
 
 Use `drive help` for further reference.
 
+	$ drive version
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path] # pulls from remote
+	$ drive pull [-r -no-prompt -hidden path] # pulls even hidden paths from remote
 	$ drive pull [-r -no-prompt -force path] # forces addition to local of all pulls from remote
 	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 -export-dir <export-dir> path] # pulls from remote and exports Docs + Sheets to one of its export formats.
     e.g:

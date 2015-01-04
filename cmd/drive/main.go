@@ -30,6 +30,8 @@ import (
 
 var context *config.Context
 
+const Version = "0.0.3"
+
 const (
 	descInit      = "inits a directory and authenticates user"
 	descPull      = "pulls remote changes from google drive"
@@ -40,6 +42,7 @@ const (
 	descTrash     = "moves the file to trash"
 	descUntrash   = "restores the file from trash"
 	descUnpublish = "revokes public access to a file"
+	descVersion   = "prints the version"
 )
 
 func main() {
@@ -52,7 +55,19 @@ func main() {
 	command.On("trash", descTrash, &trashCmd{}, []string{})
 	command.On("untrash", descUntrash, &untrashCmd{}, []string{})
 	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
+	command.On("version", descVersion, &versionCmd{}, []string{})
 	command.ParseAndRun()
+}
+
+type versionCmd struct{}
+
+func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *versionCmd) Run(args []string) {
+    fmt.Printf("drive version %s\n", Version)
+    exitWithError(nil)
 }
 
 type initCmd struct{}
