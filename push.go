@@ -132,7 +132,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		}
 	}
 	_, err = g.rem.Upsert(parent.Id, change.Src, body)
-    return err
+	return err
 }
 
 func (g *Commands) remoteAdd(change *Change) (err error) {

@@ -78,7 +78,7 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 	return &File{
 		Id:      "",
 		Name:    f.Name(),
-		ModTime: f.ModTime(),
+		ModTime: f.ModTime().Round(time.Second),
 		IsDir:   f.IsDir(),
 		Size:    f.Size(),
 		BlobAt:  absPath,

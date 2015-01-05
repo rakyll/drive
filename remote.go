@@ -269,8 +269,20 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 		}
 		return NewRemoteFile(uploaded), nil
 	}
+
+	utc := file.ModTime.UTC().Round(time.Second)
+
+	// Ugly but straight forward formatting because time.Parse is such a prima donna
+	str := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
+		utc.Year(), utc.Month(), utc.Day(), utc.Hour(), utc.Minute(), utc.Second())
+
+	uploaded.ModifiedDate = str
+
 	// update the existing
 	req := r.service.Files.Update(file.Id, uploaded)
+	// We always want it to match up with the local time
+	req.SetModifiedDate(true)
+
 	if !file.IsDir && body != nil {
 		req = req.Media(body)
 	}
