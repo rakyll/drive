@@ -30,7 +30,7 @@ import (
 
 var context *config.Context
 
-const Version = "0.0.3"
+const Version = "0.0.4"
 
 const (
 	descInit       = "inits a directory and authenticates user"
