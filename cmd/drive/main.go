@@ -96,6 +96,7 @@ type listCmd struct {
 	pageCount *int
 	recursive *bool
 	depth     *int
+	noPrompt  *bool
 	inTrash   *bool
 }
 
@@ -104,6 +105,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("a", false, "list all paths even hidden ones")
 	cmd.pageCount = fs.Int("p", -1, "number of results per pagination")
 	cmd.inTrash = fs.Bool("trashed", false, "list content in the trash")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
 
 	return fs
@@ -123,6 +125,7 @@ func (cmd *listCmd) Run(args []string) {
 		Depth:     *cmd.depth,
 		Hidden:    *cmd.hidden,
 		Path:      path,
+		NoPrompt:  *cmd.noPrompt,
 		Recursive: *cmd.recursive,
 		Sources:   uniqArgv,
 		InTrash:   *cmd.inTrash,

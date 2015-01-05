@@ -292,6 +292,42 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 	return NewRemoteFile(uploaded), nil
 }
 
+func (r *Remote) findShared(p []string) (shared []*File, err error) {
+	req := r.service.Files.List()
+	expr := "sharedWithMe=true"
+	if len(p) >= 1 {
+		expr = fmt.Sprintf("title = '%s' and %s", p[0], expr)
+	}
+	fmt.Println(expr, p)
+	req.Q(fmt.Sprintf(expr))
+	files, err := req.Do()
+	if err != nil || len(files.Items) < 1 {
+		return shared, ErrPathNotExists
+	}
+	shared = make([]*File, len(files.Items))
+	for i, it := range files.Items {
+		shared[i] = NewRemoteFile(it)
+	}
+	return
+}
+
+func (r *Remote) FindByPathShared(p string) (file []*File, err error) {
+	if p == "/" || p == "root" {
+		return r.findShared([]string{})
+	}
+	parts := strings.Split(p, "/") // TODO: use path.Split instead
+	nonEmpty := func(strList []string) []string {
+		var nEmpty []string
+		for _, p := range strList {
+			if len(p) >= 1 {
+				nEmpty = append(nEmpty, p)
+			}
+		}
+		return nEmpty
+	}(parts)
+	return r.findShared(nonEmpty)
+}
+
 func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()

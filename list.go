@@ -68,6 +68,7 @@ func (g *Commands) List() (err error) {
 		if err != nil {
 			return
 		}
+
 		if relPath == "." {
 			relPath = ""
 		}
@@ -82,8 +83,25 @@ func (g *Commands) List() (err error) {
 	}
 
 	for _, r := range remotes {
-		if !g.breadthFirst(r.Id, "/"+r.Name, g.opts.Depth, false) {
+		if !g.breadthFirst(r.Id, "", r.Name, g.opts.Depth, false) {
 			break
+		}
+	}
+
+	// No-op for now for explicitly traversing shared content
+	if false {
+		// TODO: Allow traversal of shared content as well as designated paths
+		// Next for shared
+		sharedRemotes, sErr := g.rem.FindByPathShared("")
+		if sErr == nil && len(sharedRemotes) >= 1 {
+			opt := attribute{
+				human:   true,
+				minimal: g.opts.InTrash,
+				parent:  "",
+			}
+			for _, sFile := range sharedRemotes {
+				sFile.pretty(opt)
+			}
 		}
 	}
 
@@ -120,9 +138,10 @@ func (f *File) pretty(opt attribute) {
 	fmt.Println()
 }
 
-func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash bool) bool {
+func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTrash bool) bool {
+	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
-		return false
+		return true
 	}
 	if depth > 0 {
 		depth -= 1
@@ -135,6 +154,13 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash 
 		expr = "trashed=true"
 	} else {
 		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
+	}
+	headPath := ""
+	if parent != "" {
+		headPath = parent
+	}
+	if child != "" {
+		headPath = headPath + "/" + child
 	}
 	req.Q(expr)
 
@@ -149,19 +175,22 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash 
 		}
 		res, err := req.Do()
 		if err != nil {
+			fmt.Println(err)
 			return false
 		}
 
 		opt := attribute{
 			human:   true,
 			minimal: inTrash,
-			parent:  parentName,
+			parent:  headPath,
 		}
+
 		for _, file := range res.Items {
 			rem := NewRemoteFile(file)
-			if !g.opts.NoPrompt {
-				rem.pretty(opt)
+			if isHidden(file.Title, g.opts.Hidden) {
+				continue
 			}
+			rem.pretty(opt)
 			children = append(children, file)
 		}
 
@@ -169,21 +198,27 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash 
 		if pageToken == "" {
 			break
 		}
-
-		if !nextPage() {
+		if !g.opts.NoPrompt && !nextPage() {
 			return false
 		}
 	}
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file.Id, parentName+"/"+file.Title, depth, inTrash) {
+			if !g.breadthFirst(file.Id, headPath, file.Title, depth, inTrash) {
 				return false
 			}
 		}
 		return true
 	}
 	return len(children) >= 1
+}
+
+func isHidden(p string, ignore bool) bool {
+	if strings.HasPrefix(p, ".") {
+		return !ignore
+	}
+	return false
 }
 
 func nextPage() bool {

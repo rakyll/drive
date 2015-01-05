@@ -29,7 +29,7 @@ func (g *Commands) Untrash() (err error) {
 }
 
 func (g *Commands) EmptyTrash() error {
-	if !g.breadthFirst("", "", -1, true) {
+	if !g.breadthFirst("", "", "", -1, true) {
 		return nil
 	}
 
