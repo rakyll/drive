@@ -112,7 +112,7 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
 	absPath := g.context.AbsPathOf(change.Path)
-	var updated, parent *File
+	var parent *File
 	if change.Dest != nil {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
@@ -131,11 +131,8 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 			return err
 		}
 	}
-	updated, err = g.rem.Upsert(parent.Id, change.Src, body)
-	if err != nil {
-		return
-	}
-	return os.Chtimes(absPath, updated.ModTime, updated.ModTime)
+	_, err = g.rem.Upsert(parent.Id, change.Src, body)
+    return err
 }
 
 func (g *Commands) remoteAdd(change *Change) (err error) {
