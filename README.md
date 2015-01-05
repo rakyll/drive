@@ -6,7 +6,7 @@
 
  `drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team.
 
-However, she no longer has the time to work on it so I am it's new maintainer.
+However, she no longer has the time to work on it so I am its new maintainer.
 
 ## Installation
 
@@ -16,7 +16,7 @@ Use `drive help` for further reference.
 
 	$ drive version
 	$ drive init [path]
-	$ drive pull [-r -no-prompt path] # pulls from remote
+	$ drive pull [-r -no-prompt path1 path2 path3 ...] # pulls from remotes
 	$ drive pull [-r -no-prompt -hidden path] # pulls even hidden paths from remote
 	$ drive pull [-r -no-prompt -force path] # forces addition to local of all pulls from remote
 	$ drive pull [-r -no-prompt -export ext1,ext2,ext3 -export-dir <export-dir> path] # pulls from remote and exports Docs + Sheets to one of its export formats.
@@ -26,32 +26,34 @@ Use `drive help` for further reference.
 	$ drive pull [-r -no-prompt -export pdf,docx,rtf,html -export-dir ~/Desktop/exports ReportII.txt] # pull ReportII.txt from
 	 remote and export it to pdf, docx, rtf and html and save it in ~/Desktop/exports
         
-	$ drive push [-r -no-prompt path] # pushes to the remote
+	$ drive push [-r -no-prompt path1 path2 path3 ...] # pushes to the remotes
 	$ drive push [-r -no-prompt -force path] # pushes all files as additions to the remote
 	$ drive push [-r -hidden path] # pushes also hidden directories and paths to the remote
 	# To push from a location not within the drive:
 	$ drive push -m $LOCATION .
     e.g
         `drive push -m /mnt/media`
-	$ drive diff [path] # outputs a diff of local and remote
-	$ drive pub [path] # publishes a file, outputs URL
-	$ drive unpub [path] # revokes public access to the file
-	$ drive list [-d x path1 path2 path3 ...] # list contents of paths on remote.
+	$ drive diff [path1 path2 ...] # outputs diffs of multiple paths.
+	$ drive pub [path1 path2 ...] # publishes the files, outputs URL.
+	$ drive unpub [path1 path2 ...] # revokes public access to the specified files.
+	$ drive list [-d 2 path1 path2 path3 ...] # list contents of paths on remote to a recursion depth of 2.
 
 	# Note using the no-clobber option for push or pull ensures that only ADDITIONS are made
 	# any modifications or deletions are ignored and those files are safe.
 	$ drive pull -no-clobber
 	$ drive push -no-clobber
 
-	$ drive trash
-	$ drive untrash
+	$ drive trash [path1 path2 ...] # Sends the remote specified files to the trash.
+	$ drive untrash [path1 path2 ...] # Restore the specified remote files from trash.
+    $ drive emptytrash
+    $ drive emptytrash [-no-prompt] # No prompt is presented before emptying out your trash.
 
 ## Configuration
 
 If you would like to use your own client ID/client secret pair with `drive`, set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` variables in your environment
 
 ## Why another Google Drive client?
-Background sync is not just hard, it's stupid. My technical and philosophical rants about why it is not worth to implement:
+Background sync is not just hard, it is stupid. My technical and philosophical rants about why it is not worth to implement:
 
 * Too racy. Data has been shared between your remote resource, local disk and sometimes in your sync daemon's in-memory struct. Any party could touch a file any time, hard to lock these actions. You end up working with multiple isolated copies of the same file and trying to determine which is the latest version and should be synced across different contexts.
 
@@ -252,6 +254,18 @@ if successful will create a directory logo\_exports which will look like:
   + How is it done ?
 
    ![drive list](https://github.com/odeke-em/wiki_content/blob/master/drive/list.png)
+
+   ![drive trash-untrash-list](https://github.com/odeke-em/wiki_content/blob/master/drive/trash-untrash-list.png)
+
+**Emptying the trash**
+=====
+
+    + What does this do ?
+        Cleans out your trash permanently.
+    
+    + How is it done ?
+
+   ![drive emptytrash](https://github.com/odeke-em/wiki_content/blob/master/drive/emptytrash.png)
 
 
 

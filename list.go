@@ -57,6 +57,11 @@ func (g *Commands) List() (err error) {
 	var relPaths []string
 	var remotes []*File
 
+	resolver := g.rem.FindByPath
+	if g.opts.InTrash {
+		resolver = g.rem.FindByPathTrashed
+	}
+
 	for _, p := range g.opts.Sources {
 		relP := g.context.AbsPathOf(p)
 		relPath, err = filepath.Rel(root, relP)
@@ -68,7 +73,7 @@ func (g *Commands) List() (err error) {
 		}
 		relPath = "/" + relPath
 		relPaths = append(relPaths, relPath)
-		r, rErr := g.rem.FindByPath(relPath)
+		r, rErr := resolver(relPath)
 		if rErr != nil {
 			fmt.Printf("%v: '%s'\n", rErr, relPath)
 			return
@@ -77,7 +82,7 @@ func (g *Commands) List() (err error) {
 	}
 
 	for _, r := range remotes {
-		if !g.breadthFirst(r.Id, "/"+r.Name, g.opts.Depth) {
+		if !g.breadthFirst(r.Id, "/"+r.Name, g.opts.Depth, false) {
 			break
 		}
 	}
@@ -86,11 +91,17 @@ func (g *Commands) List() (err error) {
 }
 
 type attribute struct {
-	human  bool
-	parent string
+	human   bool
+	minimal bool
+	parent  string
 }
 
 func (f *File) pretty(opt attribute) {
+	if opt.minimal {
+		fmt.Printf("%s/%s\n", opt.parent, f.Name)
+		return
+	}
+
 	if f.IsDir {
 		fmt.Printf("d")
 	} else {
@@ -109,7 +120,7 @@ func (f *File) pretty(opt attribute) {
 	fmt.Println()
 }
 
-func (g *Commands) breadthFirst(parentId, parentName string, depth int) bool {
+func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash bool) bool {
 	if depth == 0 {
 		return false
 	}
@@ -119,7 +130,13 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int) bool {
 	pageToken := ""
 
 	req := g.rem.service.Files.List()
-	req.Q(fmt.Sprintf("'%s' in parents and trashed=false", parentId))
+	var expr string
+	if inTrash || g.opts.InTrash {
+		expr = "trashed=true"
+	} else {
+		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
+	}
+	req.Q(expr)
 
 	// TODO: Get pageSize from g.opts
 	req.MaxResults(20)
@@ -136,12 +153,15 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int) bool {
 		}
 
 		opt := attribute{
-			human:  true,
-			parent: parentName,
+			human:   true,
+			minimal: inTrash,
+			parent:  parentName,
 		}
 		for _, file := range res.Items {
 			rem := NewRemoteFile(file)
-			rem.pretty(opt)
+			if !g.opts.NoPrompt {
+				rem.pretty(opt)
+			}
 			children = append(children, file)
 		}
 
@@ -155,12 +175,14 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int) bool {
 		}
 	}
 
-	for _, file := range children {
-		if !g.breadthFirst(file.Id, parentName+"/"+file.Title, depth) {
-			return false
+	if !inTrash && !g.opts.InTrash {
+		for _, file := range children {
+			if !g.breadthFirst(file.Id, parentName+"/"+file.Title, depth, inTrash) {
+				return false
+			}
 		}
 	}
-	return true
+	return len(children) >= 1
 }
 
 func nextPage() bool {

@@ -39,6 +39,8 @@ type Options struct {
 	Force bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
+	// Allows listing of content in trash
+	InTrash bool
 	// Mounts is a list of all mountpoints
 	// of paths that are not in the current drive context
 	Mounts []*config.MountPoint

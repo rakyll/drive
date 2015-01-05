@@ -87,12 +87,14 @@ type listCmd struct {
 	pageCount *int
 	recursive *bool
 	depth     *int
+	inTrash   *bool
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.depth = fs.Int("d", 1, "maximum recursion depth")
 	cmd.hidden = fs.Bool("a", false, "list all paths even hidden ones")
 	cmd.pageCount = fs.Int("p", -1, "number of results per pagination")
+	cmd.inTrash = fs.Bool("trashed", false, "list content in the trash")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
 
 	return fs
@@ -114,6 +116,7 @@ func (cmd *listCmd) Run(args []string) {
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   uniqArgv,
+		InTrash:   *cmd.inTrash,
 	}).List())
 }
 
@@ -319,15 +322,19 @@ func (cmd *unpublishCmd) Run(args []string) {
 }
 
 type emptyTrashCmd struct {
+	noPrompt *bool
 }
 
 func (cmd *emptyTrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before emptying the trash")
 	return fs
 }
 
 func (cmd *emptyTrashCmd) Run(args []string) {
 	_, context, _ := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{}).EmptyTrash())
+	exitWithError(drive.New(context, &drive.Options{
+		NoPrompt: *cmd.noPrompt,
+	}).EmptyTrash())
 }
 
 type trashCmd struct {

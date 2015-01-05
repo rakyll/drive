@@ -21,27 +21,29 @@ import (
 )
 
 func (g *Commands) Trash() (err error) {
-	for _, relToRoot := range g.opts.Sources {
-		tErr := g.trash(relToRoot)
-		if tErr != nil {
-			fmt.Printf("\033[91mFailed to trash %s: %v\033[00m\n", relToRoot, tErr)
-		} else {
-			fmt.Printf("%s successfully trashed\n", relToRoot)
-		}
-	}
-	return
+	return g.reduce(g.opts.Sources, true)
+}
+
+func (g *Commands) Untrash() (err error) {
+	return g.reduce(g.opts.Sources, false)
 }
 
 func (g *Commands) EmptyTrash() error {
-	fmt.Println("Empty trash: (Yn)? ")
-
-	input := "Y"
-	fmt.Print("Proceed with the changes? [Y/n]: ")
-	fmt.Scanln(&input)
-
-	if strings.ToUpper(input) != "Y" {
-		fmt.Println("Aborted emptying trash")
+	if !g.breadthFirst("", "", -1, true) {
 		return nil
+	}
+
+	if !g.opts.NoPrompt {
+		fmt.Println("Empty trash: (Yn)? ")
+
+		input := "Y"
+		fmt.Print("Proceed with the changes? [Y/n]: ")
+		fmt.Scanln(&input)
+
+		if strings.ToUpper(input) != "Y" {
+			fmt.Println("Aborted emptying trash")
+			return nil
+		}
 	}
 
 	err := g.rem.EmptyTrash()
@@ -51,41 +53,52 @@ func (g *Commands) EmptyTrash() error {
 	return err
 }
 
-func (g *Commands) trash(relToRoot string) error {
-	file, err := g.rem.FindByPath(relToRoot)
-	if err != nil {
-		return err
+func (g *Commands) trasher(relToRoot string, toTrash bool) (change *Change, err error) {
+	var file *File
+	if toTrash {
+		file, err = g.rem.FindByPath(relToRoot)
+	} else {
+		file, err = g.rem.FindByPathTrashed(relToRoot)
 	}
-	return g.rem.Trash(file.Id)
-}
 
-func (g *Commands) Untrash() (err error) {
-	for _, relToRoot := range g.opts.Sources {
-		uErr := g.untrash(relToRoot)
-		if uErr != nil {
-			fmt.Printf("\033[91mFailed to untrash: '%s': %v\033[00m\n", relToRoot, uErr)
-		} else {
-			fmt.Printf("\033[92mSuccessfully untrashed: '%s'\033[00m\n", relToRoot)
-		}
+	if err != nil {
+		return
+	}
+
+	change = &Change{Path: relToRoot}
+	if toTrash {
+		change.Dest = file
+	} else {
+		change.Src = file
 	}
 	return
 }
 
-func (g *Commands) untrash(relToRoot string) error {
-	file, err := g.rem.FindByPathTrashed(relToRoot)
-	if err != nil {
-		return err
+func (g *Commands) reduce(args []string, toTrash bool) error {
+	var cl []*Change
+	for _, relToRoot := range args {
+		c, cErr := g.trasher(relToRoot, toTrash)
+		if cErr != nil {
+			fmt.Printf("%s: %v\n", relToRoot, cErr)
+		} else if c != nil {
+			cl = append(cl, c)
+		}
 	}
-	return g.rem.Untrash(file.Id)
+
+	ok := printChangeList(cl, g.opts.NoPrompt, false)
+	if ok {
+		return g.playTrashChangeList(cl, toTrash)
+	}
+	return nil
 }
 
-func (g *Commands) playTrashChangeList(cl []*Change, trashed bool) (err error) {
+func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
 	var next []*Change
 	g.taskStart(len(cl))
 
-	var f = g.remoteDelete
-	if trashed {
-		f = g.remoteUntrash
+	var f = g.remoteUntrash
+	if toTrash {
+		f = g.remoteDelete
 	}
 
 	for {
