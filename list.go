@@ -181,6 +181,7 @@ func (g *Commands) breadthFirst(parentId, parentName string, depth int, inTrash 
 				return false
 			}
 		}
+		return true
 	}
 	return len(children) >= 1
 }

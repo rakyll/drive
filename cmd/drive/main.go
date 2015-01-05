@@ -21,6 +21,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/odeke-em/drive"
@@ -30,7 +32,8 @@ import (
 
 var context *config.Context
 
-const Version = "0.0.4"
+var Version = "0.0.4"
+var DefaultMaxProcs = runtime.NumCPU()
 
 const (
 	descInit       = "inits a directory and authenticates user"
@@ -47,6 +50,12 @@ const (
 )
 
 func main() {
+	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
+	if err != nil || maxProcs < 1 {
+		maxProcs = int64(DefaultMaxProcs)
+	}
+	runtime.GOMAXPROCS(int(maxProcs))
+
 	command.On("diff", descDiff, &diffCmd{}, []string{})
 	command.On("init", descInit, &initCmd{}, []string{})
 	command.On("list", descList, &listCmd{}, []string{})
