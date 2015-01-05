@@ -52,6 +52,12 @@ Use `drive help` for further reference.
 
 If you would like to use your own client ID/client secret pair with `drive`, set the `GOOGLE_API_CLIENT_ID` and `GOOGLE_API_CLIENT_SECRET` variables in your environment
 
+
+## Platform Packages
+    Get drive on your platform from the list below
+   + [Arch Linux](https://aur.archlinux.org/packages/drive) prepared by [Johnathan Jenkins](https://github.com/shaggytwodope)
+
+
 ## Why another Google Drive client?
 Background sync is not just hard, it is stupid. My technical and philosophical rants about why it is not worth to implement:
 
@@ -112,10 +118,6 @@ if successful will create a directory logo\_exports which will look like:
 * Probably, it doesn't work on Windows.
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
-
-## Platform Packages
-    Get drive on your platform from the list below
-   + [Arch Linux](https://aur.archlinux.org/packages/drive) prepared by [Johnathan Jenkins](https://github.com/shaggytwodope)
 
 
 ## Sample Walk-through starting from installation.
