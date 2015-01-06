@@ -44,8 +44,12 @@ func (g *Commands) Quota() (err error) {
 }
 
 func (g *Commands) QuotaStatus(query int64) (status int, err error) {
+	if query < 0 {
+		return Unknown, err
+	}
+
 	about, err := g.rem.About()
-	if err != nil || query < 0 {
+	if err != nil {
 		return Unknown, err
 	}
 
@@ -54,8 +58,8 @@ func (g *Commands) QuotaStatus(query int64) (status int, err error) {
 		return Unknown, fmt.Errorf("QuotaBytesTotal < 1")
 	}
 
-	toBeUsed := query + about.QuotaBytesTotal
-	if about.QuotaBytesUsed >= toBeUsed {
+	toBeUsed := query + about.QuotaBytesUsed
+	if toBeUsed >= about.QuotaBytesTotal {
 		return Exceeded, nil
 	}
 
