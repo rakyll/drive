@@ -39,7 +39,7 @@ Use `drive help` for further reference.
 	$ drive diff [path1 path2 ...] # outputs diffs of multiple paths.
 	$ drive pub [path1 path2 ...] # publishes the files, outputs URL.
 	$ drive unpub [path1 path2 ...] # revokes public access to the specified files.
-	$ drive list [-d 2 path1 path2 path3 ...] # list contents of paths on remote to a recursion depth of 2.
+	$ drive list [-d 2 -a -no-prompt path1 path2 path3 ...] # list contents of paths on remote to a recursion depth of 2 even listing hidden files and not needing to prompt for pagination.
 
 	# Note using the no-clobber option for push or pull ensures that only ADDITIONS are made
 	# any modifications or deletions are ignored and those files are safe.

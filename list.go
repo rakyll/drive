@@ -165,7 +165,7 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 	req.Q(expr)
 
 	// TODO: Get pageSize from g.opts
-	req.MaxResults(20)
+	req.MaxResults(50)
 
 	var children []*drive.File
 
