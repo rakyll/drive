@@ -210,6 +210,22 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 	return
 }
 
+func reduceToSize(changes []*Change, isPush bool) (totalSize int64) {
+	totalSize = 0
+	for _, c := range changes {
+		if isPush {
+			if c.Src != nil {
+				totalSize += c.Src.Size
+			}
+		} else {
+			if c.Dest != nil {
+				totalSize += c.Dest.Size
+			}
+		}
+	}
+	return totalSize
+}
+
 func summarizeChanges(changes []*Change, reduce bool) {
 	for _, c := range changes {
 		if c.Op() != OpNone {
@@ -242,6 +258,13 @@ func summarizeChanges(changes []*Change, reduce bool) {
 	}
 }
 
+func promptForChanges() bool {
+	input := "Y"
+	fmt.Print("Proceed with the changes? [Y/n]: ")
+	fmt.Scanln(&input)
+	return strings.ToUpper(input) == "Y"
+}
+
 func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 	if len(changes) == 0 {
 		fmt.Println("Everything is up-to-date.")
@@ -254,8 +277,5 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		return true
 	}
 
-	input := "Y"
-	fmt.Print("Proceed with the changes? [Y/n]: ")
-	fmt.Scanln(&input)
-	return strings.ToUpper(input) == "Y"
+	return promptForChanges()
 }

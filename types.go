@@ -165,7 +165,7 @@ func (f *File) MatchDirness(g *File) bool {
 }
 
 // if it's a regular file, see it it's modified.
-// If the first test passes, then do an Md5 checksum comparison
+// The bare minimum case comparison
 func isSameFile(src, dest *File) bool {
 	if src.Size != dest.Size || !src.ModTime.Equal(dest.ModTime) {
 		return false
@@ -173,14 +173,16 @@ func isSameFile(src, dest *File) bool {
 	if src.IsDir != dest.IsDir {
 		return false
 	}
+	return true
+}
 
-	ssum := md5Checksum(src)
-	dsum := md5Checksum(dest)
-
-	if dsum != ssum {
+// If the preliminary isSameFile test passes,
+// then perform an Md5 checksum comparison
+func isSameFileTillChecksum(src, dest *File) bool {
+	if !isSameFile(src, dest) {
 		return false
 	}
-	return true
+	return md5Checksum(src) == md5Checksum(dest)
 }
 
 // Will turn any other op but an Addition into a noop
@@ -209,7 +211,7 @@ func (c *Change) Op() int {
 		return OpMod
 	}
 
-	if !c.Src.IsDir && !isSameFile(c.Src, c.Dest) {
+	if !c.Src.IsDir && !isSameFileTillChecksum(c.Src, c.Dest) {
 		return OpMod
 	}
 	return OpNone

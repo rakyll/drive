@@ -62,9 +62,28 @@ func (g *Commands) Push() (err error) {
 
 	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
 	if ok {
+		pushSize := reduceToSize(cl, true)
+
+		quotaStatus, qErr := g.QuotaStatus(pushSize)
+		if qErr != nil {
+			return qErr
+		}
+		unSafe := false
+		switch quotaStatus {
+		case AlmostExceeded:
+			fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
+		case Exceeded:
+			fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
+			unSafe = true
+		}
+		if unSafe {
+			fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
+			if !promptForChanges() {
+				return
+			}
+		}
 		return g.playPushChangeList(cl)
 	}
-
 	return
 }
 
