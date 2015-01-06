@@ -10,7 +10,10 @@ However, she no longer has the time to work on it so I am its new maintainer.
 
 ## Installation
 
-    go get github.com/odeke-em/drive/cmd/drive
+   $> go get -u -d github.com/odeke-em/drive/cmd/drive # To force the latest download of the latest code from the Github repo
+
+   $> go get github.com/odeke-em/drive/cmd/drive # To install the code locally checked out on your machine.
+
 
 Use `drive help` for further reference.
 
@@ -142,12 +145,12 @@ if successful will create a directory logo\_exports which will look like:
       `export PATH=$GOPATH:$GOPATH/bin:${PATH}`
 
 
-
 **Installing drive, the program:**
 =======
 
+   $> go get github.com/odeke-em/drive/cmd/drive # To install the code locally checked out on your machine.
 
-   $> go get github.com/odeke-em/drive/cmd/drive
+   $> go get -u -d github.com/odeke-em/drive/cmd/drive # To force the latest download of the latest code from the Github repo
 
    Note: Running go install or go get github.com/odeke-em/drive will not create an executable.
 
