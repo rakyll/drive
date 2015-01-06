@@ -34,6 +34,23 @@ func (d *dirList) Name() string {
 	return d.local.Name
 }
 
+type sizeCounter struct {
+	count int64
+	src   int64
+	dest  int64
+}
+
+func (t *sizeCounter) String() string {
+	str := fmt.Sprintf("count %v", t.count)
+	if t.src > 0 {
+		str = fmt.Sprintf("%s src: %v", str, prettyBytes(t.src))
+	}
+	if t.dest > 0 {
+		str = fmt.Sprintf("%s src: %v", str, prettyBytes(t.dest))
+	}
+	return str
+}
+
 // Resolves the local path relative to the root directory
 // Returns the path relative to the remote, the abspath on disk and an error if any
 func (g *Commands) pathResolve() (relPath, absPath string, err error) {
@@ -200,21 +217,27 @@ func summarizeChanges(changes []*Change, reduce bool) {
 		}
 	}
 	if reduce {
-		opMap := map[int]int{}
+		opMap := map[int]sizeCounter{}
 
 		for _, c := range changes {
 			op := c.Op()
-			count := opMap[op]
-			count += 1
-			opMap[op] = count
+			counter := opMap[op]
+			counter.count += 1
+			if c.Src != nil {
+				counter.src += c.Src.Size
+			}
+			if c.Dest != nil {
+				counter.dest += c.Dest.Size
+			}
+			opMap[op] = counter
 		}
 
-		for op, count := range opMap {
-			if count < 1 {
+		for op, counter := range opMap {
+			if counter.count < 1 {
 				continue
 			}
 			_, name := opToString(op)
-			fmt.Printf("%s: %d\n", name, count)
+			fmt.Printf("%s %s\n", name, counter.String())
 		}
 	}
 }

@@ -141,7 +141,7 @@ func (f *File) pretty(opt attribute) {
 func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTrash bool) bool {
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
-		return true
+		return false
 	}
 	if depth > 0 {
 		depth -= 1
