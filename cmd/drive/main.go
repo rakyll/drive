@@ -42,6 +42,7 @@ const (
 	descDiff       = "compares a local file with remote"
 	descEmptyTrash = "cleans out your trash"
 	descList       = "lists the contents of remote path"
+	descQuota      = "prints out the space information"
 	descPublish    = "publishes a file and prints its publicly available url"
 	descTrash      = "moves the file to trash"
 	descUntrash    = "restores the file from trash"
@@ -63,6 +64,7 @@ func main() {
 	command.On("push", descPush, &pushCmd{}, []string{})
 	command.On("pub", descPublish, &publishCmd{}, []string{})
 	command.On("emptytrash", descEmptyTrash, &emptyTrashCmd{}, []string{})
+	command.On("quota", descQuota, &quotaCmd{}, []string{})
 	command.On("trash", descTrash, &trashCmd{}, []string{})
 	command.On("untrash", descUntrash, &untrashCmd{}, []string{})
 	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
@@ -89,6 +91,19 @@ func (cmd *initCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 
 func (cmd *initCmd) Run(args []string) {
 	exitWithError(drive.New(initContext(args), nil).Init())
+}
+
+type quotaCmd struct{}
+
+func (cmd *quotaCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *quotaCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).Quota())
 }
 
 type listCmd struct {

@@ -48,8 +48,10 @@ Use `drive help` for further reference.
 
 	$ drive trash [path1 path2 ...] # Sends the remote specified files to the trash.
 	$ drive untrash [path1 path2 ...] # Restore the specified remote files from trash.
-    $ drive emptytrash
-    $ drive emptytrash [-no-prompt] # No prompt is presented before emptying out your trash.
+	$ drive emptytrash
+	$ drive emptytrash [-no-prompt] # No prompt is presented before emptying out your trash.
+
+	$ drive quota # To return quota information
 
 ## Configuration
 
@@ -249,7 +251,7 @@ if successful will create a directory logo\_exports which will look like:
 
        * The next pull that you do should clean up that file off your disk.
 
-    2) Using your terminal, take that file out of its position and then perform a push on only that file.
+    2) 
 
    ![drive trash/untrash](https://github.com/odeke-em/wiki_content/blob/master/drive/trash-untrash.png)
 
@@ -277,6 +279,18 @@ if successful will create a directory logo\_exports which will look like:
 
    ![drive emptytrash](https://github.com/odeke-em/wiki_content/blob/master/drive/emptytrash.png)
 
+**Quota Information**
+====
+    + What does `quota` do ?
+        Returns you information about your drive.
+
+    + How is it done ?
+    
+    `drive quota`
+        `Bytes Used: 967MB`
+        `Bytes Free: 15GB`
+        `Total Bytes: 16GB`
+        `Account type: LIMITED`
 
 
 ## LICENSE

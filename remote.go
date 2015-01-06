@@ -330,6 +330,10 @@ func (r *Remote) FindByPathShared(p string) (file []*File, err error) {
 	return r.findShared(nonEmpty)
 }
 
+func (r *Remote) About() (about *drive.About, err error) {
+	return r.service.About.Get().Do()
+}
+
 func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (file *File, err error) {
 	// find the file or directory under parentId and titled with p[0]
 	req := r.service.Files.List()
