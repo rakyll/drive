@@ -46,7 +46,7 @@ func (t *sizeCounter) String() string {
 		str = fmt.Sprintf("%s src: %v", str, prettyBytes(t.src))
 	}
 	if t.dest > 0 {
-		str = fmt.Sprintf("%s src: %v", str, prettyBytes(t.dest))
+		str = fmt.Sprintf("%s dest: %v", str, prettyBytes(t.dest))
 	}
 	return str
 }
@@ -83,7 +83,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	var r, l *File
 	r, err = g.rem.FindByPath(relToRoot)
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
 		// We cannot pull from a non-existant remote
 		if !isPush {
 			return

@@ -63,7 +63,7 @@ func (g *Commands) QuotaStatus(query int64) (status int, err error) {
 		return Exceeded, nil
 	}
 
-	percentage := float64(about.QuotaBytesUsed) / float64(toBeUsed)
+	percentage := float64(toBeUsed) / float64(about.QuotaBytesTotal)
 	if percentage < 0.5 {
 		return Barely, nil
 	}

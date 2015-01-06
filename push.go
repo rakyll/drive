@@ -123,7 +123,7 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	var l *File
 	localinfo, _ := os.Stat(path)
 	if localinfo != nil {
-		l = NewLocalFile(absPath, localinfo)
+		l = NewLocalFile(path, localinfo)
 	}
 
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)

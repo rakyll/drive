@@ -32,7 +32,7 @@ import (
 
 var context *config.Context
 
-var Version = "0.0.4"
+var Version = "0.0.4a"
 var DefaultMaxProcs = runtime.NumCPU()
 
 const (
