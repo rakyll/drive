@@ -15,6 +15,7 @@
 package drive
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -121,6 +122,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	p = append([]string{"/"}, p[:len(p)-1]...)
 	parent, err = g.rem.FindByPath(gopath.Join(p...))
 	if err != nil {
+		fmt.Println(parent, err)
 		return
 	}
 
