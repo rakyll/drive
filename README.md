@@ -6,6 +6,28 @@
 
 `drive` was originally developed by [Burcu Dogan](https://github.com/rakyll) while working on the Google Drive team. This repository contains the latest version of the code, as she is no longer able to maintain it.
 
+## Table of Contents
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Platform Packages](#platform-packages)
+- [Configuration](#configuration)
+- [Usage](#usage)
+  - [Initializing](#initializing)
+  - [Pulling](#pulling)
+    - [Exporting Docs](#exporting-docs)
+  - [Pushing](#pushing)
+  - [Publishing](#publishing)
+  - [Unpublishing](#unpublishing)
+  - [Trashing and Untrashing](#trashing-and-untrashing)
+  - [Emptying the Trash](#emptying-the-trash)
+  - [Listing Files](#listing-files)
+  - [Quota](#quota)
+  - [Help](#help)
+- [Why another Google Drive client?](#why-another-google-drive-client)
+- [Known issues](#known-issues)
+- [LICENSE](#license)
+
 ## Requirements
 
 go 1.2 or higher is required. See [here](https://golang.org/doc/install) for installation instructions and platform installers.
@@ -130,7 +152,7 @@ Emptying the trash will permanently delete all trashed files. They will be unrec
 $ drive emptytrash
 ```
 
-### Listing
+### Listing Files
 
 The `list` command shows a paginated list of paths on the cloud.
 
@@ -158,6 +180,20 @@ The `quota` command prints information about your drive, such as the account typ
 
 ```shell
 $ drive quota
+```
+
+### Help
+
+Run the `help` command without any arguments to see information about the commands that are available:
+
+```shell
+$ drive help
+```
+
+Pass in the name of a command to get information about that specific command and the options that can be passed to it.
+
+```shell
+$ drive help push
 ```
 
 ## Why another Google Drive client?
