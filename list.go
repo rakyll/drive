@@ -15,15 +15,12 @@
 package drive
 
 import (
-	drive "code.google.com/p/google-api-go-client/drive/v2"
+	drive "github.com/google/google-api-go-client/drive/v2"
 	"fmt"
 	"path/filepath"
 	"strings"
 )
 
-const (
-	DriveAbsRootPath = "My Drive"
-)
 
 var BytesPerKB = float64(1024)
 
@@ -165,7 +162,7 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
 	}
 	headPath := ""
-	if parent != "" && parent != DriveAbsRootPath {
+	if parent != "" {
 		headPath = parent
 	}
 	if child != "" {

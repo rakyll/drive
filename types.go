@@ -21,7 +21,7 @@ import (
 	"os"
 	"time"
 
-	drive "code.google.com/p/google-api-go-client/drive/v2"
+	drive "github.com/google/google-api-go-client/drive/v2"
 )
 
 const (
