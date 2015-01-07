@@ -107,18 +107,23 @@ func (cmd *quotaCmd) Run(args []string) {
 }
 
 type listCmd struct {
-	hidden    *bool
-	pageCount *int
-	recursive *bool
-	depth     *int
-	noPrompt  *bool
-	inTrash   *bool
+	hidden      *bool
+	pageCount   *int
+	recursive   *bool
+	files       *bool
+	directories *bool
+	depth       *int
+	pageSize    *int64
+	noPrompt    *bool
+	inTrash     *bool
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	cmd.depth = fs.Int("d", 1, "maximum recursion depth")
-	cmd.hidden = fs.Bool("a", false, "list all paths even hidden ones")
-	cmd.pageCount = fs.Int("p", -1, "number of results per pagination")
+	cmd.depth = fs.Int("m", 1, "maximum recursion depth")
+	cmd.hidden = fs.Bool("hidden", false, "list all paths even hidden ones")
+	cmd.files = fs.Bool("f", false, "list only files")
+	cmd.directories = fs.Bool("d", false, "list all directories")
+	cmd.pageSize = fs.Int64("p", 100, "number of results per pagination")
 	cmd.inTrash = fs.Bool("trashed", false, "list content in the trash")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
@@ -135,15 +140,27 @@ func (cmd *listCmd) Run(args []string) {
 	if len(uniqArgv) < 1 {
 		uniqArgv = append(uniqArgv, "")
 	}
+	typeMask := 0
+	if *cmd.directories {
+		typeMask |= drive.Folder
+	}
+	if *cmd.files {
+		typeMask |= drive.NonFolder
+	}
+	if *cmd.inTrash {
+		typeMask |= drive.InTrash
+	}
 
 	exitWithError(drive.New(context, &drive.Options{
 		Depth:     *cmd.depth,
 		Hidden:    *cmd.hidden,
+		InTrash:   *cmd.inTrash,
+		PageSize:  *cmd.pageSize,
 		Path:      path,
 		NoPrompt:  *cmd.noPrompt,
 		Recursive: *cmd.recursive,
 		Sources:   uniqArgv,
-		InTrash:   *cmd.inTrash,
+		TypeMask:  typeMask,
 	}).List())
 }
 

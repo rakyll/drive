@@ -46,12 +46,18 @@ type Options struct {
 	Mounts []*config.MountPoint
 	// NoClobber when set prevents overwriting of stale content
 	NoClobber bool
-	NoPrompt  bool
-	Path      string
+	// NoPrompt overwrites any prompt pauses
+	NoPrompt bool
+	Path     string
+	// PageSize determines the number of results returned per API call
+	PageSize  int64
 	Recursive bool
 	// Sources is a of list all paths that are
 	// within the scope/path of the current gd context
 	Sources []string
+	// TypeMask contains the result of setting different type bits e.g
+	// Folder to search only for folders etc.
+	TypeMask int
 }
 
 type Commands struct {

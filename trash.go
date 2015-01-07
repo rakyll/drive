@@ -29,7 +29,7 @@ func (g *Commands) Untrash() (err error) {
 }
 
 func (g *Commands) EmptyTrash() error {
-	if !g.breadthFirst("", "", "", -1, true) {
+	if !g.breadthFirst("", "", "", -1, 0, true) {
 		return nil
 	}
 
@@ -55,6 +55,9 @@ func (g *Commands) EmptyTrash() error {
 
 func (g *Commands) trasher(relToRoot string, toTrash bool) (change *Change, err error) {
 	var file *File
+	if relToRoot == "/" && toTrash {
+		return nil, fmt.Errorf("Will not try to trash root.")
+	}
 	if toTrash {
 		file, err = g.rem.FindByPath(relToRoot)
 	} else {
@@ -79,7 +82,7 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 	for _, relToRoot := range args {
 		c, cErr := g.trasher(relToRoot, toTrash)
 		if cErr != nil {
-			fmt.Printf("%s: %v\n", relToRoot, cErr)
+			fmt.Printf("\033[91m'%s': %v\033[00m\n", relToRoot, cErr)
 		} else if c != nil {
 			cl = append(cl, c)
 		}

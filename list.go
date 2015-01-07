@@ -15,14 +15,25 @@
 package drive
 
 import (
-	drive "github.com/google/google-api-go-client/drive/v2"
 	"fmt"
+	drive "github.com/google/google-api-go-client/drive/v2"
 	"path/filepath"
 	"strings"
 )
 
-
 var BytesPerKB = float64(1024)
+
+const (
+	InTrash = 1 << iota
+	Folder
+	NonFolder
+)
+
+type attribute struct {
+	human   bool
+	minimal bool
+	parent  string
+}
 
 type byteDescription func(b int64) string
 
@@ -89,7 +100,7 @@ func (g *Commands) List() (err error) {
 	}
 
 	for _, r := range remotes {
-		if !g.breadthFirst(r.Id, "", r.Name, g.opts.Depth, false) {
+		if !g.breadthFirst(r.Id, "", r.Name, g.opts.Depth, g.opts.TypeMask, false) {
 			break
 		}
 	}
@@ -112,12 +123,6 @@ func (g *Commands) List() (err error) {
 	}
 
 	return
-}
-
-type attribute struct {
-	human   bool
-	minimal bool
-	parent  string
 }
 
 func (f *File) pretty(opt attribute) {
@@ -144,7 +149,25 @@ func (f *File) pretty(opt attribute) {
 	fmt.Println()
 }
 
-func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTrash bool) bool {
+func buildExpression(parentId string, typeMask int, inTrash bool) string {
+	var exprBuilder []string
+
+	if inTrash || (typeMask&InTrash) != 0 {
+		exprBuilder = append(exprBuilder, "trashed=true")
+	} else {
+		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
+	}
+
+	// Folder and NonFolder are mutually exclusive.
+	if (typeMask & Folder) != 0 {
+		exprBuilder = append(exprBuilder, "mimeType = 'application/vnd.google-apps.folder'")
+	}
+	return strings.Join(exprBuilder, " and ")
+}
+
+func (g *Commands) breadthFirst(parentId, parent,
+	child string, depth, typeMask int, inTrash bool) bool {
+
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
 		return false
@@ -152,15 +175,7 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 	if depth > 0 {
 		depth -= 1
 	}
-	pageToken := ""
 
-	req := g.rem.service.Files.List()
-	var expr string
-	if inTrash || g.opts.InTrash {
-		expr = "trashed=true"
-	} else {
-		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
-	}
 	headPath := ""
 	if parent != "" {
 		headPath = parent
@@ -168,10 +183,19 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 	if child != "" {
 		headPath = headPath + "/" + child
 	}
+
+	pageToken := ""
+	expr := "trashed=true"
+
+	if !inTrash {
+		expr = buildExpression(parentId, typeMask, g.opts.InTrash)
+	}
+
+	req := g.rem.service.Files.List()
 	req.Q(expr)
 
 	// TODO: Get pageSize from g.opts
-	req.MaxResults(50)
+	req.MaxResults(g.opts.PageSize)
 
 	var children []*drive.File
 
@@ -196,8 +220,16 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 			if isHidden(file.Title, g.opts.Hidden) {
 				continue
 			}
-			rem.pretty(opt)
 			children = append(children, file)
+
+			// The case in which only directories wanted is covered by the buildExpression clause
+			// reason being that only folder are allowed to be roots, including the only files clause
+			// would result in incorrect traversal since non-folders don't have children.
+			// Just don't print it, however, the folder will still be explored.
+			if (typeMask&NonFolder) != 0 && rem.IsDir {
+				continue
+			}
+			rem.pretty(opt)
 		}
 
 		pageToken = res.NextPageToken
@@ -211,7 +243,7 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file.Id, headPath, file.Title, depth, inTrash) {
+			if !g.breadthFirst(file.Id, headPath, file.Title, depth, typeMask, inTrash) {
 				return false
 			}
 		}
