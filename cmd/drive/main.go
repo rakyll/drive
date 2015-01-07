@@ -31,24 +31,7 @@ import (
 )
 
 var context *config.Context
-
-var Version = "0.0.4a"
 var DefaultMaxProcs = runtime.NumCPU()
-
-const (
-	descInit       = "inits a directory and authenticates user"
-	descPull       = "pulls remote changes from google drive"
-	descPush       = "push local changes to google drive"
-	descDiff       = "compares a local file with remote"
-	descEmptyTrash = "cleans out your trash"
-	descList       = "lists the contents of remote path"
-	descQuota      = "prints out the space information"
-	descPublish    = "publishes a file and prints its publicly available url"
-	descTrash      = "moves the file to trash"
-	descUntrash    = "restores the file from trash"
-	descUnpublish  = "revokes public access to a file"
-	descVersion    = "prints the version"
-)
 
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
@@ -57,19 +40,36 @@ func main() {
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
-	command.On("diff", descDiff, &diffCmd{}, []string{})
-	command.On("init", descInit, &initCmd{}, []string{})
-	command.On("list", descList, &listCmd{}, []string{})
-	command.On("pull", descPull, &pullCmd{}, []string{})
-	command.On("push", descPush, &pushCmd{}, []string{})
-	command.On("pub", descPublish, &publishCmd{}, []string{})
-	command.On("emptytrash", descEmptyTrash, &emptyTrashCmd{}, []string{})
-	command.On("quota", descQuota, &quotaCmd{}, []string{})
-	command.On("trash", descTrash, &trashCmd{}, []string{})
-	command.On("untrash", descUntrash, &untrashCmd{}, []string{})
-	command.On("unpub", descUnpublish, &unpublishCmd{}, []string{})
-	command.On("version", descVersion, &versionCmd{}, []string{})
+	command.On("diff", drive.DescDiff, &diffCmd{}, []string{})
+	command.On("init", drive.DescInit, &initCmd{}, []string{})
+	command.On("list", drive.DescList, &listCmd{}, []string{})
+	command.On("pull", drive.DescPull, &pullCmd{}, []string{})
+	command.On("push", drive.DescPush, &pushCmd{}, []string{})
+	command.On("pub", drive.DescPublish, &publishCmd{}, []string{})
+	command.On("emptytrash", drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
+	command.On("help", drive.DescHelp, &helpCmd{}, []string{})
+	command.On("quota", drive.DescQuota, &quotaCmd{}, []string{})
+	command.On("trash", drive.DescTrash, &trashCmd{}, []string{})
+	command.On("untrash", drive.DescUntrash, &untrashCmd{}, []string{})
+	command.On("unpub", drive.DescUnpublish, &unpublishCmd{}, []string{})
+	command.On("version", drive.Version, &versionCmd{}, []string{})
 	command.ParseAndRun()
+}
+
+type helpCmd struct {
+	args []string
+}
+
+func (cmd *helpCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *helpCmd) Run(args []string) {
+	if len(args) < 1 {
+		exitWithError(fmt.Errorf("help for more usage"))
+	}
+	drive.ShowDescription(args[0])
+	exitWithError(nil)
 }
 
 type versionCmd struct{}
@@ -79,7 +79,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-	fmt.Printf("drive version %s\n", Version)
+	fmt.Printf("drive version %s\n", drive.Version)
 	exitWithError(nil)
 }
 

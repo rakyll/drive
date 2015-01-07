@@ -18,6 +18,7 @@ However, she no longer has the time to work on it so I am its new maintainer.
 Use `drive help` for further reference.
 
 	$ drive version
+    $ drive help cmd e.g drive help push
 	$ drive init [path]
 	$ drive pull [-r -no-prompt path1 path2 path3 ...] # pulls from remotes
 	$ drive pull [-r -no-prompt -hidden path] # pulls even hidden paths from remote

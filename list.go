@@ -21,6 +21,10 @@ import (
 	"strings"
 )
 
+const (
+	DriveAbsRootPath = "My Drive"
+)
+
 var BytesPerKB = float64(1024)
 
 type byteDescription func(b int64) string
@@ -139,7 +143,7 @@ func (f *File) pretty(opt attribute) {
 		fmt.Printf("%-10s ", f.UserPermission.Role)
 	}
 	fPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
-	fmt.Printf("%-10s %-6s %s", prettyBytes(f.Size), fPath, f.ModTime)
+	fmt.Printf("%-10s\t%-60s\t\t%-20s", prettyBytes(f.Size), fPath, f.ModTime)
 	fmt.Println()
 }
 
@@ -161,7 +165,7 @@ func (g *Commands) breadthFirst(parentId, parent, child string, depth int, inTra
 		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
 	}
 	headPath := ""
-	if parent != "" {
+	if parent != "" && parent != DriveAbsRootPath {
 		headPath = parent
 	}
 	if child != "" {

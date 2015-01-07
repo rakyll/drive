@@ -34,8 +34,8 @@ func (g *Commands) Quota() (err error) {
 
 	freeBytes := about.QuotaBytesTotal - about.QuotaBytesUsed
 	fmt.Printf(
-		"Account type: %s\nBytes Used: %20d (%s)\n"+
-			"Bytes Free: %20d (%s)\nTotal Bytes: %20d (%s)\n",
+		"Account type:\t%s\nBytes Used:\t%-20d (%s)\n"+
+			"Bytes Free:\t%-20d (%s)\nTotal Bytes:\t%-20d (%s)\n",
 		about.QuotaType,
 		about.QuotaBytesUsed, prettyBytes(about.QuotaBytesUsed),
 		freeBytes, prettyBytes(freeBytes),

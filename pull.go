@@ -116,11 +116,14 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 
 	// make parent's dir if not exists
 	destAbsDir := g.context.AbsPathOf(change.Parent)
-	os.MkdirAll(destAbsDir, os.ModeDir|0755)
 
-	if err != nil {
-		return
+	if destAbsDir != destAbsPath {
+		err = os.MkdirAll(destAbsDir, os.ModeDir|0755)
+		if err != nil {
+			return err
+		}
 	}
+
 	if change.Src.IsDir {
 		return os.Mkdir(destAbsPath, os.ModeDir|0755)
 	}
