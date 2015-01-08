@@ -1,14 +1,3 @@
-## Installation
-
-To install from the latest source, run:
-
-```shell
-$ go get -u github.com/odeke-em/drive/cmd/drive
-```
-
-Binary releases for tagged versions are also [available](https://github.com/odeke-em/drive/releases).
-
-
 ### Platform Specific Installation Methods
 
 

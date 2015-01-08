@@ -44,9 +44,10 @@ Binary releases for tagged versions are also [available](https://github.com/odek
 
 ### Platform Packages
 
-Platform | Author |
----------| -------|
-[Arch Linux](https://aur.archlinux.org/packages/drive) | [Jonathan Jenkins](https://github.com/shaggytwodope)
+For curated packages on your favorite platform, please see file [Platform Packages.md](https://github.com/odeke-em/drive/blob/master/platform_packages.md).
+
+Is your platform missing a package? Feel free to prepare / contribute an installation package and then submit a PR to add it in.
+
 
 ## Configuration
 
