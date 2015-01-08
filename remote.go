@@ -250,16 +250,22 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, err error) {
+func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File) (f *File, err error) {
+	var body io.Reader
+	body, err = os.Open(fsAbsPath)
+	if err != nil {
+		return
+	}
+
 	uploaded := &drive.File{
-		Title:   file.Name,
+		Title:   src.Name,
 		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
 	}
-	if file.IsDir {
+	if src.IsDir {
 		uploaded.MimeType = "application/vnd.google-apps.folder"
 	}
 
-	utc := file.ModTime.UTC().Round(time.Second)
+	utc := src.ModTime.UTC().Round(time.Second)
 
 	// Ugly but straight forward formatting because time.Parse is such a prima donna
 	str := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
@@ -268,9 +274,9 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 	// Ensure that the ModifiedDate is retrieved from local
 	uploaded.ModifiedDate = str
 
-	if file.Id == "" {
+	if src.Id == "" {
 		req := r.service.Files.Insert(uploaded)
-		if !file.IsDir && body != nil {
+		if !src.IsDir && body != nil {
 			req = req.Media(body)
 		}
 		if uploaded, err = req.Do(); err != nil {
@@ -280,13 +286,23 @@ func (r *Remote) Upsert(parentId string, file *File, body io.Reader) (f *File, e
 	}
 
 	// update the existing
-	req := r.service.Files.Update(file.Id, uploaded)
+	req := r.service.Files.Update(src.Id, uploaded)
 
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
 
-	if !file.IsDir && body != nil {
-		req = req.Media(body)
+	if !src.IsDir {
+		if dest == nil {
+			req = req.Media(body)
+		} else {
+			mask := fileDifferences(src, dest)
+			fmt.Println("MASK", mask)
+			if (mask & DifferMd5Checksum) != 0 {
+				req = req.Media(body)
+			} else {
+				fmt.Println("ONLY MODIFIED THE TIME")
+			}
+		}
 	}
 	if uploaded, err = req.Do(); err != nil {
 		return

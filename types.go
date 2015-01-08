@@ -31,6 +31,14 @@ const (
 	OpMod
 )
 
+const (
+	DifferNone = 1 << iota
+	DifferDirType
+	DifferMd5Checksum
+	DifferModTime
+	DifferSize
+)
+
 var opPrecedence = map[int]int{
 	OpNone:   0,
 	OpDelete: 1,
@@ -50,8 +58,10 @@ type File struct {
 	Size        int64
 	Etag        string
 	Shared      bool
-	// The permissions for the authenticated user on this file
+	// UserPermission contains the permissions for the authenticated user on this file
 	UserPermission *drive.Permission
+	// CacheChecksum when set avoids recomputation of checksums
+	CacheChecksum bool
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -76,12 +86,13 @@ func NewRemoteFile(f *drive.File) *File {
 
 func NewLocalFile(absPath string, f os.FileInfo) *File {
 	return &File{
-		Id:      "",
-		Name:    f.Name(),
-		ModTime: f.ModTime().Round(time.Second),
-		IsDir:   f.IsDir(),
-		Size:    f.Size(),
-		BlobAt:  absPath,
+		Id:            "",
+		Name:          f.Name(),
+		ModTime:       f.ModTime().Round(time.Second),
+		IsDir:         f.IsDir(),
+		Size:          f.Size(),
+		BlobAt:        absPath,
+		CacheChecksum: true,
 	}
 }
 
@@ -157,7 +168,12 @@ func md5Checksum(f *File) string {
 	if err != nil {
 		return ""
 	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	checksum := fmt.Sprintf("%x", h.Sum(nil))
+	if f.CacheChecksum {
+		// fmt.Println("CACHING CHECKSUM", checksum)
+		f.Md5Checksum = checksum
+	}
+	return checksum
 }
 
 func (f *File) MatchDirness(g *File) bool {
@@ -174,6 +190,23 @@ func isSameFile(src, dest *File) bool {
 		return false
 	}
 	return true
+}
+
+func fileDifferences(src, dest *File) int {
+	difference := DifferNone
+	if src.Size != dest.Size {
+		difference |= DifferSize
+	}
+	if !src.ModTime.Equal(dest.ModTime) {
+		difference |= DifferModTime
+	}
+	if src.IsDir != dest.IsDir {
+		difference |= DifferDirType
+	}
+	if md5Checksum(src) != md5Checksum(dest) {
+		difference |= DifferMd5Checksum
+	}
+	return difference
 }
 
 // If the preliminary isSameFile test passes,

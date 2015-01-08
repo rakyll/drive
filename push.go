@@ -145,14 +145,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		return
 	}
 
-	var body *os.File
-	if !change.Src.IsDir {
-		body, err = os.Open(absPath)
-		if err != nil {
-			return err
-		}
-	}
-	_, err = g.rem.Upsert(parent.Id, change.Src, body)
+	_, err = g.rem.UpsertByComparison(parent.Id, absPath, change.Src, change.Dest)
 	return err
 }
 
