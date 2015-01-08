@@ -114,6 +114,7 @@ type listCmd struct {
 	directories *bool
 	depth       *int
 	pageSize    *int64
+	longFmt     *bool
 	noPrompt    *bool
 	inTrash     *bool
 }
@@ -123,6 +124,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "list all paths even hidden ones")
 	cmd.files = fs.Bool("f", false, "list only files")
 	cmd.directories = fs.Bool("d", false, "list all directories")
+	cmd.longFmt = fs.Bool("l", false, "long listing of contents")
 	cmd.pageSize = fs.Int64("p", 100, "number of results per pagination")
 	cmd.inTrash = fs.Bool("trashed", false, "list content in the trash")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
@@ -149,6 +151,9 @@ func (cmd *listCmd) Run(args []string) {
 	}
 	if *cmd.inTrash {
 		typeMask |= drive.InTrash
+	}
+	if !*cmd.longFmt {
+		typeMask |= drive.Minimal
 	}
 
 	exitWithError(drive.New(context, &drive.Options{

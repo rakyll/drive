@@ -18,7 +18,7 @@ import (
 	"fmt"
 )
 
-var Version = "0.0.4b"
+var Version = "0.0.4c"
 
 const (
 	DescInit       = "inits a directory and authenticates user"
@@ -34,9 +34,11 @@ const (
 	DescUntrash    = "restores the file from trash"
 	DescUnpublish  = "revokes public access to a file"
 	DescVersion    = "prints the version"
+	DescAll        = "print out the entire help section"
+	All            = "all"
 )
 
-var shortToCmd = map[string][]string{
+var docMap = map[string][]string{
 	"diff":       []string{DescDiff, "Accepts multiple paths for comparison"},
 	"emptytrash": []string{DescEmptyTrash},
 	"init":       []string{DescInit, "This is where you drive credentials will be placed"},
@@ -46,7 +48,10 @@ var shortToCmd = map[string][]string{
 		"\t* Ordinary push: `drive push path1 path2 path3`",
 		"\t* Mounted push: `drive push -m path1 [path2 path3] drive_context_path`",
 	},
-	"list":    []string{DescList, "Accepts multiple paths"},
+	"list": []string{
+		DescList,
+		"Accepts multiple paths", "Allows printing of long options and by default does minimal printing",
+	},
 	"quota":   []string{DescQuota},
 	"trash":   []string{DescTrash, "Accepts multiple paths"},
 	"untrash": []string{DescUntrash, "Accepts multiple paths"},
@@ -55,10 +60,22 @@ var shortToCmd = map[string][]string{
 	"version": []string{DescVersion, fmt.Sprintf("current version is: %s", Version)},
 }
 
+func ShowAllDescriptions() {
+	for key, _ := range docMap {
+		ShowDescription(key)
+		fmt.Println()
+	}
+}
+
 func ShowDescription(topic string) {
-	help, ok := shortToCmd[topic]
+	if topic == All {
+		ShowAllDescriptions()
+		return
+	}
+	help, ok := docMap[topic]
 	if !ok {
-		fmt.Printf("Unkown command '%s' type `drive help` for usage\n", topic)
+		fmt.Printf("Unkown command '%s' type `drive help all` for entire usage documentation\n", topic)
+		ShowAllDescriptions()
 	} else {
 		description, documentation := help[0], help[1:]
 		fmt.Printf("Name\n\t%s - %s\n", topic, description)
