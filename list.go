@@ -169,7 +169,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
-        // At the end of the line, this was successful.
+		// At the end of the line, this was successful.
 		return true
 	}
 	if depth > 0 {
