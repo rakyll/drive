@@ -317,7 +317,6 @@ func (r *Remote) findShared(p []string) (shared []*File, err error) {
 	if len(p) >= 1 {
 		expr = fmt.Sprintf("title = '%s' and %s", p[0], expr)
 	}
-	fmt.Println(expr, p)
 	req.Q(fmt.Sprintf(expr))
 	files, err := req.Do()
 	if err != nil || len(files.Items) < 1 {
