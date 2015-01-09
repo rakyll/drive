@@ -21,17 +21,17 @@ import (
 var Version = "0.0.4c"
 
 const (
-	DescInit       = "inits a directory and authenticates user"
-	DescPull       = "pulls remote changes from google drive"
-	DescPush       = "push local changes to google drive"
-	DescDiff       = "compares a local file with remote"
-	DescEmptyTrash = "cleans out your trash"
+	DescInit       = "initializes a directory and authenticates user"
+	DescPull       = "pulls remote changes from Google Drive"
+	DescPush       = "push local changes to Google Drive"
+	DescDiff       = "compares local files with their remote equivalent"
+	DescEmptyTrash = "permanently cleans out your trash"
 	DescHelp       = "Get help for a topic"
 	DescList       = "lists the contents of remote path"
-	DescQuota      = "prints out the space information"
+	DescQuota      = "prints out information related to your quota space"
 	DescPublish    = "publishes a file and prints its publicly available url"
-	DescTrash      = "moves the file to trash"
-	DescUntrash    = "restores the file from trash"
+	DescTrash      = "moves files to trash"
+	DescUntrash    = "restores files from trash to their original locations"
 	DescUnpublish  = "revokes public access to a file"
 	DescVersion    = "prints the version"
 	DescAll        = "print out the entire help section"
@@ -39,18 +39,31 @@ const (
 )
 
 var docMap = map[string][]string{
-	"diff":       []string{DescDiff, "Accepts multiple paths for comparison"},
-	"emptytrash": []string{DescEmptyTrash},
-	"init":       []string{DescInit, "This is where you drive credentials will be placed"},
-	"pull":       []string{DescPull, "Accepts multiple paths"},
+	"diff": []string{
+		DescDiff, "Accepts multiple remote paths for line by line comparison",
+	},
+	"emptytrash": []string{
+		DescEmptyTrash,
+	},
+	"init": []string{
+		DescInit, "Requests for access to your Google Drive",
+		"Creating a folder that contains your credentials",
+		"Note: init in an already initialized drive will erase the old credentials",
+	},
+	"pull": []string{
+		DescPull, "Downloads content from the remote drive or modifies",
+		" local content to match that on your Google Drive",
+	},
 	"push": []string{
-		DescPush, "Accepts multiple paths", "Push comes in a couple of flavors",
+		DescPush, "Uploads content to your Google Drive from your local path",
+		"Push comes in a couple of flavors",
 		"\t* Ordinary push: `drive push path1 path2 path3`",
 		"\t* Mounted push: `drive push -m path1 [path2 path3] drive_context_path`",
 	},
 	"list": []string{
 		DescList,
-		"Accepts multiple paths", "Allows printing of long options and by default does minimal printing",
+		"List the information related a remote path not necessarily present locally",
+		"Allows printing of long options and by default does minimal printing",
 	},
 	"quota":   []string{DescQuota},
 	"trash":   []string{DescTrash, "Accepts multiple paths"},
