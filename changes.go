@@ -120,7 +120,8 @@ func (g *Commands) resolveChangeListRecv(
 		if !g.opts.Force && hasExportLinks(r) {
 			// The case when we have files that don't provide the download urls
 			// but exportable links, we just need to check that mod times are the same.
-			if r.MatchDirness(l) && r.ModTime.Equal(l.ModTime) {
+			mask := fileDifferences(r, l)
+			if !dirTypeDiffers(mask) && !modTimeDiffers(mask) {
 				return cl, nil
 			}
 		}

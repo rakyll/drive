@@ -74,18 +74,16 @@ var regExtStrMap = map[string]string{
 	"xlsx?": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
-func compileRegExtMap() *map[*regexp.Regexp]string {
-	regExpMap := make(map[*regexp.Regexp]string)
+var regExtMap = func() map[*regexp.Regexp]string {
+	regMap := make(map[*regexp.Regexp]string)
 	for regStr, mimeType := range regExtStrMap {
 		regExComp, err := regexp.Compile(regStr)
 		if err == nil {
-			regExpMap[regExComp] = mimeType
+			regMap[regExComp] = mimeType
 		}
 	}
-	return &regExpMap
-}
-
-var regExtMap = *compileRegExtMap()
+	return regMap
+}()
 
 func mimeTypeFromExt(ext string) string {
 	bExt := []byte(ext)
@@ -159,12 +157,7 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files
 	req := r.service.Files.List()
 
 	// TODO: use field selectors
-	var expr string
-	if trashed {
-		expr = fmt.Sprintf("'%s' in parents and trashed=true", parentId)
-	} else {
-		expr = fmt.Sprintf("'%s' in parents and trashed=false", parentId)
-	}
+	expr := fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed)
 
 	pageToken := ""
 	var results *drive.FileList
@@ -295,14 +288,8 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File)
 	if !src.IsDir {
 		if dest == nil {
 			req = req.Media(body)
-		} else {
-			mask := fileDifferences(src, dest)
-			fmt.Println("MASK", mask)
-			if (mask & DifferMd5Checksum) != 0 {
-				req = req.Media(body)
-			} else {
-				fmt.Println("ONLY MODIFIED THE TIME")
-			}
+		} else if mask := fileDifferences(src, dest); checksumDiffers(mask) {
+			req = req.Media(body)
 		}
 	}
 	if uploaded, err = req.Do(); err != nil {
@@ -317,7 +304,6 @@ func (r *Remote) findShared(p []string) (shared []*File, err error) {
 	if len(p) >= 1 {
 		expr = fmt.Sprintf("title = '%s' and %s", p[0], expr)
 	}
-	req.Q(fmt.Sprintf(expr))
 	files, err := req.Do()
 	if err != nil || len(files.Items) < 1 {
 		return shared, ErrPathNotExists
@@ -360,9 +346,9 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	if trashed {
 		expr = fmt.Sprintf("title = %s and trashed=true", quote(head))
 	} else {
-		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false", quote(parentId), quote(head))
+		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false",
+			quote(parentId), quote(head))
 	}
-	fmt.Println(expr)
 	req.Q(expr)
 
 	// We only need the head file since we expect only one File to be created

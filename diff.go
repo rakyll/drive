@@ -96,7 +96,7 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 			change.Path, l.Size)
 	}
 
-	if isSameFile(r, l) {
+	if sameFileTillChecksum(r, l) {
 		// No output when "no changes found"
 		return nil
 	}

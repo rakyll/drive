@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	maxNumOfConcPullTasks  = 4
-	maxChkSumHeuristicSize = 50 * 1000 * 1000
+	maxNumOfConcPullTasks = 4
 )
 
 // Pull from remote if remote path exists and in a god context. If path is a
@@ -99,7 +98,8 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 	// Simple heuristic to avoid downloading all the
 	// content yet it could just be a modTime difference
-	if !chksumSizeEqual(change.Src, change.Dest) {
+	mask := fileDifferences(change.Src, change.Dest)
+	if checksumDiffers(mask) {
 		// download and replace
 		if err = g.download(change, exports); err != nil {
 			return
@@ -201,26 +201,6 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 func isLocalFile(f *File) bool {
 	// TODO: Better check
 	return f != nil && f.Etag == ""
-}
-
-func chksumSizeEqual(a, b *File) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if a.Size != b.Size || a.IsDir != b.IsDir {
-		return false
-	}
-	if a.IsDir {
-		return false
-	}
-
-	if isLocalFile(a) && a.Size > maxChkSumHeuristicSize {
-		return false
-	}
-	if isLocalFile(b) && b.Size > maxChkSumHeuristicSize {
-		return false
-	}
-	return md5Checksum(a) == md5Checksum(b)
 }
 
 func (g *Commands) download(change *Change, exports []string) (err error) {

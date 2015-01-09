@@ -39,6 +39,9 @@ const (
 	DifferSize
 )
 
+// Arbitrary value. TODO: Get better definition of BigFileSize.
+var BigFileSize = int64(1024 * 1024 * 400)
+
 var opPrecedence = map[int]int{
 	OpNone:   0,
 	OpDelete: 1,
@@ -86,12 +89,14 @@ func NewRemoteFile(f *drive.File) *File {
 
 func NewLocalFile(absPath string, f os.FileInfo) *File {
 	return &File{
-		Id:            "",
-		Name:          f.Name(),
-		ModTime:       f.ModTime().Round(time.Second),
-		IsDir:         f.IsDir(),
-		Size:          f.Size(),
-		BlobAt:        absPath,
+		Id:      "",
+		Name:    f.Name(),
+		ModTime: f.ModTime().Round(time.Second),
+		IsDir:   f.IsDir(),
+		Size:    f.Size(),
+		BlobAt:  absPath,
+		// TODO: Read the CacheChecksum toggle dynamically if set
+		// by the requester ie if the file is rapidly changing.
 		CacheChecksum: true,
 	}
 }
@@ -143,6 +148,10 @@ func opToString(op int) (string, string) {
 	}
 }
 
+func (f *File) largeFile() bool {
+	return f.Size > BigFileSize
+}
+
 func (c *Change) Symbol() string {
 	symbol, _ := opToString(c.Op())
 	return symbol
@@ -156,6 +165,11 @@ func md5Checksum(f *File) string {
 		return f.Md5Checksum
 	}
 
+	if f.largeFile() { // Just warn the user in case of impatience.
+		// TODO: Only turn on warnings if verbosity is set.
+		fmt.Printf("\033[91mmd5Checksum\033[00m: `%s` (%v)\nmight take time to checksum.\n",
+			f.Name, prettyBytes(f.Size))
+	}
 	fh, err := os.Open(f.BlobAt)
 
 	if err != nil {
@@ -170,7 +184,7 @@ func md5Checksum(f *File) string {
 	}
 	checksum := fmt.Sprintf("%x", h.Sum(nil))
 	if f.CacheChecksum {
-		// fmt.Println("CACHING CHECKSUM", checksum)
+		// fmt.Println("CACHING CHECKSUM", checksum, f.Name)
 		f.Md5Checksum = checksum
 	}
 	return checksum
@@ -182,7 +196,7 @@ func (f *File) MatchDirness(g *File) bool {
 
 // if it's a regular file, see it it's modified.
 // The bare minimum case comparison
-func isSameFile(src, dest *File) bool {
+func sameFile(src, dest *File) bool {
 	if src.Size != dest.Size || !src.ModTime.Equal(dest.ModTime) {
 		return false
 	}
@@ -190,6 +204,18 @@ func isSameFile(src, dest *File) bool {
 		return false
 	}
 	return true
+}
+
+func checksumDiffers(mask int) bool {
+	return (mask & DifferMd5Checksum) != 0
+}
+
+func dirTypeDiffers(mask int) bool {
+	return (mask & DifferDirType) != 0
+}
+
+func modTimeDiffers(mask int) bool {
+	return (mask & DifferModTime) != 0
 }
 
 func fileDifferences(src, dest *File) int {
@@ -209,10 +235,10 @@ func fileDifferences(src, dest *File) int {
 	return difference
 }
 
-// If the preliminary isSameFile test passes,
+// If the preliminary sameFile test passes,
 // then perform an Md5 checksum comparison
-func isSameFileTillChecksum(src, dest *File) bool {
-	if !isSameFile(src, dest) {
+func sameFileTillChecksum(src, dest *File) bool {
+	if !sameFile(src, dest) {
 		return false
 	}
 	return md5Checksum(src) == md5Checksum(dest)
@@ -244,7 +270,7 @@ func (c *Change) Op() int {
 		return OpMod
 	}
 
-	if !c.Src.IsDir && !isSameFileTillChecksum(c.Src, c.Dest) {
+	if !c.Src.IsDir && !sameFileTillChecksum(c.Src, c.Dest) {
 		return OpMod
 	}
 	return OpNone
