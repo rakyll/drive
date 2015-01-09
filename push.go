@@ -97,10 +97,6 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	}
 
 	for _, c := range cl {
-		if c.Src == nil {
-			// fmt.Println("Push: BUG ON", c.Path, c.Symbol())
-			continue
-		}
 		switch c.CoercedOp(g.opts.NoClobber) {
 		case OpMod:
 			g.remoteMod(c)

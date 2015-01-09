@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -180,7 +181,7 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files
 			return
 		}
 		for _, f := range results.Items {
-			if !hidden && strings.HasPrefix(f.Title, ".") { // ignore hidden files
+			if isHidden(f.Title, hidden) { // ignore hidden files if hidden is not set
 				continue
 			}
 			files = append(files, NewRemoteFile(f))
@@ -356,22 +357,28 @@ func (r *Remote) findByPathRecvRaw(parentId string, p []string, trashed bool) (f
 	// TODO: use field selectors
 	var expr string
 	head := urlToPath(p[0], false)
+	quote := strconv.Quote
 	if trashed {
-		expr = fmt.Sprintf("title = '%s' and trashed=true", head)
+		expr = fmt.Sprintf("title = %s and trashed=true", quote(head))
 	} else {
-		expr = fmt.Sprintf("'%s' in parents and title = '%s' and trashed=false", parentId, head)
+		expr = fmt.Sprintf("%s in parents and title = %s and trashed=false", quote(parentId), quote(head))
 	}
+	fmt.Println(expr)
 	req.Q(expr)
+
+	// We only need the head file since we expect only one File to be created
+	req.MaxResults(1)
 	files, err := req.Do()
 	if err != nil || len(files.Items) < 1 {
 		// TODO: make sure only 404s are handled here
 		return nil, ErrPathNotExists
 	}
-	file = NewRemoteFile(files.Items[0])
+
+	first := files.Items[0]
 	if len(p) == 1 {
-		return file, nil
+		return NewRemoteFile(first), nil
 	}
-	return r.findByPathRecvRaw(file.Id, p[1:], trashed)
+	return r.findByPathRecvRaw(first.Id, p[1:], trashed)
 }
 
 func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err error) {

@@ -27,10 +27,10 @@ const (
 	InTrash = 1 << iota
 	Folder
 	NonFolder
+	Minimal
 )
 
 type attribute struct {
-	human   bool
 	minimal bool
 	parent  string
 }
@@ -112,8 +112,7 @@ func (g *Commands) List() (err error) {
 		sharedRemotes, sErr := g.rem.FindByPathShared("")
 		if sErr == nil && len(sharedRemotes) >= 1 {
 			opt := attribute{
-				human:   true,
-				minimal: g.opts.InTrash,
+				minimal: isMinimal(g.opts.TypeMask),
 				parent:  "",
 			}
 			for _, sFile := range sharedRemotes {
@@ -170,7 +169,8 @@ func (g *Commands) breadthFirst(parentId, parent,
 
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
-		return false
+		// At the end of the line, this was successful.
+		return true
 	}
 	if depth > 0 {
 		depth -= 1
@@ -198,6 +198,12 @@ func (g *Commands) breadthFirst(parentId, parent,
 	req.MaxResults(g.opts.PageSize)
 
 	var children []*drive.File
+	onlyFiles := (typeMask & NonFolder) != 0
+
+	opt := attribute{
+		minimal: isMinimal(g.opts.TypeMask),
+		parent:  headPath,
+	}
 
 	for {
 		if pageToken != "" {
@@ -207,12 +213,6 @@ func (g *Commands) breadthFirst(parentId, parent,
 		if err != nil {
 			fmt.Println(err)
 			return false
-		}
-
-		opt := attribute{
-			human:   true,
-			minimal: inTrash,
-			parent:  headPath,
 		}
 
 		for _, file := range res.Items {
@@ -226,7 +226,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 			// reason being that only folder are allowed to be roots, including the only files clause
 			// would result in incorrect traversal since non-folders don't have children.
 			// Just don't print it, however, the folder will still be explored.
-			if (typeMask&NonFolder) != 0 && rem.IsDir {
+			if onlyFiles && rem.IsDir {
 				continue
 			}
 			rem.pretty(opt)
@@ -257,6 +257,10 @@ func isHidden(p string, ignore bool) bool {
 		return !ignore
 	}
 	return false
+}
+
+func isMinimal(mask int) bool {
+	return (mask & Minimal) != 0
 }
 
 func nextPage() bool {
