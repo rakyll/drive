@@ -219,6 +219,10 @@ func modTimeDiffers(mask int) bool {
 }
 
 func fileDifferences(src, dest *File) int {
+	if src == nil || dest == nil {
+		return DifferMd5Checksum | DifferSize | DifferModTime | DifferDirType
+	}
+
 	difference := DifferNone
 	if src.Size != dest.Size {
 		difference |= DifferSize
