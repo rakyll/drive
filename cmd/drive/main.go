@@ -134,14 +134,8 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *listCmd) Run(args []string) {
-	cwd, err := os.Getwd()
-	exitWithError(err)
+	sources, context, path := preprocessArgs(args)
 
-	context, path := discoverContext([]string{cwd})
-	uniqArgv := uniqOrderedStr(args)
-	if len(uniqArgv) < 1 {
-		uniqArgv = append(uniqArgv, "")
-	}
 	typeMask := 0
 	if *cmd.directories {
 		typeMask |= drive.Folder
@@ -164,7 +158,7 @@ func (cmd *listCmd) Run(args []string) {
 		Path:      path,
 		NoPrompt:  *cmd.noPrompt,
 		Recursive: *cmd.recursive,
-		Sources:   uniqArgv,
+		Sources:   sources,
 		TypeMask:  typeMask,
 	}).List())
 }
