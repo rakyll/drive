@@ -40,19 +40,20 @@ func main() {
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
-	command.On("diff", drive.DescDiff, &diffCmd{}, []string{})
-	command.On("init", drive.DescInit, &initCmd{}, []string{})
-	command.On("list", drive.DescList, &listCmd{}, []string{})
-	command.On("pull", drive.DescPull, &pullCmd{}, []string{})
-	command.On("push", drive.DescPush, &pushCmd{}, []string{})
-	command.On("pub", drive.DescPublish, &publishCmd{}, []string{})
-	command.On("emptytrash", drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
-	command.On("help", drive.DescHelp, &helpCmd{}, []string{})
-	command.On("quota", drive.DescQuota, &quotaCmd{}, []string{})
-	command.On("trash", drive.DescTrash, &trashCmd{}, []string{})
-	command.On("untrash", drive.DescUntrash, &untrashCmd{}, []string{})
-	command.On("unpub", drive.DescUnpublish, &unpublishCmd{}, []string{})
-	command.On("version", drive.Version, &versionCmd{}, []string{})
+	command.On(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
+	command.On(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
+	command.On(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
+	command.On(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
+	command.On(drive.ListKey, drive.DescList, &listCmd{}, []string{})
+	command.On(drive.PullKey, drive.DescPull, &pullCmd{}, []string{})
+	command.On(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
+	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
+	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
+	command.On(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
+	command.On(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
+	command.On(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
+	command.On(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
+	command.On(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	command.ParseAndRun()
 }
 
@@ -279,6 +280,30 @@ func (cmd *pushCmd) Run(args []string) {
 			Sources:   sources,
 		}).Push())
 	}
+}
+
+type touchCmd struct {
+	hidden    *bool
+	noPrompt  *bool
+	recursive *bool
+}
+
+func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
+	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	return fs
+}
+
+func (cmd *touchCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Hidden:    *cmd.hidden,
+		NoPrompt:  *cmd.noPrompt,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+	}).Touch())
 }
 
 func pushMounted(cmd *pushCmd, args []string) {

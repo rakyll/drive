@@ -22,6 +22,7 @@ import (
 	gopath "path"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/odeke-em/drive/config"
 )
@@ -85,6 +86,52 @@ func (g *Commands) Push() (err error) {
 		return g.playPushChangeList(cl)
 	}
 	return
+}
+
+func (g *Commands) Touch() (err error) {
+	srcLen := len(g.opts.Sources)
+	chunkSize := 4
+	q, r := srcLen/chunkSize, srcLen%chunkSize
+	i, chunkCount := 0, q
+	if r != 0 {
+		chunkCount += 1
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(chunkCount)
+
+	for j := 0; j < chunkCount; j += 1 {
+		end := i + chunkSize
+		if end >= srcLen {
+			end = srcLen
+		}
+		chunk := g.opts.Sources[i:end]
+		go func(wg *sync.WaitGroup, chunk []string) {
+			for _, relToRootPath := range chunk {
+				if tErr := g.touch(relToRootPath); tErr != nil {
+					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
+				}
+			}
+			wg.Done()
+		}(&wg, chunk)
+
+		i += chunkSize
+	}
+
+	wg.Wait()
+	return
+}
+
+func (g *Commands) touch(relToRootPath string) (err error) {
+	var file *File
+	file, err = g.rem.FindByPath(relToRootPath)
+	if err != nil {
+		return err
+	}
+	if file == nil {
+		return ErrPathNotExists
+	}
+	return g.rem.Touch(file.Id)
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {

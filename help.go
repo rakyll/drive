@@ -21,6 +21,23 @@ import (
 var Version = "0.0.4c"
 
 const (
+	DiffKey       = "diff"
+	EmptyTrashKey = "emptytrash"
+	InitKey       = "init"
+	ListKey       = "list"
+	PullKey       = "pull"
+	PushKey       = "push"
+	PubKey        = "pub"
+	HelpKey       = "help"
+	QuotaKey      = "quota"
+	TouchKey      = "touch"
+	TrashKey      = "trash"
+	UntrashKey    = "untrash"
+	UnpubKey      = "unpub"
+	VersionKey    = "version"
+)
+
+const (
 	DescInit       = "initializes a directory and authenticates user"
 	DescPull       = "pulls remote changes from Google Drive"
 	DescPush       = "push local changes to Google Drive"
@@ -33,44 +50,48 @@ const (
 	DescTrash      = "moves files to trash"
 	DescUntrash    = "restores files from trash to their original locations"
 	DescUnpublish  = "revokes public access to a file"
+	DescTouch      = "updates a remote file's modification time to that currently on the server"
 	DescVersion    = "prints the version"
 	DescAll        = "print out the entire help section"
 	All            = "all"
 )
 
 var docMap = map[string][]string{
-	"diff": []string{
+	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",
 	},
-	"emptytrash": []string{
+	EmptyTrashKey: []string{
 		DescEmptyTrash,
 	},
-	"init": []string{
+	InitKey: []string{
 		DescInit, "Requests for access to your Google Drive",
 		"Creating a folder that contains your credentials",
 		"Note: init in an already initialized drive will erase the old credentials",
 	},
-	"pull": []string{
+	PullKey: []string{
 		DescPull, "Downloads content from the remote drive or modifies",
 		" local content to match that on your Google Drive",
 	},
-	"push": []string{
+	PushKey: []string{
 		DescPush, "Uploads content to your Google Drive from your local path",
 		"Push comes in a couple of flavors",
 		"\t* Ordinary push: `drive push path1 path2 path3`",
 		"\t* Mounted push: `drive push -m path1 [path2 path3] drive_context_path`",
 	},
-	"list": []string{
+	ListKey: []string{
 		DescList,
 		"List the information related a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
-	"quota":   []string{DescQuota},
-	"trash":   []string{DescTrash, "Accepts multiple paths"},
-	"untrash": []string{DescUntrash, "Accepts multiple paths"},
-	"pub":     []string{DescPublish, "Accepts multiple paths"},
-	"unpub":   []string{DescUnpublish, "Accepts multiple paths"},
-	"version": []string{DescVersion, fmt.Sprintf("current version is: %s", Version)},
+	QuotaKey:   []string{DescQuota},
+	TrashKey:   []string{DescTrash, "Accepts multiple paths"},
+	UntrashKey: []string{DescUntrash, "Accepts multiple paths"},
+	PubKey:     []string{DescPublish, "Accepts multiple paths"},
+	UnpubKey:   []string{DescUnpublish, "Accepts multiple paths"},
+	TouchKey:   []string{DescTouch},
+	VersionKey: []string{
+		DescVersion, fmt.Sprintf("current version is: %s", Version),
+	},
 }
 
 func ShowAllDescriptions() {

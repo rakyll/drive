@@ -244,6 +244,11 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+func (r *Remote) Touch(id string) error {
+	_, err := r.service.Files.Touch(id).Do()
+	return err
+}
+
 func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(fsAbsPath)
