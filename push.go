@@ -89,10 +89,12 @@ func (g *Commands) Push() (err error) {
 }
 
 func (g *Commands) Touch() (err error) {
-	srcLen := len(g.opts.Sources)
+	root := "/"
 	chunkSize := 4
-	q, r := srcLen/chunkSize, srcLen%chunkSize
+	srcLen := len(g.opts.Sources)
+	q, r := srcLen / chunkSize, srcLen % chunkSize
 	i, chunkCount := 0, q
+
 	if r != 0 {
 		chunkCount += 1
 	}
@@ -108,6 +110,10 @@ func (g *Commands) Touch() (err error) {
 		chunk := g.opts.Sources[i:end]
 		go func(wg *sync.WaitGroup, chunk []string) {
 			for _, relToRootPath := range chunk {
+                // Ignore the case in which root is to be touched.
+                if relToRootPath == root {
+                    continue
+                }
 				if tErr := g.touch(relToRootPath); tErr != nil {
 					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
 				}
