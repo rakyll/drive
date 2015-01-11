@@ -19,6 +19,7 @@
   - [Pushing](#pushing)
   - [Publishing](#publishing)
   - [Unpublishing](#unpublishing)
+  - [Touching](#touch)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
   - [Listing Files](#listing-files)
@@ -72,6 +73,12 @@ Run it without any arguments to pull all of the files from the current path:
 
 ```shell
 $ drive pull
+```
+
+To force download from paths that otherwise would be marked with no-changes
+
+```shell
+$ drive pull -force
 ```
 
 To pull specific files or directories, pass in one or more paths:
@@ -129,6 +136,14 @@ The `unpub` command is the opposite of `pub`. It unpublishes a previously publis
 
 ```shell
 $ drive unpub photos
+```
+
+### Touching
+
+Files that exist remotely can be touched i.e their modification time updated to that on the remote server using the `touch` command:
+
+```shell
+$ drive touch Photos/img001.png logs/log9907.txt
 ```
 
 ### Trashing and Untrashing
@@ -197,6 +212,11 @@ Pass in the name of a command to get information about that specific command and
 $ drive help push
 ```
 
+To get help for all the commands
+```shell
+$ drive help all
+```
+
 ## Why another Google Drive client?
 
 Background sync is not just hard, it is stupid. My technical and philosophical rants about why it is not worth to implement:
@@ -207,7 +227,7 @@ Background sync is not just hard, it is stupid. My technical and philosophical r
 
 * It needs to read your mind to understand your priorities. Which file you need most? It needs to read your mind to foresee your future actions. I'm editing a file, and saving the changes time to time. Why not to wait until I feel confident enough to commit the changes to the remote resource?
 
-`drive` is not a sync deamon, it provides:
+`drive` is not a sync daemon, it provides:
 
 * Upstreaming and downstreaming. Unlike a sync command, we provide pull and push actions. User has opportunity to decide what to do with their local copy and when. Do some changes, either push it to remote or revert it to the remote version. Perform these actions with user prompt.
 
