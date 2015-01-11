@@ -257,7 +257,8 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File)
 	}
 
 	uploaded := &drive.File{
-		Title:   src.Name,
+		// Must ensure that the path is prepared for a URL upload
+		Title:   urlToPath(src.Name, false),
 		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
 	}
 	if src.IsDir {
