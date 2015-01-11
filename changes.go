@@ -162,27 +162,44 @@ func (g *Commands) resolveChangeListRecv(
 			return
 		}
 	}
-
-	// TODO: limit the number of active tasks for children lookups
 	dirlist := merge(remoteChildren, localChildren)
+
+	// Arbitrary value. TODO: Calibrate or calculate this value
+	chunkSize := 100
+	srcLen := len(dirlist)
+	chunkCount, remainder := srcLen/chunkSize, srcLen%chunkSize
+	i := 0
+
+	if remainder != 0 {
+		chunkCount += 1
+	}
+
 	var wg sync.WaitGroup
-	wg.Add(len(dirlist))
-	for _, l := range dirlist {
-		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, l *dirList) {
+	wg.Add(chunkCount)
+	for j := 0; j < chunkCount; j += 1 {
+		end := i + chunkSize
+		if end >= srcLen {
+			end = srcLen
+		}
+
+		go func(wg *sync.WaitGroup, isPush bool, cl *[]*Change, p string, dlist []*dirList) {
 			defer wg.Done()
-			// Avoiding path.Join which normalizes '/+' to '/'
-			var joined string
-			if p == "/" {
-				joined = "/" + l.Name()
-			} else {
-				joined = strings.Join([]string{p, l.Name()}, "/")
+			for _, l := range dlist {
+				// Avoiding path.Join which normalizes '/+' to '/'
+				var joined string
+				if p == "/" {
+					joined = "/" + l.Name()
+				} else {
+					joined = strings.Join([]string{p, l.Name()}, "/")
+				}
+				childChanges, _ := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
+				*cl = append(*cl, childChanges...)
 			}
-			childChanges, _ := g.resolveChangeListRecv(isPush, p, joined, l.remote, l.local)
-			*cl = append(*cl, childChanges...)
-		}(&wg, isPush, &cl, p, l)
+		}(&wg, isPush, &cl, p, dirlist[i:end])
+
+		i += chunkSize
 	}
 	wg.Wait()
-
 	return cl, nil
 }
 
