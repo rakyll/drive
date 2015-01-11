@@ -150,7 +150,7 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	}
 
 	for _, c := range cl {
-		switch c.CoercedOp(g.opts.NoClobber) {
+		switch c.Op() {
 		case OpMod:
 			g.remoteMod(c)
 		case OpAdd:

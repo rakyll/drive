@@ -21,6 +21,7 @@ import (
 var Version = "0.0.4d"
 
 const (
+	AllKey        = "all"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
 	InitKey       = "init"
@@ -38,22 +39,21 @@ const (
 )
 
 const (
-	DescInit       = "initializes a directory and authenticates user"
-	DescPull       = "pulls remote changes from Google Drive"
-	DescPush       = "push local changes to Google Drive"
+	DescAll        = "print out the entire help section"
 	DescDiff       = "compares local files with their remote equivalent"
 	DescEmptyTrash = "permanently cleans out your trash"
 	DescHelp       = "Get help for a topic"
+	DescInit       = "initializes a directory and authenticates user"
 	DescList       = "lists the contents of remote path"
 	DescQuota      = "prints out information related to your quota space"
 	DescPublish    = "publishes a file and prints its publicly available url"
+	DescPull       = "pulls remote changes from Google Drive"
+	DescPush       = "push local changes to Google Drive"
+	DescTouch      = "updates a remote file's modification time to that currently on the server"
 	DescTrash      = "moves files to trash"
 	DescUntrash    = "restores files from trash to their original locations"
 	DescUnpublish  = "revokes public access to a file"
-	DescTouch      = "updates a remote file's modification time to that currently on the server"
 	DescVersion    = "prints the version"
-	DescAll        = "print out the entire help section"
-	All            = "all"
 )
 
 var docMap = map[string][]string{
@@ -83,12 +83,12 @@ var docMap = map[string][]string{
 		"List the information related a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
+	PubKey:     []string{DescPublish, "Accepts multiple paths"},
 	QuotaKey:   []string{DescQuota},
+	TouchKey:   []string{DescTouch},
 	TrashKey:   []string{DescTrash, "Accepts multiple paths"},
 	UntrashKey: []string{DescUntrash, "Accepts multiple paths"},
-	PubKey:     []string{DescPublish, "Accepts multiple paths"},
 	UnpubKey:   []string{DescUnpublish, "Accepts multiple paths"},
-	TouchKey:   []string{DescTouch},
 	VersionKey: []string{
 		DescVersion, fmt.Sprintf("current version is: %s", Version),
 	},
@@ -102,7 +102,7 @@ func ShowAllDescriptions() {
 }
 
 func ShowDescription(topic string) {
-	if topic == All {
+	if topic == AllKey {
 		ShowAllDescriptions()
 		return
 	}

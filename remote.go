@@ -261,7 +261,7 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File)
 		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
 	}
 	if src.IsDir {
-		uploaded.MimeType = "application/vnd.google-apps.folder"
+		uploaded.MimeType = DriveFolderMimeType
 	}
 
 	utc := src.ModTime.UTC().Round(time.Second)

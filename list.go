@@ -159,7 +159,7 @@ func buildExpression(parentId string, typeMask int, inTrash bool) string {
 
 	// Folder and NonFolder are mutually exclusive.
 	if (typeMask & Folder) != 0 {
-		exprBuilder = append(exprBuilder, "mimeType = 'application/vnd.google-apps.folder'")
+		exprBuilder = append(exprBuilder, fmt.Sprintf("mimeType = '%s'", DriveFolderMimeType))
 	}
 	return strings.Join(exprBuilder, " and ")
 }

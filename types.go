@@ -39,6 +39,10 @@ const (
 	DifferSize
 )
 
+const (
+	DriveFolderMimeType = "application/vnd.google-apps.folder"
+)
+
 // Arbitrary value. TODO: Get better definition of BigFileSize.
 var BigFileSize = int64(1024 * 1024 * 400)
 
@@ -75,7 +79,7 @@ func NewRemoteFile(f *drive.File) *File {
 		Etag:        f.Etag,
 		ExportLinks: f.ExportLinks,
 		Id:          f.Id,
-		IsDir:       f.MimeType == "application/vnd.google-apps.folder",
+		IsDir:       f.MimeType == DriveFolderMimeType,
 		Md5Checksum: f.Md5Checksum,
 		MimeType:    f.MimeType,
 		ModTime:     mtime,
@@ -102,11 +106,12 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 }
 
 type Change struct {
-	Dest   *File
-	Parent string
-	Path   string
-	Src    *File
-	Force  bool
+	Dest      *File
+	Parent    string
+	Path      string
+	Src       *File
+	Force     bool
+	NoClobber bool
 }
 
 type ByPrecedence []*Change
@@ -138,11 +143,11 @@ func (self *File) sameDirType(other *File) bool {
 func opToString(op int) (string, string) {
 	switch op {
 	case OpAdd:
-		return "\x1b[32m+\x1b[0m", "Addition"
+		return "\033[32m+\033[0m", "Addition"
 	case OpDelete:
-		return "\x1b[31m-\x1b[0m", "Deletion"
+		return "\033[31m-\033[0m", "Deletion"
 	case OpMod:
-		return "\x1b[33mM\x1b[0m", "Modification"
+		return "\033[33mM\033[0m", "Modification"
 	default:
 		return "", ""
 	}
@@ -188,10 +193,6 @@ func md5Checksum(f *File) string {
 		f.Md5Checksum = checksum
 	}
 	return checksum
-}
-
-func (f *File) MatchDirness(g *File) bool {
-	return g != nil && f.IsDir == g.IsDir
 }
 
 // if it's a regular file, see it it's modified.
@@ -248,19 +249,7 @@ func sameFileTillChecksum(src, dest *File) bool {
 	return md5Checksum(src) == md5Checksum(dest)
 }
 
-// Will turn any other op but an Addition into a noop
-func (c *Change) CoercedOp(noClobber bool) int {
-	op := c.Op()
-	if op != OpAdd && noClobber {
-		return OpNone
-	}
-	return op
-}
-
-func (c *Change) Op() int {
-	if c.Force {
-		return OpAdd
-	}
+func (c *Change) op() int {
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
@@ -278,4 +267,15 @@ func (c *Change) Op() int {
 		return OpMod
 	}
 	return OpNone
+}
+
+func (c *Change) Op() int {
+	if c.Force {
+		return OpAdd
+	}
+	op := c.op()
+	if op != OpAdd && c.NoClobber {
+		return OpNone
+	}
+	return op
 }

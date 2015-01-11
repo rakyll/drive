@@ -115,7 +115,7 @@ func (g *Commands) resolveChangeListRecv(
 		if hasExportLinks(r) {
 			return cl, nil
 		}
-		change = &Change{Path: p, Src: l, Dest: r, Parent: d, Force: g.opts.Force}
+		change = &Change{Path: p, Src: l, Dest: r, Parent: d}
 	} else {
 		if !g.opts.Force && hasExportLinks(r) {
 			// The case when we have files that don't provide the download urls
@@ -125,10 +125,13 @@ func (g *Commands) resolveChangeListRecv(
 				return cl, nil
 			}
 		}
-		change = &Change{Path: p, Src: r, Dest: l, Parent: d, Force: g.opts.Force}
+		change = &Change{Path: p, Src: r, Dest: l, Parent: d}
 	}
 
-	if g.opts.Force || change.CoercedOp(g.opts.NoClobber) != OpNone {
+	change.Force = g.opts.Force
+	change.NoClobber = g.opts.NoClobber
+
+	if change.Op() != OpNone {
 		cl = append(cl, change)
 	}
 	if !g.opts.Recursive {
