@@ -24,6 +24,7 @@
   - [Emptying the Trash](#emptying-the-trash)
   - [Listing Files](#listing-files)
   - [Quota](#quota)
+  - [Features](#features)
   - [Help](#help)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
@@ -196,6 +197,15 @@ The `quota` command prints information about your drive, such as the account typ
 
 ```shell
 $ drive quota
+```
+
+### Features
+
+The `features` command provides information about the features present on the
+drive being queried and the request limit in queries per second
+
+```shell
+$ drive features
 ```
 
 ### Help

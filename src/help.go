@@ -24,6 +24,7 @@ const (
 	AllKey        = "all"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
+	FeaturesKey   = "features"
 	InitKey       = "init"
 	ListKey       = "list"
 	PullKey       = "pull"
@@ -42,6 +43,7 @@ const (
 	DescAll        = "print out the entire help section"
 	DescDiff       = "compares local files with their remote equivalent"
 	DescEmptyTrash = "permanently cleans out your trash"
+	DescFeatures   = "returns information about the features of your drive"
 	DescHelp       = "Get help for a topic"
 	DescInit       = "initializes a directory and authenticates user"
 	DescList       = "lists the contents of remote path"
@@ -62,6 +64,9 @@ var docMap = map[string][]string{
 	},
 	EmptyTrashKey: []string{
 		DescEmptyTrash,
+	},
+	FeaturesKey: []string{
+		DescFeatures,
 	},
 	InitKey: []string{
 		DescInit, "Requests for access to your Google Drive",

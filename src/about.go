@@ -16,6 +16,7 @@ package drive
 
 import (
 	"fmt"
+	drive "github.com/google/google-api-go-client/drive/v2"
 )
 
 const (
@@ -26,21 +27,93 @@ const (
 	Unknown
 )
 
-func (g *Commands) Quota() (err error) {
+const (
+	AboutNone = 1 << iota
+	AboutQuota
+	AboutFileSizes
+	AboutFeatures
+)
+
+func (g *Commands) About(mask int) (err error) {
 	about, err := g.rem.About()
 	if err != nil {
 		return err
 	}
+	printSummary(about, mask)
 
+	return nil
+}
+
+func quotaRequested(mask int) bool {
+	return (mask & AboutQuota) != 0
+}
+
+func fileSizesRequested(mask int) bool {
+	return (mask & AboutFileSizes) != 0
+}
+
+func featuresRequested(mask int) bool {
+	return (mask & AboutFeatures) != 0
+}
+
+func printSummary(about *drive.About, mask int) {
+	if quotaRequested(mask) {
+		quotaInformation(about)
+	}
+	if fileSizesRequested(mask) {
+		fileSizesInfo(about)
+	}
+
+	if featuresRequested(mask) {
+		featuresInformation(about)
+	}
+}
+
+func fileSizesInfo(about *drive.About) {
+	if len(about.MaxUploadSizes) >= 1 {
+		fmt.Println("\n* Maximum upload sizes per file type *")
+		fmt.Printf("%-36s %-36s\n", "FileType", "Size")
+		for _, uploadInfo := range about.MaxUploadSizes {
+			fmt.Printf("%-36s %-36s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
+		}
+	}
+	return
+}
+
+func featuresInformation(about *drive.About) {
+	if len(about.Features) >= 1 {
+		fmt.Printf("%-30s %-30s\n", "Feature", "Request limit (queries/second)")
+		for _, feature := range about.Features {
+			if feature.FeatureName == "" {
+				continue
+			}
+			fmt.Printf("%-30s %-30f\n", feature.FeatureName, feature.FeatureRate)
+		}
+	}
+}
+
+func quotaInformation(about *drive.About) {
 	freeBytes := about.QuotaBytesTotal - about.QuotaBytesUsed
+
 	fmt.Printf(
-		"Account type:\t%s\nBytes Used:\t%-20d (%s)\n"+
-			"Bytes Free:\t%-20d (%s)\nTotal Bytes:\t%-20d (%s)\n",
-		about.QuotaType,
+		"Name: %s\nAccount type:\t%s\nBytes Used:\t%-20d (%s)\n"+
+			"Bytes Free:\t%-20d (%s)\nBytes InTrash:\t%-20d (%s)\n"+
+			"Total Bytes:\t%-20d (%s)\n",
+		about.Name, about.QuotaType,
 		about.QuotaBytesUsed, prettyBytes(about.QuotaBytesUsed),
 		freeBytes, prettyBytes(freeBytes),
+		about.QuotaBytesUsedInTrash, prettyBytes(about.QuotaBytesUsedInTrash),
 		about.QuotaBytesTotal, prettyBytes(about.QuotaBytesTotal))
-	return nil
+
+	if len(about.QuotaBytesByService) >= 1 {
+		fmt.Println("\n* Space used by Google Services *")
+		fmt.Printf("%-36s %-36s\n", "Service", "Bytes")
+		for _, quotaService := range about.QuotaBytesByService {
+			fmt.Printf("%-36s %-36s\n", quotaService.ServiceName, prettyBytes(quotaService.BytesUsed))
+		}
+		fmt.Printf("%-36s %-36s\n", "Space used by all Google Apps",
+			prettyBytes(about.QuotaBytesUsedAggregate))
+	}
 }
 
 func (g *Commands) QuotaStatus(query int64) (status int, err error) {

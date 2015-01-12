@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/odeke-em/drive/src"
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/drive/src"
 	"github.com/rakyll/command"
 )
 
@@ -42,6 +42,7 @@ func main() {
 
 	command.On(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
 	command.On(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
+	command.On(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
 	command.On(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
 	command.On(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
 	command.On(drive.ListKey, drive.DescList, &listCmd{}, []string{})
@@ -71,6 +72,19 @@ func (cmd *helpCmd) Run(args []string) {
 	}
 	drive.ShowDescription(args[0])
 	exitWithError(nil)
+}
+
+type featuresCmd struct{}
+
+func (cmd *featuresCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *featuresCmd) Run(args []string) {
+	context, path := discoverContext(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path: path,
+	}).About(drive.AboutFeatures))
 }
 
 type versionCmd struct{}
@@ -104,7 +118,7 @@ func (cmd *quotaCmd) Run(args []string) {
 	context, path := discoverContext(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Path: path,
-	}).Quota())
+	}).About(drive.AboutQuota))
 }
 
 type listCmd struct {
