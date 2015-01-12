@@ -21,6 +21,7 @@ import (
 var Version = "0.0.4d"
 
 const (
+	AboutKey      = "about"
 	AllKey        = "all"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
@@ -40,6 +41,7 @@ const (
 )
 
 const (
+	DescAbout      = "print out information about your Google drive"
 	DescAll        = "print out the entire help section"
 	DescDiff       = "compares local files with their remote equivalent"
 	DescEmptyTrash = "permanently cleans out your trash"
@@ -59,6 +61,9 @@ const (
 )
 
 var docMap = map[string][]string{
+	AboutKey: []string{
+		DescAbout,
+	},
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",
 	},
@@ -104,6 +109,10 @@ func ShowAllDescriptions() {
 		ShowDescription(key)
 		fmt.Println()
 	}
+}
+
+func PrintVersion() {
+	fmt.Printf("drive version %s\n", Version)
 }
 
 func ShowDescription(topic string) {

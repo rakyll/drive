@@ -25,6 +25,7 @@
   - [Listing Files](#listing-files)
   - [Quota](#quota)
   - [Features](#features)
+  - [About](#about)
   - [Help](#help)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
@@ -206,6 +207,19 @@ drive being queried and the request limit in queries per second
 
 ```shell
 $ drive features
+```
+
+### About
+
+The `about` command provides information about the program as well as that about
+your Google Drive. Think of it as a hybrid between the `features` and `quota` commands.
+```shell
+$ drive about
+```
+
+OR for detailed information
+```shell
+$ drive about -features -quota
 ```
 
 ### Help

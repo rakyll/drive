@@ -35,6 +35,11 @@ const (
 )
 
 func (g *Commands) About(mask int) (err error) {
+	PrintVersion()
+	if mask == AboutNone {
+		return nil
+	}
+
 	about, err := g.rem.About()
 	if err != nil {
 		return err

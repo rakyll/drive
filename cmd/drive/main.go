@@ -40,6 +40,7 @@ func main() {
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
+	command.On(drive.AboutKey, drive.DescAbout, &aboutCmd{}, []string{})
 	command.On(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
 	command.On(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
 	command.On(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
@@ -94,7 +95,7 @@ func (cmd *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *versionCmd) Run(args []string) {
-	fmt.Printf("drive version %s\n", drive.Version)
+	drive.PrintVersion()
 	exitWithError(nil)
 }
 
@@ -361,6 +362,35 @@ func pushMounted(cmd *pushCmd, args []string) {
 		Path:      path,
 		Sources:   sources,
 	}).Push())
+}
+
+type aboutCmd struct {
+	features *bool
+	quota    *bool
+	filesize *bool
+}
+
+func (cmd *aboutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.features = fs.Bool("features", false, "gives information on features present on this drive")
+	cmd.quota = fs.Bool("quota", false, "prints out quota information for this drive")
+	cmd.filesize = fs.Bool("filesize", false, "prints out information about file sizes e.g the max upload size for a specific file size")
+	return fs
+}
+
+func (cmd *aboutCmd) Run(args []string) {
+	_, context, _ := preprocessArgs(args)
+
+	mask := drive.AboutNone
+	if *cmd.features {
+		mask |= drive.AboutFeatures
+	}
+	if *cmd.quota {
+		mask |= drive.AboutQuota
+	}
+	if *cmd.filesize {
+		mask |= drive.AboutFileSizes
+	}
+	exitWithError(drive.New(context, &drive.Options{}).About(mask))
 }
 
 type diffCmd struct {
