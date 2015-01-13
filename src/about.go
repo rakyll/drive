@@ -19,6 +19,8 @@ import (
 	drive "github.com/google/google-api-go-client/drive/v2"
 )
 
+const Version = "0.0.5"
+
 const (
 	Barely = iota
 	AlmostExceeded
@@ -35,7 +37,7 @@ const (
 )
 
 func (g *Commands) About(mask int) (err error) {
-	PrintVersion()
+	defer PrintVersion()
 	if mask == AboutNone {
 		return nil
 	}
@@ -81,6 +83,7 @@ func fileSizesInfo(about *drive.About) {
 		for _, uploadInfo := range about.MaxUploadSizes {
 			fmt.Printf("%-36s %-36s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
 		}
+		fmt.Println()
 	}
 	return
 }
@@ -94,6 +97,7 @@ func featuresInformation(about *drive.About) {
 			}
 			fmt.Printf("%-30s %-30f\n", feature.FeatureName, feature.FeatureRate)
 		}
+		fmt.Println()
 	}
 }
 
@@ -119,6 +123,7 @@ func quotaInformation(about *drive.About) {
 		fmt.Printf("%-36s %-36s\n", "Space used by all Google Apps",
 			prettyBytes(about.QuotaBytesUsedAggregate))
 	}
+	fmt.Println()
 }
 
 func (g *Commands) QuotaStatus(query int64) (status int, err error) {

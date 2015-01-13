@@ -249,6 +249,14 @@ func (r *Remote) Touch(id string) error {
 	return err
 }
 
+func toUTCString(t time.Time) string {
+	utc := t.UTC().Round(time.Second)
+	// Ugly but straight forward formatting as time.Parse is such a prima donna
+	return fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
+		utc.Year(), utc.Month(), utc.Day(),
+		utc.Hour(), utc.Minute(), utc.Second())
+}
+
 func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(fsAbsPath)
@@ -265,14 +273,8 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File)
 		uploaded.MimeType = DriveFolderMimeType
 	}
 
-	utc := src.ModTime.UTC().Round(time.Second)
-
-	// Ugly but straight forward formatting because time.Parse is such a prima donna
-	str := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%0d.000Z",
-		utc.Year(), utc.Month(), utc.Day(), utc.Hour(), utc.Minute(), utc.Second())
-
 	// Ensure that the ModifiedDate is retrieved from local
-	uploaded.ModifiedDate = str
+	uploaded.ModifiedDate = toUTCString(src.ModTime)
 
 	if src.Id == "" {
 		req := r.service.Files.Insert(uploaded)

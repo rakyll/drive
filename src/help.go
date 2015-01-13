@@ -18,8 +18,6 @@ import (
 	"fmt"
 )
 
-var Version = "0.0.4d"
-
 const (
 	AboutKey      = "about"
 	AllKey        = "all"
