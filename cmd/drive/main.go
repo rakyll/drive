@@ -132,7 +132,10 @@ type listCmd struct {
 	pageSize    *int64
 	longFmt     *bool
 	noPrompt    *bool
+	shared      *bool
 	inTrash     *bool
+	version     *bool
+	owners      *bool
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -142,8 +145,11 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.directories = fs.Bool("d", false, "list all directories")
 	cmd.longFmt = fs.Bool("l", false, "long listing of contents")
 	cmd.pageSize = fs.Int64("p", 100, "number of results per pagination")
+	cmd.shared = fs.Bool("shared", false, "show files that are shared with me")
 	cmd.inTrash = fs.Bool("trashed", false, "list content in the trash")
+	cmd.version = fs.Bool("version", false, "show the number of times that the file has been modified on \n\t\tthe server even with changes not visible to the user")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
+	cmd.owners = fs.Bool("owners", false, "shows the owner names per file")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
 
 	return fs
@@ -155,6 +161,15 @@ func (cmd *listCmd) Run(args []string) {
 	typeMask := 0
 	if *cmd.directories {
 		typeMask |= drive.Folder
+	}
+	if *cmd.shared {
+		typeMask |= drive.Shared
+	}
+	if *cmd.owners {
+		typeMask |= drive.Owners
+	}
+	if *cmd.version {
+		typeMask |= drive.CurrentVersion
 	}
 	if *cmd.files {
 		typeMask |= drive.NonFolder

@@ -28,10 +28,14 @@ const (
 	Folder
 	NonFolder
 	Minimal
+	Shared
+	Owners
+	CurrentVersion
 )
 
 type attribute struct {
 	minimal bool
+	mask    int
 	parent  string
 }
 
@@ -125,8 +129,18 @@ func (g *Commands) List() (err error) {
 }
 
 func (f *File) pretty(opt attribute) {
+	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
+	if version(opt.mask) {
+		fmt.Printf("v%-6d\t", f.Version)
+	}
+	if f.UserPermission != nil {
+		fmt.Printf("%-10s ", f.UserPermission.Role)
+	}
+	if owners(opt.mask) && len(f.OwnerNames) >= 1 {
+		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+	}
 	if opt.minimal {
-		fmt.Printf("%s/%s\n", opt.parent, f.Name)
+		fmt.Println(fmtdPath)
 		return
 	}
 
@@ -140,11 +154,8 @@ func (f *File) pretty(opt attribute) {
 	} else {
 		fmt.Printf("- ")
 	}
-	if f.UserPermission != nil {
-		fmt.Printf("%-10s ", f.UserPermission.Role)
-	}
-	fPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
-	fmt.Printf("%-10s\t%-60s\t\t%-20s", prettyBytes(f.Size), fPath, f.ModTime)
+
+	fmt.Printf("%-10s\t%-60s\t\t%-20s", prettyBytes(f.Size), fmtdPath, f.ModTime)
 	fmt.Println()
 }
 
@@ -202,6 +213,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 
 	opt := attribute{
 		minimal: isMinimal(g.opts.TypeMask),
+		mask:    typeMask,
 		parent:  headPath,
 	}
 
@@ -261,6 +273,14 @@ func isHidden(p string, ignore bool) bool {
 
 func isMinimal(mask int) bool {
 	return (mask & Minimal) != 0
+}
+
+func owners(mask int) bool {
+	return (mask & Owners) != 0
+}
+
+func version(mask int) bool {
+	return (mask & CurrentVersion) != 0
 }
 
 func nextPage() bool {

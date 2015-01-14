@@ -192,6 +192,12 @@ The `-trashed` option can be specified to show trashed files in the listing:
 $ drive list -trashed photos
 ```
 
+To get detailed information about the listings e.g owner information and the version number of all listed files:
+
+```shell
+$ drive list -owners -l -version
+```
+
 ### Quota
 
 The `quota` command prints information about your drive, such as the account type, bytes used/free, and the total amount of storage available.

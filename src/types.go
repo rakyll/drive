@@ -69,6 +69,10 @@ type File struct {
 	UserPermission *drive.Permission
 	// CacheChecksum when set avoids recomputation of checksums
 	CacheChecksum bool
+	// Monotonically increasing version number for the file
+	Version int64
+	// The onwers of this file.
+	OwnerNames []string
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -88,6 +92,8 @@ func NewRemoteFile(f *drive.File) *File {
 		Size:           f.FileSize,
 		Shared:         f.Shared,
 		UserPermission: f.UserPermission,
+		Version:        f.Version,
+		OwnerNames:     f.OwnerNames,
 	}
 }
 
