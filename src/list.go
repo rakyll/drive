@@ -130,17 +130,12 @@ func (g *Commands) List() (err error) {
 
 func (f *File) pretty(opt attribute) {
 	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
-	if version(opt.mask) {
-		fmt.Printf("v%-6d\t", f.Version)
-	}
-	if f.UserPermission != nil {
-		fmt.Printf("%-10s ", f.UserPermission.Role)
-	}
-	if owners(opt.mask) && len(f.OwnerNames) >= 1 {
-		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
-	}
 	if opt.minimal {
 		fmt.Println(fmtdPath)
+
+		if owners(opt.mask) && len(f.OwnerNames) >= 1 {
+			fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+		}
 		return
 	}
 
@@ -150,13 +145,20 @@ func (f *File) pretty(opt attribute) {
 		fmt.Printf("-")
 	}
 	if f.Shared {
-		fmt.Printf("s ")
+		fmt.Printf("s")
 	} else {
-		fmt.Printf("- ")
+		fmt.Printf("-")
 	}
 
-	fmt.Printf("%-10s\t%-60s\t\t%-20s", prettyBytes(f.Size), fmtdPath, f.ModTime)
-	fmt.Println()
+	if f.UserPermission != nil {
+		fmt.Printf(" %-10s ", f.UserPermission.Role)
+	}
+
+	if owners(opt.mask) && len(f.OwnerNames) >= 1 {
+		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+	}
+
+	fmt.Printf(" %-10s\t%-60s\t\t%-20s\n", prettyBytes(f.Size), fmtdPath, f.ModTime)
 }
 
 func buildExpression(parentId string, typeMask int, inTrash bool) string {

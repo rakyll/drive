@@ -252,6 +252,12 @@ type pushCmd struct {
 	noPrompt    *bool
 	recursive   *bool
 	mountedPush *bool
+	// convert when set tells Google drive to convert the document into
+	// its appropriate Google Docs format
+	convert *bool
+	// ocr when set indicates that Optical Character Recognition should be
+	// attempted on .[gif, jpg, pdf, png] uploads
+	ocr *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -261,54 +267,22 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
+	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
+	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
 	return fs
-}
-
-func preprocessArgs(args []string) ([]string, *config.Context, string) {
-	var relPaths []string
-	context, path := discoverContext(args)
-	root := context.AbsPathOf("")
-
-	if len(args) < 1 {
-		args = []string{"."}
-	}
-
-	var err error
-	for _, p := range args {
-		p, err = filepath.Abs(p)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		relPath, err := filepath.Rel(root, p)
-		if relPath == "." {
-			relPath = ""
-		}
-
-		exitWithError(err)
-
-		relPath = "/" + relPath
-		relPaths = append(relPaths, relPath)
-	}
-
-	return uniqOrderedStr(relPaths), context, path
 }
 
 func (cmd *pushCmd) Run(args []string) {
 	if *cmd.mountedPush {
-		pushMounted(cmd, args)
+		cmd.pushMounted(args)
 	} else {
 		sources, context, path := preprocessArgs(args)
-		exitWithError(drive.New(context, &drive.Options{
-			Force:     *cmd.force,
-			Hidden:    *cmd.hidden,
-			NoClobber: *cmd.noClobber,
-			NoPrompt:  *cmd.noPrompt,
-			Path:      path,
-			Recursive: *cmd.recursive,
-			Sources:   sources,
-		}).Push())
+
+		options := cmd.createPushOptions()
+		options.Path = path
+		options.Sources = sources
+
+		exitWithError(drive.New(context, options).Push())
 	}
 }
 
@@ -336,7 +310,26 @@ func (cmd *touchCmd) Run(args []string) {
 	}).Touch())
 }
 
-func pushMounted(cmd *pushCmd, args []string) {
+func (cmd *pushCmd) createPushOptions() *drive.Options {
+	mask := drive.OptNone
+	if *cmd.convert {
+		mask |= drive.OptConvert
+	}
+	if *cmd.ocr {
+		mask |= drive.OptOCR
+	}
+
+	return &drive.Options{
+		Force:     *cmd.force,
+		Hidden:    *cmd.hidden,
+		NoClobber: *cmd.noClobber,
+		NoPrompt:  *cmd.noPrompt,
+		TypeMask:  mask,
+		Recursive: *cmd.recursive,
+	}
+}
+
+func (cmd *pushCmd) pushMounted(args []string) {
 	argc := len(args)
 
 	var contextArgs, rest, sources []string
@@ -360,23 +353,20 @@ func pushMounted(cmd *pushCmd, args []string) {
 	rest = nonEmptyStrings(rest)
 	context, path := discoverContext(contextArgs)
 	contextAbsPath, err := filepath.Abs(path)
+	exitWithError(err)
+
 	if path == "." {
 		path = ""
 	}
-	exitWithError(err)
 
 	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
 	sources = append(sources, auxSrcs...)
 
-	exitWithError(drive.New(context, &drive.Options{
-		Hidden:    *cmd.hidden,
-		NoPrompt:  *cmd.noPrompt,
-		Recursive: *cmd.recursive,
-		Mounts:    mountPoints,
-		NoClobber: *cmd.noClobber,
-		Path:      path,
-		Sources:   sources,
-	}).Push())
+	options := cmd.createPushOptions()
+	options.Mounts = mountPoints
+	options.Sources = sources
+
+	exitWithError(drive.New(context, options).Push())
 }
 
 type aboutCmd struct {
@@ -582,4 +572,35 @@ func exitWithError(err error) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func preprocessArgs(args []string) ([]string, *config.Context, string) {
+	var relPaths []string
+	context, path := discoverContext(args)
+	root := context.AbsPathOf("")
+
+	if len(args) < 1 {
+		args = []string{"."}
+	}
+
+	var err error
+	for _, p := range args {
+		p, err = filepath.Abs(p)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		relPath, err := filepath.Rel(root, p)
+		if relPath == "." {
+			relPath = ""
+		}
+
+		exitWithError(err)
+
+		relPath = "/" + relPath
+		relPaths = append(relPaths, relPath)
+	}
+
+	return uniqOrderedStr(relPaths), context, path
 }

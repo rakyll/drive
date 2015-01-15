@@ -44,6 +44,19 @@ const (
 
 	// OAuth 2.0 access type for offline/refresh access.
 	AccessType = "offline"
+
+	// Google Drive webpage host
+	DriveResourceHostURL = "https://googledrive.com/host/"
+)
+
+const (
+	OptNone = 1 << iota
+	OptConvert
+	OptOCR
+	OptUpdateViewedDate
+	OptContentAsIndexableText
+	OptPinned
+	OptNewRevision
 )
 
 var (
@@ -137,20 +150,24 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
-func (r *Remote) FindByPath(p string) (file *File, err error) {
+func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
 	if p == "/" {
 		return r.FindById("root")
 	}
-	parts := strings.Split(p, "/") // TODO: use path.Split instead
-	return r.findByPathRecv("root", parts[1:])
+	parts := strings.Split(p, "/")
+	finder := r.findByPathRecv
+	if trashed {
+		finder = r.findByPathTrashed
+	}
+	return finder("root", parts[1:])
+}
+
+func (r *Remote) FindByPath(p string) (file *File, err error) {
+	return r.findByPath(p, false)
 }
 
 func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
-	if p == "/" {
-		return r.FindById("root")
-	}
-	parts := strings.Split(p, "/") // TODO: use path.Split instead
-	return r.findByPathTrashed("root", parts[1:])
+	return r.findByPath(p, true)
 }
 
 func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files []*File, err error) {
@@ -220,7 +237,7 @@ func (r *Remote) Publish(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return "https://googledrive.com/host/" + id, nil
+	return DriveResourceHostURL + id, nil
 }
 
 func urlToPath(p string, fsBound bool) string {
@@ -233,7 +250,7 @@ func urlToPath(p string, fsBound bool) string {
 func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	var url string
 	if len(exportURL) < 1 {
-		url = "https://googledrive.com/host/" + id
+		url = DriveResourceHostURL + id
 	} else {
 		url = exportURL
 	}
@@ -257,7 +274,23 @@ func toUTCString(t time.Time) string {
 		utc.Hour(), utc.Minute(), utc.Second())
 }
 
-func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File) (f *File, err error) {
+func convert(mask int) bool {
+	return (mask & OptConvert) != 0
+}
+
+func ocr(mask int) bool {
+	return (mask & OptOCR) != 0
+}
+
+func pin(mask int) bool {
+	return (mask & OptPinned) != 0
+}
+
+func indexContent(mask int) bool {
+	return (mask & OptContentAsIndexableText) != 0
+}
+
+func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File, mask int) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(fsAbsPath)
 	if err != nil {
@@ -292,6 +325,21 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File)
 
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
+
+	// Next set all the desired attributes
+	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
+	if ocr(mask) {
+		req.Ocr(true)
+	}
+	if convert(mask) {
+		req.Convert(true)
+	}
+	if pin(mask) {
+		req.Pinned(true)
+	}
+	if indexContent(mask) {
+		req.UseContentAsIndexableText(true)
+	}
 
 	if !src.IsDir {
 		if dest == nil {

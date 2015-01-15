@@ -194,7 +194,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		return
 	}
 
-	_, err = g.rem.UpsertByComparison(parent.Id, absPath, change.Src, change.Dest)
+	_, err = g.rem.UpsertByComparison(parent.Id, absPath, change.Src, change.Dest, g.opts.TypeMask)
 	return err
 }
 
@@ -220,7 +220,7 @@ func list(context *config.Context, p string, hidden bool) (files []*File, err er
 		return
 	}
 	for _, file := range f {
-		if hidden || !strings.HasPrefix(file.Name(), ".") {
+		if !isHidden(file.Name(), hidden) {
 			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
 		}
 	}

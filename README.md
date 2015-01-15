@@ -124,6 +124,22 @@ The `push` command uploads data to Google Drive to mirror data stored locally.
 
 Like `pull`, you can run it without any arguments to push all of the files from the current path, or you can pass in one or more paths to push specific files or directories.
 
+To get Google Drive to convert a file to its native Google Docs format
+
+```shell
+$ drive push -convert
+```
+Extra features: to make Google Drive attempt Optical Character Recognition (OCR) for png, gif, pdf and jpg files.
+
+```shell
+$ drive push -ocr
+```
+Note: To use OCR, your account should have this feature. You can find out if your account has OCR allowed.
+
+```shell
+$ drive features
+```
+
 ### Publishing
 
 The `pub` command publishes a file or directory globally so that anyone can view it on the web using the link returned.
