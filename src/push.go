@@ -220,6 +220,9 @@ func list(context *config.Context, p string, hidden bool) (files []*File, err er
 		return
 	}
 	for _, file := range f {
+		if file.Name() == config.GDDirSuffix {
+			continue
+		}
 		if !isHidden(file.Name(), hidden) {
 			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
 		}

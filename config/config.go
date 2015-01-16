@@ -25,6 +25,8 @@ import (
 	"strings"
 )
 
+var GDDirSuffix = ".gd"
+
 type Context struct {
 	ClientId     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -121,7 +123,7 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 }
 
 func gdPath(absPath string) string {
-	return path.Join(absPath, ".gd")
+	return path.Join(absPath, GDDirSuffix)
 }
 
 func credentialsPath(absPath string) string {
