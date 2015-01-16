@@ -212,6 +212,23 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return g.rem.Trash(change.Dest.Id)
 }
 
+func (f *File) ToIndexFile() *config.IndexFile {
+	index := config.Index{
+		FileId:      f.Id,
+		Etag:        f.Etag,
+		Md5Checksum: f.Md5Checksum,
+		MimeType:    f.MimeType,
+		ModTime:     f.ModTime.Unix(),
+		Version:     f.Version,
+		Remote:      f.Etag != "",
+	}
+
+	return &config.IndexFile{
+		Name:  f.Name,
+		Index: []config.Index{index},
+	}
+}
+
 func list(context *config.Context, p string, hidden bool) (files []*File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo

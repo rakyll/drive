@@ -34,6 +34,21 @@ type Context struct {
 	AbsPath      string `json:"-"`
 }
 
+type Index struct {
+	FileId      string `json:"file_id"`
+	Etag        string `json:"etag"`
+	Md5Checksum string `json:"md5_checksum"`
+	MimeType    string `json:"mime_type"`
+	ModTime     int64  `json:"mod_time"`
+	Version     int64  `json:"version"`
+	Remote      bool   `json:"remote"`
+}
+
+type IndexFile struct {
+	Name  string  `json:"name"`
+	Index []Index `json:"index"`
+}
+
 type MountPoint struct {
 	CanClean  bool
 	Name      string
@@ -64,6 +79,26 @@ func (c *Context) Read() (err error) {
 	}
 	err = json.Unmarshal(data, c)
 	return
+}
+
+func (c *Context) ReadIndices(p string) (*IndexFile, error) {
+	var data []byte
+	var err error
+	if data, err = ioutil.ReadFile(indicesAbsPath(c.AbsPath)); err != nil {
+		return nil, err
+	}
+
+	index := IndexFile{}
+	err = json.Unmarshal(data, &index)
+	return &index, err
+}
+
+func (c *Context) WriteIndices(index *IndexFile, p string) (err error) {
+	var data []byte
+	if data, err = json.Marshal(index); err != nil {
+		return
+	}
+	return ioutil.WriteFile(indicesAbsPath(p), data, 0600)
 }
 
 func (c *Context) Write() (err error) {
@@ -128,6 +163,10 @@ func gdPath(absPath string) string {
 
 func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
+}
+
+func indicesAbsPath(absPath string) string {
+	return path.Join(gdPath(absPath), "indices")
 }
 
 func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool) (
