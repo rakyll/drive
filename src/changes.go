@@ -101,8 +101,23 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 }
 
 func (g *Commands) clearMountPoints() {
-	for _, mtpt := range g.opts.Mounts {
-		mtpt.Unmount()
+	if g.opts.Mount == nil {
+		return
+	}
+	mount := g.opts.Mount
+	for _, point := range mount.Points {
+		point.Unmount()
+	}
+
+	if mount.CreatedMountDir != "" {
+		if rmErr := os.RemoveAll(mount.CreatedMountDir); rmErr != nil {
+			fmt.Printf("clearMountPoints removing %s: %v\n", mount.CreatedMountDir, rmErr)
+		}
+	}
+	if mount.ShortestMountRoot != "" {
+		if rmErr := os.RemoveAll(mount.ShortestMountRoot); rmErr != nil {
+			fmt.Printf("clearMountPoints: shortestMountRoot: %v\n", mount.ShortestMountRoot, rmErr)
+		}
 	}
 }
 

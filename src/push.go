@@ -54,10 +54,13 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	for _, mt := range g.opts.Mounts {
-		ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
-		if cerr == nil {
-			cl = append(cl, ccl...)
+	mount := g.opts.Mount
+	if mount != nil {
+		for _, mt := range mount.Points {
+			ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
+			if cerr == nil {
+				cl = append(cl, ccl...)
+			}
 		}
 	}
 

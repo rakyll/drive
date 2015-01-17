@@ -41,9 +41,7 @@ type Options struct {
 	Hidden bool
 	// Allows listing of content in trash
 	InTrash bool
-	// Mounts is a list of all mountpoints
-	// of paths that are not in the current drive context
-	Mounts []*config.MountPoint
+	Mount *config.Mount
 	// NoClobber when set prevents overwriting of stale content
 	NoClobber bool
 	// NoPrompt overwrites any prompt pauses

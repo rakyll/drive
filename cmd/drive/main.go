@@ -337,7 +337,7 @@ func (cmd *pushCmd) pushMounted(args []string) {
 	if !*cmd.mountedPush {
 		contextArgs = args
 	} else {
-		// Expectation is that at least one path has to be passed
+		// Expectation is that at least one path has to be passed in
 		if argc < 2 {
 			cwd, cerr := os.Getwd()
 			if cerr != nil {
@@ -359,11 +359,14 @@ func (cmd *pushCmd) pushMounted(args []string) {
 		path = ""
 	}
 
-	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
-	sources = append(sources, auxSrcs...)
+	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
+
+	root := context.AbsPathOf("")
+	sources, err = relativePaths(root, auxSrcs)
+	exitWithError(err)
 
 	options := cmd.createPushOptions()
-	options.Mounts = mountPoints
+	options.Mount = mount
 	options.Sources = sources
 
 	exitWithError(drive.New(context, options).Push())
@@ -574,16 +577,11 @@ func exitWithError(err error) {
 	}
 }
 
-func preprocessArgs(args []string) ([]string, *config.Context, string) {
-	var relPaths []string
-	context, path := discoverContext(args)
-	root := context.AbsPathOf("")
-
-	if len(args) < 1 {
-		args = []string{"."}
-	}
-
+func relativePaths(root string, args []string) ([]string, error) {
 	var err error
+	var relPath string
+	var relPaths []string
+
 	for _, p := range args {
 		p, err = filepath.Abs(p)
 		if err != nil {
@@ -591,16 +589,37 @@ func preprocessArgs(args []string) ([]string, *config.Context, string) {
 			continue
 		}
 
-		relPath, err := filepath.Rel(root, p)
+		sRoot := config.LeastNonExistantRoot(p)
+		if sRoot != "" {
+			p = sRoot
+		}
+
+		relPath, err = filepath.Rel(root, p)
+		if err != nil {
+			break
+		}
+
 		if relPath == "." {
 			relPath = ""
 		}
 
-		exitWithError(err)
-
 		relPath = "/" + relPath
 		relPaths = append(relPaths, relPath)
 	}
+
+	return relPaths, err
+}
+
+func preprocessArgs(args []string) ([]string, *config.Context, string) {
+	context, path := discoverContext(args)
+	root := context.AbsPathOf("")
+
+	if len(args) < 1 {
+		args = []string{"."}
+	}
+
+	relPaths, err := relativePaths(root, args)
+	exitWithError(err)
 
 	return uniqOrderedStr(relPaths), context, path
 }
