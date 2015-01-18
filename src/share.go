@@ -16,13 +16,15 @@ package drive
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
 type AccountType int
 
 const (
-	Anyone = 1 << iota
+	UnknownAccountType = 1 << iota
+	Anyone
 	User
 	Domain
 	Group
@@ -31,7 +33,8 @@ const (
 type Role int
 
 const (
-	Owner = 1 << iota
+	UnknownRole = 1 << iota
+	Owner
 	Reader
 	Writer
 	Commenter
@@ -65,6 +68,39 @@ func (a *AccountType) String() string {
 	return "unknown"
 }
 
+func stringToRole() func(string) Role {
+	roleMap := make(map[string]Role)
+	roles := []Role{UnknownRole, Anyone, User, Domain, Group}
+	for _, role := range roles {
+		roleMap[role.String()] = role
+	}
+	return func(s string) Role {
+		r, ok := roleMap[strings.ToLower(s)]
+		if !ok {
+			return UnknownRole
+		}
+		return r
+	}
+}
+
+func stringToAccountType() func(string) AccountType {
+	accountMap := make(map[string]AccountType)
+	accounts := []AccountType{UnknownAccountType, Owner, Reader, Writer, Commenter}
+	for _, account := range accounts {
+		accountMap[account.String()] = account
+	}
+	return func(s string) AccountType {
+		a, ok := accountMap[strings.ToLower(s)]
+		if !ok {
+			return UnknownAccountType
+		}
+		return a
+	}
+}
+
+var reverseRoleResolve = stringToRole()
+var reverseAccountTypeResolve = stringToAccountType()
+
 func (g *Commands) resolveRemotePaths(relToRootPaths []string) (files []*File) {
 	var wg sync.WaitGroup
 
@@ -83,6 +119,77 @@ func (g *Commands) resolveRemotePaths(relToRootPaths []string) (files []*File) {
 	return files
 }
 
+func emailsToIds(g *Commands, emails []string) map[string]string {
+	emailToIds := make(map[string]string)
+	var wg sync.WaitGroup
+	wg.Add(len(emails))
+	for _, email := range emails {
+		go func(email string, wgg *sync.WaitGroup) {
+			defer wgg.Done()
+			emailId, err := g.rem.idForEmail(email)
+			if err == nil {
+				emailToIds[email] = emailId
+			}
+		}(email, &wg)
+	}
+	wg.Wait()
+	return emailToIds
+}
+
+func (c *Commands) Unshare() (err error) {
+	return c.share(true)
+}
+
 func (c *Commands) Share() (err error) {
-	return fmt.Errorf("Unimplemented")
+	return c.share(false)
+}
+
+func (c *Commands) share(revoke bool) (err error) {
+	files := c.resolveRemotePaths(c.opts.Sources)
+
+	var role Role
+	var accountType AccountType
+	var emails []string
+	var emailMessage string
+
+	meta := *c.opts.Meta
+	if meta != nil {
+		emailList, eOk := meta["emails"]
+		if eOk {
+			emails = emailList
+			if false {
+				emailIdMap := emailsToIds(c, emailList)
+				fmt.Println(emailIdMap)
+			}
+		}
+
+		roleList, rOk := meta["role"]
+		if rOk && len(roleList) >= 1 {
+			role = reverseRoleResolve(roleList[0])
+		}
+		accountTypeList, aOk := meta["accountType"]
+		if aOk {
+			accountType = reverseAccountTypeResolve(accountTypeList[0])
+		}
+
+		emailMessageList, emOk := meta["emailMessage"]
+		if emOk && len(emailMessageList) >= 1 {
+			emailMessage = strings.Join(emailMessageList, "\n")
+		}
+	}
+
+	for _, file := range files {
+		if revoke {
+			if err := c.rem.deletePermissions(file.Id, accountType); err != nil {
+				return fmt.Errorf("%s: %v", file.Name, err)
+			}
+		}
+		for _, email := range emails {
+			_, err = c.rem.insertPermissions(file.Id, email, emailMessage, role, accountType)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

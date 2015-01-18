@@ -51,6 +51,8 @@ func main() {
 	command.On(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
 	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
 	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
+	command.On(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
+	command.On(drive.UnshareKey, drive.DescUnshare, &unshareCmd{}, []string{})
 	command.On(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
 	command.On(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
 	command.On(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
@@ -502,6 +504,61 @@ func (cmd *publishCmd) Run(args []string) {
 		Path:    path,
 		Sources: sources,
 	}).Publish())
+}
+
+type unshareCmd struct {
+	accountType *string
+}
+
+func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.accountType = fs.String("type", "", "scope of account to revoke access to")
+	return fs
+}
+
+func (cmd *unshareCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	meta := map[string][]string{
+		"accountType": uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Meta:    &meta,
+		Path:    path,
+		Sources: sources,
+	}).Unshare())
+}
+
+type shareCmd struct {
+	emails      *string
+	message     *string
+	role        *string
+	accountType *string
+}
+
+func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.emails = fs.String("emails", "", "emails to share the file to")
+	cmd.message = fs.String("message", "", "message to send receipients")
+	cmd.role = fs.String("role", "", "role to set to receipients of share")
+	cmd.accountType = fs.String("type", "", "scope of accounts to share files with")
+	return fs
+}
+
+func (cmd *shareCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	meta := map[string][]string{
+		"emailMessage": []string{*cmd.message},
+		"emails":       uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.emails, ","))),
+		"role":         uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.role, ","))),
+		"accountType":  uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Meta:    &meta,
+		Path:    path,
+		Sources: sources,
+	}).Share())
 }
 
 func initContext(args []string) *config.Context {

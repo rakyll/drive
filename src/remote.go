@@ -243,9 +243,17 @@ func (r *Remote) listPermissions(id string) ([]*drive.Permission, error) {
 	return res.Items, nil
 }
 
-func (r *Remote) insertPermissions(id string, role Role, accountType AccountType) (*drive.Permission, error) {
+func (r *Remote) insertPermissions(id, value, emailMessage string, role Role, accountType AccountType) (*drive.Permission, error) {
 	perm := &drive.Permission{Role: role.String(), Type: accountType.String()}
-	return r.service.Permissions.Insert(id, perm).Do()
+	if value != "" {
+		perm.Value = value
+	}
+	req := r.service.Permissions.Insert(id, perm)
+
+	if emailMessage != "" {
+		req = req.EmailMessage(emailMessage)
+	}
+	return req.Do()
 }
 
 func (r *Remote) deletePermissions(id string, accountType AccountType) error {
@@ -257,7 +265,7 @@ func (r *Remote) Unpublish(id string) error {
 }
 
 func (r *Remote) Publish(id string) (string, error) {
-	_, err := r.insertPermissions(id, Reader, Anyone)
+	_, err := r.insertPermissions(id, "", "", Reader, Anyone)
 	if err != nil {
 		return "", err
 	}

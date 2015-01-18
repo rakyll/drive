@@ -19,6 +19,8 @@
   - [Pushing](#pushing)
   - [Publishing](#publishing)
   - [Unpublishing](#unpublishing)
+  - [Sharing](#sharing)
+  - [Unsharing](#unsharing)
   - [Touching](#touch)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
@@ -154,6 +156,28 @@ The `unpub` command is the opposite of `pub`. It unpublishes a previously publis
 
 ```shell
 $ drive unpub photos
+```
+
+### Sharing
+
+The `share` command enables you to share a set of files with specific users and assign them specific roles as well as specific generic access to the files.
+
+```shell
+$ drive share -emails odeke@ualberta.ca,odeke.ex@gmail.com -message "This is the substring file I told you about" -role writer -type group mnt/substringfinder.c projects/kmp.c
+```
+
+For example to share a file with users of a mailing list and a custom message
+
+```shell
+$ drive share -emails drive-mailing-list@gmail.com -message "Here is the drive code" -role group mnt/drive
+```
+
+### Unsharing
+
+The `unshare` command revokes access of a specific accountType to a set of files.
+
+```shell
+$ drive unshare -type group mnt/drive
 ```
 
 ### Touching

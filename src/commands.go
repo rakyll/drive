@@ -41,6 +41,7 @@ type Options struct {
 	Hidden bool
 	// Allows listing of content in trash
 	InTrash bool
+	Meta    *map[string][]string
 	Mount   *config.Mount
 	// NoClobber when set prevents overwriting of stale content
 	NoClobber bool

@@ -31,31 +31,37 @@ const (
 	PubKey        = "pub"
 	HelpKey       = "help"
 	QuotaKey      = "quota"
+	ShareKey      = "share"
 	TouchKey      = "touch"
 	TrashKey      = "trash"
+	UnshareKey    = "unshare"
 	UntrashKey    = "untrash"
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 )
 
 const (
-	DescAbout      = "print out information about your Google drive"
-	DescAll        = "print out the entire help section"
-	DescDiff       = "compares local files with their remote equivalent"
-	DescEmptyTrash = "permanently cleans out your trash"
-	DescFeatures   = "returns information about the features of your drive"
-	DescHelp       = "Get help for a topic"
-	DescInit       = "initializes a directory and authenticates user"
-	DescList       = "lists the contents of remote path"
-	DescQuota      = "prints out information related to your quota space"
-	DescPublish    = "publishes a file and prints its publicly available url"
-	DescPull       = "pulls remote changes from Google Drive"
-	DescPush       = "push local changes to Google Drive"
-	DescTouch      = "updates a remote file's modification time to that currently on the server"
-	DescTrash      = "moves files to trash"
-	DescUntrash    = "restores files from trash to their original locations"
-	DescUnpublish  = "revokes public access to a file"
-	DescVersion    = "prints the version"
+	DescAbout       = "print out information about your Google drive"
+	DescAll         = "print out the entire help section"
+	DescDiff        = "compares local files with their remote equivalent"
+	DescEmptyTrash  = "permanently cleans out your trash"
+	DescFeatures    = "returns information about the features of your drive"
+	DescHelp        = "Get help for a topic"
+	DescInit        = "initializes a directory and authenticates user"
+	DescList        = "lists the contents of remote path"
+	DescQuota       = "prints out information related to your quota space"
+	DescPublish     = "publishes a file and prints its publicly available url"
+	DescPull        = "pulls remote changes from Google Drive"
+	DescPush        = "push local changes to Google Drive"
+	DescShare       = "share files with specific emails giving the specified users specifies roles and permissions"
+	DescTouch       = "updates a remote file's modification time to that currently on the server"
+	DescTrash       = "moves files to trash"
+	DescUnshare     = "revoke a user's access to a file"
+	DescUntrash     = "restores files from trash to their original locations"
+	DescUnpublish   = "revokes public access to a file"
+	DescVersion     = "prints the version"
+	DescAccountType = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
+	DescRoles       = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
 )
 
 var docMap = map[string][]string{
@@ -91,10 +97,20 @@ var docMap = map[string][]string{
 		"List the information related a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
-	PubKey:     []string{DescPublish, "Accepts multiple paths"},
-	QuotaKey:   []string{DescQuota},
-	TouchKey:   []string{DescTouch},
-	TrashKey:   []string{DescTrash, "Accepts multiple paths"},
+	PubKey:   []string{DescPublish, "Accepts multiple paths"},
+	QuotaKey: []string{DescQuota},
+	ShareKey: []string{
+		DescShare, "Accepts multiple paths",
+		"Specify the emails to share with as well as the message to send them on notification",
+		"Accepted values for:\n+ accountType: ",
+		DescAccountType, "\n+ roles:", DescRoles,
+	},
+	TouchKey: []string{DescTouch},
+	TrashKey: []string{DescTrash, "Accepts multiple paths"},
+	UnshareKey: []string{
+		DescUnshare, "Accepts multiple paths",
+		"Accepted values for accountTypes::", DescAccountType,
+	},
 	UntrashKey: []string{DescUntrash, "Accepts multiple paths"},
 	UnpubKey:   []string{DescUnpublish, "Accepts multiple paths"},
 	VersionKey: []string{
