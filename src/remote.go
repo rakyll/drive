@@ -227,13 +227,37 @@ func (r *Remote) Untrash(id string) error {
 	return err
 }
 
+func (r *Remote) idForEmail(email string) (string, error) {
+	perm, err := r.service.Permissions.GetIdForEmail(email).Do()
+	if err != nil {
+		return "", err
+	}
+	return perm.Id, nil
+}
+
+func (r *Remote) listPermissions(id string) ([]*drive.Permission, error) {
+	res, err := r.service.Permissions.List(id).Do()
+	if err != nil {
+		return nil, err
+	}
+	return res.Items, nil
+}
+
+func (r *Remote) insertPermissions(id string, role Role, accountType AccountType) (*drive.Permission, error) {
+	perm := &drive.Permission{Role: role.String(), Type: accountType.String()}
+	return r.service.Permissions.Insert(id, perm).Do()
+}
+
+func (r *Remote) deletePermissions(id string, accountType AccountType) error {
+	return r.service.Permissions.Delete(id, accountType.String()).Do()
+}
+
 func (r *Remote) Unpublish(id string) error {
-	return r.service.Permissions.Delete(id, "anyone").Do()
+	return r.deletePermissions(id, Anyone)
 }
 
 func (r *Remote) Publish(id string) (string, error) {
-	perm := &drive.Permission{Type: "anyone", Role: "reader"}
-	_, err := r.service.Permissions.Insert(id, perm).Do()
+	_, err := r.insertPermissions(id, Reader, Anyone)
 	if err != nil {
 		return "", err
 	}
