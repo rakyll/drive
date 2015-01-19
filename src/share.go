@@ -40,6 +40,15 @@ const (
 	Commenter
 )
 
+type shareChange struct {
+	emailMessage string
+	emails       []string
+	role         Role
+	accountType  AccountType
+	files        []*File
+	revoke       bool
+}
+
 func (r *Role) String() string {
 	switch *r {
 	case Owner:
@@ -144,6 +153,60 @@ func (c *Commands) Share() (err error) {
 	return c.share(false)
 }
 
+func showPromptShareChanges(change *shareChange) bool {
+	if len(change.files) < 1 {
+		return false
+	}
+	if change.revoke {
+		fmt.Printf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n", change.accountType.String())
+		for _, file := range change.files {
+			fmt.Println("+ ", file.Name)
+		}
+		fmt.Println()
+		return promptForChanges()
+	}
+
+	if len(change.emails) < 1 {
+		return false
+	}
+
+	fmt.Println("Message:\n\t", change.emailMessage)
+	fmt.Println("Receipients:")
+	for _, email := range change.emails {
+		fmt.Printf("\t\033[92m+\033[00m %s\n", email)
+	}
+
+	fmt.Println("\nFile(s) to share:")
+	for _, file := range change.files {
+		if file == nil {
+			continue
+		}
+		fmt.Printf("\t\033[92m+\033[00m %s\n", file.Name)
+	}
+	return promptForChanges()
+}
+
+func (c *Commands) playShareChanges(change *shareChange) error {
+	if !showPromptShareChanges(change) {
+		return nil
+	}
+	for _, file := range change.files {
+		if change.revoke {
+			if err := c.rem.deletePermissions(file.Id, change.accountType); err != nil {
+				return fmt.Errorf("%s: %v", file.Name, err)
+			}
+		}
+
+		for _, email := range change.emails {
+			_, err := c.rem.insertPermissions(file.Id, email, change.emailMessage, change.role, change.accountType)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Commands) share(revoke bool) (err error) {
 	files := c.resolveRemotePaths(c.opts.Sources)
 
@@ -178,18 +241,14 @@ func (c *Commands) share(revoke bool) (err error) {
 		}
 	}
 
-	for _, file := range files {
-		if revoke {
-			if err := c.rem.deletePermissions(file.Id, accountType); err != nil {
-				return fmt.Errorf("%s: %v", file.Name, err)
-			}
-		}
-		for _, email := range emails {
-			_, err = c.rem.insertPermissions(file.Id, email, emailMessage, role, accountType)
-			if err != nil {
-				return err
-			}
-		}
+	change := shareChange{
+		accountType:  accountType,
+		emailMessage: emailMessage,
+		emails:       emails,
+		files:        files,
+		revoke:       revoke,
+		role:         role,
 	}
-	return nil
+
+	return c.playShareChanges(&change)
 }
