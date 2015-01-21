@@ -121,6 +121,10 @@ func (g *Commands) clearMountPoints() {
 	}
 }
 
+func (g *Commands) differ(a, b *File) bool {
+	return fileDifferences(a, b, g.opts.IgnoreChecksum) == DifferNone
+}
+
 func (g *Commands) resolveChangeListRecv(
 	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
@@ -135,7 +139,7 @@ func (g *Commands) resolveChangeListRecv(
 		if !g.opts.Force && hasExportLinks(r) {
 			// The case when we have files that don't provide the download urls
 			// but exportable links, we just need to check that mod times are the same.
-			mask := fileDifferences(r, l)
+			mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
 			if !dirTypeDiffers(mask) && !modTimeDiffers(mask) {
 				return cl, nil
 			}
@@ -145,6 +149,7 @@ func (g *Commands) resolveChangeListRecv(
 
 	change.Force = g.opts.Force
 	change.NoClobber = g.opts.NoClobber
+	change.IgnoreChecksum = g.opts.IgnoreChecksum
 
 	if change.Op() != OpNone {
 		cl = append(cl, change)

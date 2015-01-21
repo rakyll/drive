@@ -322,28 +322,37 @@ func indexContent(mask int) bool {
 	return (mask & OptContentAsIndexableText) != 0
 }
 
-func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File, mask int) (f *File, err error) {
+type upsertOpt struct {
+	parentId       string
+	fsAbsPath      string
+	src            *File
+	dest           *File
+	mask           int
+	ignoreChecksum bool
+}
+
+func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	var body io.Reader
-	body, err = os.Open(fsAbsPath)
+	body, err = os.Open(args.fsAbsPath)
 	if err != nil {
 		return
 	}
 
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
-		Title:   urlToPath(src.Name, false),
-		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
+		Title:   urlToPath(args.src.Name, false),
+		Parents: []*drive.ParentReference{&drive.ParentReference{Id: args.parentId}},
 	}
-	if src.IsDir {
+	if args.src.IsDir {
 		uploaded.MimeType = DriveFolderMimeType
 	}
 
 	// Ensure that the ModifiedDate is retrieved from local
-	uploaded.ModifiedDate = toUTCString(src.ModTime)
+	uploaded.ModifiedDate = toUTCString(args.src.ModTime)
 
-	if src.Id == "" {
+	if args.src.Id == "" {
 		req := r.service.Files.Insert(uploaded)
-		if !src.IsDir && body != nil {
+		if !args.src.IsDir && body != nil {
 			req = req.Media(body)
 		}
 		if uploaded, err = req.Do(); err != nil {
@@ -353,30 +362,30 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File,
 	}
 
 	// update the existing
-	req := r.service.Files.Update(src.Id, uploaded)
+	req := r.service.Files.Update(args.src.Id, uploaded)
 
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
 
 	// Next set all the desired attributes
 	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
-	if ocr(mask) {
+	if ocr(args.mask) {
 		req.Ocr(true)
 	}
-	if convert(mask) {
+	if convert(args.mask) {
 		req.Convert(true)
 	}
-	if pin(mask) {
+	if pin(args.mask) {
 		req.Pinned(true)
 	}
-	if indexContent(mask) {
+	if indexContent(args.mask) {
 		req.UseContentAsIndexableText(true)
 	}
 
-	if !src.IsDir {
-		if dest == nil {
+	if !args.src.IsDir {
+		if args.dest == nil {
 			req = req.Media(body)
-		} else if mask := fileDifferences(src, dest); checksumDiffers(mask) {
+		} else if mask := fileDifferences(args.src, args.dest, args.ignoreChecksum); checksumDiffers(mask) {
 			req = req.Media(body)
 		}
 	}

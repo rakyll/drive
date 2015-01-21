@@ -98,7 +98,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 	// Simple heuristic to avoid downloading all the
 	// content yet it could just be a modTime difference
-	mask := fileDifferences(change.Src, change.Dest)
+	mask := fileDifferences(change.Src, change.Dest, change.IgnoreChecksum)
 	if checksumDiffers(mask) {
 		// download and replace
 		if err = g.download(change, exports); err != nil {

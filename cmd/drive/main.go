@@ -197,13 +197,14 @@ func (cmd *listCmd) Run(args []string) {
 }
 
 type pullCmd struct {
-	exportsDir *string
-	export     *string
-	force      *bool
-	hidden     *bool
-	noPrompt   *bool
-	noClobber  *bool
-	recursive  *bool
+	exportsDir     *string
+	export         *string
+	force          *bool
+	hidden         *bool
+	noPrompt       *bool
+	noClobber      *bool
+	recursive      *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -214,6 +215,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 
 	return fs
@@ -235,15 +237,16 @@ func (cmd *pullCmd) Run(args []string) {
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
-		Exports:    uniqOrderedStr(exports),
-		ExportsDir: strings.Trim(*cmd.exportsDir, " "),
-		Force:      *cmd.force,
-		Hidden:     *cmd.hidden,
-		NoPrompt:   *cmd.noPrompt,
-		NoClobber:  *cmd.noClobber,
-		Path:       path,
-		Recursive:  *cmd.recursive,
-		Sources:    sources,
+		Exports:        uniqOrderedStr(exports),
+		ExportsDir:     strings.Trim(*cmd.exportsDir, " "),
+		Force:          *cmd.force,
+		Hidden:         *cmd.hidden,
+		IgnoreChecksum: *cmd.ignoreChecksum,
+		NoPrompt:       *cmd.noPrompt,
+		NoClobber:      *cmd.noClobber,
+		Path:           path,
+		Recursive:      *cmd.recursive,
+		Sources:        sources,
 	}).Pull())
 }
 
@@ -259,7 +262,8 @@ type pushCmd struct {
 	convert *bool
 	// ocr when set indicates that Optical Character Recognition should be
 	// attempted on .[gif, jpg, pdf, png] uploads
-	ocr *bool
+	ocr            *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -270,6 +274,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
 	return fs
 }
@@ -322,12 +327,13 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 	}
 
 	return &drive.Options{
-		Force:     *cmd.force,
-		Hidden:    *cmd.hidden,
-		NoClobber: *cmd.noClobber,
-		NoPrompt:  *cmd.noPrompt,
-		TypeMask:  mask,
-		Recursive: *cmd.recursive,
+		Force:          *cmd.force,
+		Hidden:         *cmd.hidden,
+		NoClobber:      *cmd.noClobber,
+		NoPrompt:       *cmd.noPrompt,
+		TypeMask:       mask,
+		IgnoreChecksum: *cmd.ignoreChecksum,
+		Recursive:      *cmd.recursive,
 	}
 }
 
@@ -404,21 +410,24 @@ func (cmd *aboutCmd) Run(args []string) {
 }
 
 type diffCmd struct {
-	hidden *bool
+	hidden         *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	return fs
 }
 
 func (cmd *diffCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Recursive: true,
-		Path:      path,
-		Hidden:    *cmd.hidden,
-		Sources:   sources,
+		Recursive:      true,
+		Path:           path,
+		Hidden:         *cmd.hidden,
+		Sources:        sources,
+		IgnoreChecksum: *cmd.ignoreChecksum,
 	}).Diff())
 }
 

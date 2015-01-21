@@ -91,6 +91,12 @@ To pull specific files or directories, pass in one or more paths:
 $ drive pull photos/img001.png docs
 ```
 
+Note: To ignore checksum verification during a pull:
+
+```shell
+$ drive pull -ignore-checksum
+```
+
 #### Exporting Docs
 
 By default, the `pull` command will export Google Docs documents as PDF files. To specify other formats, use the `-export` option:
@@ -125,6 +131,13 @@ $ drive pull -export pdf,rtf,docx,txt -export-dir ~/Desktop/exports
 The `push` command uploads data to Google Drive to mirror data stored locally.
 
 Like `pull`, you can run it without any arguments to push all of the files from the current path, or you can pass in one or more paths to push specific files or directories.
+
+Note: To ignore checksum verification during a push:
+
+```shell
+$ drive push -ignore-checksum
+```
+
 
 To get Google Drive to convert a file to its native Google Docs format
 

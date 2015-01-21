@@ -39,6 +39,9 @@ type Options struct {
 	Force bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
+	// IgnoreChecksum when set avoids the step
+	// of comparing checksums as a final check.
+	IgnoreChecksum bool
 	// Allows listing of content in trash
 	InTrash bool
 	Meta    *map[string][]string

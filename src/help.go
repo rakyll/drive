@@ -41,28 +41,37 @@ const (
 )
 
 const (
-	DescAbout       = "print out information about your Google drive"
-	DescAll         = "print out the entire help section"
-	DescDiff        = "compares local files with their remote equivalent"
-	DescEmptyTrash  = "permanently cleans out your trash"
-	DescFeatures    = "returns information about the features of your drive"
-	DescHelp        = "Get help for a topic"
-	DescInit        = "initializes a directory and authenticates user"
-	DescList        = "lists the contents of remote path"
-	DescQuota       = "prints out information related to your quota space"
-	DescPublish     = "publishes a file and prints its publicly available url"
-	DescPull        = "pulls remote changes from Google Drive"
-	DescPush        = "push local changes to Google Drive"
-	DescShare       = "share files with specific emails giving the specified users specifies roles and permissions"
-	DescTouch       = "updates a remote file's modification time to that currently on the server"
-	DescTrash       = "moves files to trash"
-	DescUnshare     = "revoke a user's access to a file"
-	DescUntrash     = "restores files from trash to their original locations"
-	DescUnpublish   = "revokes public access to a file"
-	DescVersion     = "prints the version"
-	DescAccountType = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
-	DescRoles       = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
+	DescAbout          = "print out information about your Google drive"
+	DescAll            = "print out the entire help section"
+	DescDiff           = "compares local files with their remote equivalent"
+	DescEmptyTrash     = "permanently cleans out your trash"
+	DescFeatures       = "returns information about the features of your drive"
+	DescHelp           = "Get help for a topic"
+	DescInit           = "initializes a directory and authenticates user"
+	DescList           = "lists the contents of remote path"
+	DescQuota          = "prints out information related to your quota space"
+	DescPublish        = "publishes a file and prints its publicly available url"
+	DescPull           = "pulls remote changes from Google Drive"
+	DescPush           = "push local changes to Google Drive"
+	DescShare          = "share files with specific emails giving the specified users specifies roles and permissions"
+	DescTouch          = "updates a remote file's modification time to that currently on the server"
+	DescTrash          = "moves files to trash"
+	DescUnshare        = "revoke a user's access to a file"
+	DescUntrash        = "restores files from trash to their original locations"
+	DescUnpublish      = "revokes public access to a file"
+	DescVersion        = "prints the version"
+	DescAccountType    = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
+	DescRoles          = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
+	DescIgnoreChecksum = "avoids computation of checksums as a final check" +
+		"in case for example you are low on bandwidth"
 )
+
+const (
+	CLIOptionIgnoreChecksum = "ignore-checksum"
+)
+
+var skipChecksumNote = fmt.Sprintf(
+	"\nNote: You can skip checksum verification by using `-%s`", CLIOptionIgnoreChecksum)
 
 var docMap = map[string][]string{
 	AboutKey: []string{
@@ -70,6 +79,7 @@ var docMap = map[string][]string{
 	},
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",
+		skipChecksumNote,
 	},
 	EmptyTrashKey: []string{
 		DescEmptyTrash,
@@ -85,12 +95,14 @@ var docMap = map[string][]string{
 	PullKey: []string{
 		DescPull, "Downloads content from the remote drive or modifies",
 		" local content to match that on your Google Drive",
+		skipChecksumNote,
 	},
 	PushKey: []string{
 		DescPush, "Uploads content to your Google Drive from your local path",
 		"Push comes in a couple of flavors",
 		"\t* Ordinary push: `drive push path1 path2 path3`",
 		"\t* Mounted push: `drive push -m path1 [path2 path3] drive_context_path`",
+		skipChecksumNote,
 	},
 	ListKey: []string{
 		DescList,

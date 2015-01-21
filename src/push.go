@@ -197,7 +197,15 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		return
 	}
 
-	_, err = g.rem.UpsertByComparison(parent.Id, absPath, change.Src, change.Dest, g.opts.TypeMask)
+	args := upsertOpt{
+		parentId:       parent.Id,
+		fsAbsPath:      absPath,
+		src:            change.Src,
+		dest:           change.Dest,
+		mask:           g.opts.TypeMask,
+		ignoreChecksum: g.opts.IgnoreChecksum,
+	}
+	_, err = g.rem.UpsertByComparison(&args)
 	return err
 }
 
