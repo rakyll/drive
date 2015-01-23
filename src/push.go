@@ -223,20 +223,25 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return g.rem.Trash(change.Dest.Id)
 }
 
-func list(context *config.Context, p string, hidden bool) (files []*File, err error) {
+func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
 	f, err = ioutil.ReadDir(absPath)
+	fileChan = make(chan *File)
 	if err != nil {
+		close(fileChan)
 		return
 	}
-	for _, file := range f {
-		if file.Name() == config.GDDirSuffix {
-			continue
+	go func() {
+		for _, file := range f {
+			if file.Name() == config.GDDirSuffix {
+				continue
+			}
+			if !isHidden(file.Name(), hidden) {
+				fileChan <- NewLocalFile(gopath.Join(absPath, file.Name()), file)
+			}
 		}
-		if !isHidden(file.Name(), hidden) {
-			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
-		}
-	}
+		close(fileChan)
+	}()
 	return
 }

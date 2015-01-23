@@ -46,7 +46,7 @@ func memoizeBytes() byteDescription {
 	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	maxLen := len(suffixes) - 1
 
-	f := func(b int64) string {
+	return func(b int64) string {
 		description, ok := cache[b]
 		if ok {
 			return description
@@ -66,8 +66,6 @@ func memoizeBytes() byteDescription {
 		cache[b] = description
 		return description
 	}
-
-	return f
 }
 
 var prettyBytes = memoizeBytes()
@@ -206,8 +204,6 @@ func (g *Commands) breadthFirst(parentId, parent,
 
 	req := g.rem.service.Files.List()
 	req.Q(expr)
-
-	// TODO: Get pageSize from g.opts
 	req.MaxResults(g.opts.PageSize)
 
 	var children []*drive.File

@@ -167,7 +167,7 @@ func (g *Commands) resolveChangeListRecv(
 	}
 
 	// look-up for children
-	var localChildren []*File
+	var localChildren chan *File
 	if l != nil {
 		localChildren, err = list(g.context, p, g.opts.Hidden)
 		if err != nil {
@@ -175,12 +175,9 @@ func (g *Commands) resolveChangeListRecv(
 		}
 	}
 
-	var remoteChildren []*File
+	var remoteChildren chan *File
 	if r != nil {
-		remoteChildren, err = g.rem.FindByParentId(r.Id, g.opts.Hidden)
-		if err != nil {
-			return
-		}
+		remoteChildren = g.rem.FindByParentId(r.Id, g.opts.Hidden)
 	}
 	dirlist := merge(remoteChildren, localChildren)
 
@@ -223,18 +220,16 @@ func (g *Commands) resolveChangeListRecv(
 	return cl, nil
 }
 
-func merge(remotes, locals []*File) (merged []*dirList) {
+func merge(remotes, locals chan *File) (merged []*dirList) {
 	localMap := map[string]*File{}
 
-	// Add support for FileSystems that allow same names but different files.
-
-	for _, l := range locals {
+	// TODO: Add support for FileSystems that allow same names but different files.
+	for l := range locals {
 		localMap[l.Name] = l
 	}
 
-	for _, r := range remotes {
+	for r := range remotes {
 		list := &dirList{remote: r}
-
 		// look for local
 		l, ok := localMap[r.Name]
 		if ok {
@@ -311,12 +306,10 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		fmt.Println("Everything is up-to-date.")
 		return false
 	}
-
 	summarizeChanges(changes, !noPrompt)
 
 	if noPrompt {
 		return true
 	}
-
 	return promptForChanges()
 }

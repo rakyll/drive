@@ -170,46 +170,48 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files []*File, err error) {
-	req := r.service.Files.List()
-
-	// TODO: use field selectors
-	expr := fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed)
-
-	pageToken := ""
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
+	var err error
+	var pageToken string
 	var results *drive.FileList
-	// TODO: Support channeling of results as they arrive to avoid long waits for results
 
-	req.Q(expr)
+	req := r.service.Files.List()
+	// TODO: use field selectors
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
 
-	for {
-		if pageToken != "" {
-			req = req.PageToken(pageToken)
-		}
-		results, err = req.Do()
-		if err != nil {
-			return
-		}
-		for _, f := range results.Items {
-			if isHidden(f.Title, hidden) { // ignore hidden files if hidden is not set
-				continue
+	fileChan = make(chan *File)
+
+	go func() {
+		for {
+			if pageToken != "" {
+				req = req.PageToken(pageToken)
 			}
-			files = append(files, NewRemoteFile(f))
-		}
+			results, err = req.Do()
+			if err != nil {
+				break
+			}
+			for _, f := range results.Items {
+				if isHidden(f.Title, hidden) { // ignore hidden files if hidden is not set
+					continue
+				}
+				fileChan <- NewRemoteFile(f)
+			}
 
-		pageToken = results.NextPageToken
-		if pageToken == "" {
-			break
+			pageToken = results.NextPageToken
+			if pageToken == "" {
+				break
+			}
 		}
-	}
-	return
+		close(fileChan)
+	}()
+	return fileChan
 }
 
-func (r *Remote) FindByParentId(parentId string, hidden bool) (files []*File, err error) {
+func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
 	return r.findByParentIdRaw(parentId, false, hidden)
 }
 
-func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) (files []*File, err error) {
+func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) chan *File {
 	return r.findByParentIdRaw(parentId, true, hidden)
 }
 
