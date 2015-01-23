@@ -168,7 +168,10 @@ func (g *Commands) resolveChangeListRecv(
 
 	// look-up for children
 	var localChildren chan *File
-	if l != nil {
+	if l == nil {
+		localChildren = make(chan *File)
+		close(localChildren)
+	} else {
 		localChildren, err = list(g.context, p, g.opts.Hidden)
 		if err != nil {
 			return
@@ -178,6 +181,9 @@ func (g *Commands) resolveChangeListRecv(
 	var remoteChildren chan *File
 	if r != nil {
 		remoteChildren = g.rem.FindByParentId(r.Id, g.opts.Hidden)
+	} else {
+		remoteChildren = make(chan *File)
+		close(remoteChildren)
 	}
 	dirlist := merge(remoteChildren, localChildren)
 
