@@ -112,12 +112,13 @@ func (g *Commands) List() (err error) {
 		// TODO: Allow traversal of shared content as well as designated paths
 		// Next for shared
 		sharedRemotes, sErr := g.rem.FindByPathShared("")
-		if sErr == nil && len(sharedRemotes) >= 1 {
+		if sErr == nil {
 			opt := attribute{
 				minimal: isMinimal(g.opts.TypeMask),
 				parent:  "",
+				mask:    g.opts.TypeMask,
 			}
-			for _, sFile := range sharedRemotes {
+			for sFile := range sharedRemotes {
 				sFile.pretty(opt)
 			}
 		}

@@ -126,6 +126,41 @@ func hasExportLinks(f *File) bool {
 	return len(f.ExportLinks) >= 1
 }
 
+func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
+	req := r.service.Changes.List()
+	if startChangeId >= 0 {
+		req = req.StartChangeId(startChangeId)
+	}
+
+	changeChan := make(chan *drive.Change)
+	go func() {
+		pageToken := ""
+		for {
+			if pageToken != "" {
+				req = req.PageToken(pageToken)
+			}
+			res, err := req.Do()
+			if err != nil {
+				break
+			}
+			for _, chItem := range res.Items {
+				changeChan <- chItem
+			}
+			pageToken = res.NextPageToken
+			if pageToken == "" {
+				break
+			}
+		}
+		close(changeChan)
+	}()
+
+	return changeChan, nil
+}
+
+func (r *Remote) change(changeId string) (*drive.Change, error) {
+	return r.service.Changes.Get(changeId).Do()
+}
+
 func RetrieveRefreshToken(context *config.Context) (string, error) {
 	transport := newTransport(context)
 	url := transport.Config.AuthCodeURL("")
@@ -170,33 +205,24 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
-	var err error
-	var pageToken string
-	var results *drive.FileList
-
-	req := r.service.Files.List()
-	// TODO: use field selectors
-	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
-
-	fileChan = make(chan *File)
-
+func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
+	fileChan := make(chan *File)
 	go func() {
+		pageToken := ""
 		for {
 			if pageToken != "" {
 				req = req.PageToken(pageToken)
 			}
-			results, err = req.Do()
+			results, err := req.Do()
 			if err != nil {
 				break
 			}
 			for _, f := range results.Items {
-				if isHidden(f.Title, hidden) { // ignore hidden files if hidden is not set
+				if isHidden(f.Title, hidden) { // ignore hidden files
 					continue
 				}
 				fileChan <- NewRemoteFile(f)
 			}
-
 			pageToken = results.NextPageToken
 			if pageToken == "" {
 				break
@@ -205,6 +231,13 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileC
 		close(fileChan)
 	}()
 	return fileChan
+}
+
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
+	req := r.service.Files.List()
+	// TODO: use field selectors
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	return reqDoPage(req, hidden)
 }
 
 func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
@@ -295,9 +328,15 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (r *Remote) Touch(id string) error {
-	_, err := r.service.Files.Touch(id).Do()
-	return err
+func (r *Remote) Touch(id string) (*File, error) {
+	f, err := r.service.Files.Touch(id).Do()
+	if err != nil {
+		return nil, err
+	}
+	if f == nil {
+		return nil, ErrPathNotExists
+	}
+	return NewRemoteFile(f), err
 }
 
 func toUTCString(t time.Time) string {
@@ -397,24 +436,18 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	return NewRemoteFile(uploaded), nil
 }
 
-func (r *Remote) findShared(p []string) (shared []*File, err error) {
+func (r *Remote) findShared(p []string) (chan *File, error) {
 	req := r.service.Files.List()
 	expr := "sharedWithMe=true"
 	if len(p) >= 1 {
 		expr = fmt.Sprintf("title = '%s' and %s", p[0], expr)
 	}
-	files, err := req.Do()
-	if err != nil || len(files.Items) < 1 {
-		return shared, ErrPathNotExists
-	}
-	shared = make([]*File, len(files.Items))
-	for i, it := range files.Items {
-		shared[i] = NewRemoteFile(it)
-	}
-	return
+	req = req.Q(expr)
+
+	return reqDoPage(req, false), nil
 }
 
-func (r *Remote) FindByPathShared(p string) (file []*File, err error) {
+func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	if p == "/" || p == "root" {
 		return r.findShared([]string{})
 	}

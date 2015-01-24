@@ -117,8 +117,11 @@ func (g *Commands) Touch() (err error) {
 				if relToRootPath == root {
 					continue
 				}
-				if tErr := g.touch(relToRootPath); tErr != nil {
+				file, tErr := g.touch(relToRootPath)
+				if tErr != nil {
 					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
+				} else if false { // TODO: Print this out if verbosity is set
+					fmt.Printf("%s: %v\n", relToRootPath, file.ModTime)
 				}
 			}
 			wg.Done()
@@ -131,14 +134,13 @@ func (g *Commands) Touch() (err error) {
 	return
 }
 
-func (g *Commands) touch(relToRootPath string) (err error) {
-	var file *File
-	file, err = g.rem.FindByPath(relToRootPath)
+func (g *Commands) touch(relToRootPath string) (*File, error) {
+	file, err := g.rem.FindByPath(relToRootPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if file == nil {
-		return ErrPathNotExists
+		return nil, ErrPathNotExists
 	}
 	return g.rem.Touch(file.Id)
 }
@@ -232,6 +234,7 @@ func list(context *config.Context, p string, hidden bool) (fileChan chan *File, 
 		close(fileChan)
 		return
 	}
+
 	go func() {
 		for _, file := range f {
 			if file.Name() == config.GDDirSuffix {
