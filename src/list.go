@@ -19,6 +19,8 @@ import (
 	drive "github.com/google/google-api-go-client/drive/v2"
 	"path/filepath"
 	"strings"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 var BytesPerKB = float64(1024)
@@ -216,7 +218,11 @@ func (g *Commands) breadthFirst(parentId, parent,
 		parent:  headPath,
 	}
 
+	spin := spinner.New(1)
 	for {
+		spin.Reset()
+		spin.Start()
+
 		if pageToken != "" {
 			req = req.PageToken(pageToken)
 		}
@@ -226,6 +232,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 			return false
 		}
 
+		spin.Stop()
 		for _, file := range res.Items {
 			rem := NewRemoteFile(file)
 			if isHidden(file.Title, g.opts.Hidden) {
@@ -247,10 +254,14 @@ func (g *Commands) breadthFirst(parentId, parent,
 		if pageToken == "" {
 			break
 		}
+
+		spin.Stop()
 		if !g.opts.NoPrompt && !nextPage() {
 			return false
 		}
 	}
+
+	spin.Stop()
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {

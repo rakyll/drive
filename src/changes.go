@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 type dirList struct {
@@ -199,6 +201,9 @@ func (g *Commands) resolveChangeListRecv(
 
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
+	spin := spinner.New(1)
+	spin.Start()
+
 	for j := 0; j < chunkCount; j += 1 {
 		end := i + chunkSize
 		if end >= srcLen {
@@ -223,10 +228,14 @@ func (g *Commands) resolveChangeListRecv(
 		i += chunkSize
 	}
 	wg.Wait()
+	spin.Stop()
 	return cl, nil
 }
 
 func merge(remotes, locals chan *File) (merged []*dirList) {
+	spin := spinner.New(1)
+	spin.Start()
+
 	localMap := map[string]*File{}
 
 	// TODO: Add support for FileSystems that allow same names but different files.
@@ -249,6 +258,7 @@ func merge(remotes, locals chan *File) (merged []*dirList) {
 	for _, l := range localMap {
 		merged = append(merged, &dirList{local: l})
 	}
+	spin.Stop()
 	return
 }
 
