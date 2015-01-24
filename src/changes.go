@@ -201,7 +201,7 @@ func (g *Commands) resolveChangeListRecv(
 
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
-	spin := spinner.New(1)
+	spin := spinner.New(10)
 	spin.Start()
 
 	for j := 0; j < chunkCount; j += 1 {

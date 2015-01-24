@@ -218,7 +218,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 		parent:  headPath,
 	}
 
-	spin := spinner.New(1)
+	spin := spinner.New(10)
 	for {
 		spin.Reset()
 		spin.Start()
