@@ -25,6 +25,7 @@
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
   - [Listing Files](#listing-files)
+  - [Stating Files](#stating-files)
   - [Quota](#quota)
   - [Features](#features)
   - [About](#about)
@@ -249,6 +250,21 @@ To get detailed information about the listings e.g owner information and the ver
 
 ```shell
 $ drive list -owners -l -version
+```
+
+### Stating Files
+
+The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and
+fileId etc. It is useful to help determine whom and what you want to be set when performing share/unshare
+
+```shell
+$ drive stat mnt
+```
+
+By default `stat` won't recursively stat a directory, to enable recursive stating:
+
+```shell
+$ drive stat -recursive mnt
 ```
 
 ### Quota

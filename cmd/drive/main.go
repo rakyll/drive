@@ -393,7 +393,8 @@ func (cmd *pushCmd) pushMounted(args []string) {
 	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
 
 	root := context.AbsPathOf("")
-	sources, err = relativePaths(root, auxSrcs)
+
+	sources, err = relativePathsOpt(root, auxSrcs, true)
 	exitWithError(err)
 
 	options := cmd.createPushOptions()
@@ -667,6 +668,10 @@ func exitWithError(err error) {
 }
 
 func relativePaths(root string, args []string) ([]string, error) {
+	return relativePathsOpt(root, args, false)
+}
+
+func relativePathsOpt(root string, args []string, leastNonExistant bool) ([]string, error) {
 	var err error
 	var relPath string
 	var relPaths []string
@@ -678,9 +683,11 @@ func relativePaths(root string, args []string) ([]string, error) {
 			continue
 		}
 
-		sRoot := config.LeastNonExistantRoot(p)
-		if sRoot != "" {
-			p = sRoot
+		if leastNonExistant {
+			sRoot := config.LeastNonExistantRoot(p)
+			if sRoot != "" {
+				p = sRoot
+			}
 		}
 
 		relPath, err = filepath.Rel(root, p)

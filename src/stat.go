@@ -17,51 +17,129 @@ package drive
 import (
 	"fmt"
 	drive "github.com/google/google-api-go-client/drive/v2"
+	"sync"
+	"time"
 )
 
 type keyValue struct {
-	path        string
-	file        *File
-	permissions []*drive.Permission
-	err         error
+	path string
+	err  error
 }
 
 func (g *Commands) Stat() error {
-	for _, relToRootPath := range g.opts.Sources {
-		res := g.stat(relToRootPath)
-		if res.err != nil {
-			fmt.Println(res.err)
-			continue
+	channelMap := make(map[int]chan *keyValue)
+	var wg sync.WaitGroup
+	wg.Add(len(g.opts.Sources))
+	for i, relToRootPath := range g.opts.Sources {
+		go func(id int, p string, chanMap *map[int]chan *keyValue, wgg *sync.WaitGroup) {
+			defer wgg.Done()
+			chMap := *chanMap
+
+			file, err := g.rem.FindByPath(relToRootPath)
+			if err == nil {
+				chMap[id] = g.stat(p, file)
+				return
+			}
+
+			fmt.Printf("%s: %v\n", p, err)
+			childChan := make(chan *keyValue)
+			close(childChan)
+			chMap[id] = childChan
+			return
+		}(i, relToRootPath, &channelMap, &wg)
+	}
+	wg.Wait()
+
+	throttle := time.Tick(1e9 / 10)
+	// Spin until all the channels are drained
+	for {
+		if len(channelMap) < 1 {
+			break
 		}
-		p, file, perms := res.path, res.file, res.permissions
-		if file == nil {
-			continue
+
+		for key, childChan := range channelMap {
+			select {
+			case v := <-childChan:
+				if v == nil { // Closed
+					delete(channelMap, key)
+				} else {
+					if v.err != nil {
+						fmt.Printf("v: %s err: %v\n", v.path, v.err)
+					}
+				}
+			default:
+			}
 		}
-		fmt.Println(p)
-		for _, perm := range perms {
-			prettyPermission(perm)
-		}
+
+		// Pause for a bit
+		<-throttle
 	}
 	return nil
 }
 
 func prettyPermission(perm *drive.Permission) {
-	fmt.Printf("Name: %v <%s>\nRole: %v\nAccountType: %v\nValue: %v\n", perm.Name, perm.EmailAddress, perm.Role, perm.Type, perm.Value)
+	fmt.Printf("\n*\nName: %v <%s>\nRole: %v\nAccountType: %v\n*\n", perm.Name, perm.EmailAddress, perm.Role, perm.Type)
 }
 
-func (g *Commands) stat(relToRootPath string) *keyValue {
-	file, err := g.rem.FindByPath(relToRootPath)
-	if err != nil {
-		return &keyValue{
-			err: err,
-		}
-	}
+func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
+	statChan := make(chan *keyValue)
 
-	perms, permErr := g.rem.listPermissions(file.Id)
-	return &keyValue{
-		path:        relToRootPath,
-		file:        file,
-		permissions: perms,
-		err:         permErr,
-	}
+	// Arbitrary value for throttle pause duration
+	throttle := time.Tick(1e9 / 5)
+	go func() {
+		kv := &keyValue{
+			path: relToRootPath,
+		}
+
+		defer func() {
+			statChan <- kv
+			statChan <- nil
+			close(statChan)
+		}()
+
+		perms, permErr := g.rem.listPermissions(file.Id)
+		if permErr != nil {
+			kv.err = permErr
+			return
+		}
+
+		fmt.Printf("\n\033[92m%s\033[00m\nFileId: %s\nSize: %v\n", relToRootPath, file.Id, prettyBytes(file.Size))
+		for _, perm := range perms {
+			prettyPermission(perm)
+		}
+		if !file.IsDir || !g.opts.Recursive {
+			return
+		}
+
+		remoteChildren := g.rem.FindByParentId(file.Id, g.opts.Hidden)
+		channelMap := make(map[int]chan *keyValue)
+		i := 0
+		for child := range remoteChildren {
+			childChan := g.stat(relToRootPath+"/"+child.Name, child)
+			<-throttle
+			channelMap[i] = childChan
+			i += 1
+		}
+
+		for {
+			if len(channelMap) < 1 {
+				break
+			}
+
+			for key, childChan := range channelMap {
+				select {
+				case v := <-childChan:
+					if v == nil { // Closed
+						delete(channelMap, key)
+					} else {
+						statChan <- v
+					}
+				default:
+					<-throttle
+				}
+			}
+			<-throttle
+		}
+	}()
+	return statChan
 }
