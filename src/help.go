@@ -32,6 +32,7 @@ const (
 	HelpKey       = "help"
 	QuotaKey      = "quota"
 	ShareKey      = "share"
+	StatKey       = "stat"
 	TouchKey      = "touch"
 	TrashKey      = "trash"
 	UnshareKey    = "unshare"
@@ -54,6 +55,7 @@ const (
 	DescPull           = "pulls remote changes from Google Drive"
 	DescPush           = "push local changes to Google Drive"
 	DescShare          = "share files with specific emails giving the specified users specifies roles and permissions"
+	DescStat           = "display information about a file"
 	DescTouch          = "updates a remote file's modification time to that currently on the server"
 	DescTrash          = "moves files to trash"
 	DescUnshare        = "revoke a user's access to a file"
@@ -116,6 +118,9 @@ var docMap = map[string][]string{
 		"Specify the emails to share with as well as the message to send them on notification",
 		"Accepted values for:\n+ accountType: ",
 		DescAccountType, "\n+ roles:", DescRoles,
+	},
+	StatKey: []string{
+		DescStat, "Accepts multiple paths",
 	},
 	TouchKey: []string{DescTouch},
 	TrashKey: []string{DescTrash, "Accepts multiple paths"},

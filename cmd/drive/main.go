@@ -52,6 +52,7 @@ func main() {
 	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
 	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
 	command.On(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
+	command.On(drive.StatKey, drive.DescStat, &statCmd{}, []string{})
 	command.On(drive.UnshareKey, drive.DescUnshare, &unshareCmd{}, []string{})
 	command.On(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
 	command.On(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
@@ -194,6 +195,28 @@ func (cmd *listCmd) Run(args []string) {
 		Sources:   sources,
 		TypeMask:  typeMask,
 	}).List())
+}
+
+type statCmd struct {
+	hidden    *bool
+	recursive *bool
+}
+
+func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
+	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
+	return fs
+}
+
+func (cmd *statCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	exitWithError(drive.New(context, &drive.Options{
+		Hidden:    *cmd.hidden,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+	}).Stat())
 }
 
 type pullCmd struct {

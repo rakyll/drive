@@ -73,6 +73,8 @@ type File struct {
 	Version int64
 	// The onwers of this file.
 	OwnerNames []string
+	// Permissions contains the overall permissions for this file
+	Permissions []*drive.Permission
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -94,6 +96,7 @@ func NewRemoteFile(f *drive.File) *File {
 		UserPermission: f.UserPermission,
 		Version:        f.Version,
 		OwnerNames:     f.OwnerNames,
+		Permissions:    f.Permissions,
 	}
 }
 
