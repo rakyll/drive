@@ -508,6 +508,12 @@ func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err
 }
 
 func (r *Remote) mkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := r.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
 	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
 	if rest == "" || last == "" {
 		return nil, fmt.Errorf("cannot tamper with root")

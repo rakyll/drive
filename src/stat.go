@@ -35,7 +35,7 @@ func (g *Commands) Stat() error {
 			defer wgg.Done()
 			chMap := *chanMap
 
-			file, err := g.rem.FindByPath(relToRootPath)
+			file, err := g.rem.FindByPath(p)
 			if err == nil {
 				chMap[id] = g.stat(p, file)
 				return

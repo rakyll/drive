@@ -216,6 +216,9 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
 	_, err = g.rem.UpsertByComparison(&args)
+	if err != nil {
+		fmt.Printf("%s: %v\n", change.Path, err)
+	}
 	return err
 }
 
