@@ -16,7 +16,7 @@ package drive
 
 import (
 	"fmt"
-	drive "github.com/google/google-api-go-client/drive/v2"
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"sync"
 	"time"
 )

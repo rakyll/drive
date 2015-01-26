@@ -231,7 +231,7 @@ func (c *Commands) share(revoke bool) (err error) {
 			role = reverseRoleResolve(roleList[0])
 		}
 		accountTypeList, aOk := meta["accountType"]
-		if aOk {
+		if aOk && len(accountTypeList) >= 1 {
 			accountType = reverseAccountTypeResolve(accountTypeList[0])
 		}
 
