@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 )
 
@@ -193,10 +194,17 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	p := strings.Split(change.Path, "/")
 	p = append([]string{"/"}, p[:len(p)-1]...)
-	parent, err = g.rem.FindByPath(gopath.Join(p...))
+	parentPath := gopath.Join(p...)
+	parent, err = g.rem.FindByPath(parentPath)
 	if err != nil {
-		fmt.Println(parent, err)
-		return
+		spin := spinner.New(10)
+		spin.Start()
+		parent, err = g.rem.mkdirAll(parentPath)
+		spin.Stop()
+		if err != nil || parent == nil {
+			fmt.Printf("%s: %v", change.Path, err)
+			return
+		}
 	}
 
 	args := upsertOpt{
@@ -208,6 +216,9 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
 	_, err = g.rem.UpsertByComparison(&args)
+	if err != nil {
+		fmt.Printf("%s: %v\n", change.Path, err)
+	}
 	return err
 }
 

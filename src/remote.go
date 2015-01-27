@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -375,7 +376,7 @@ type upsertOpt struct {
 func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(args.fsAbsPath)
-	if err != nil {
+	if err != nil && !args.src.IsDir {
 		return
 	}
 
@@ -504,6 +505,42 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err er
 
 func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
 	return r.findByPathRecvRaw(parentId, p, true)
+}
+
+func (r *Remote) mkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := r.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
+	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
+	if rest == "" || last == "" {
+		return nil, fmt.Errorf("cannot tamper with root")
+	}
+
+	parent, parentErr := r.FindByPath(rest)
+	if parentErr != nil && parentErr != ErrPathNotExists {
+		return parent, parentErr
+	}
+
+	if parent == nil {
+		parent, parentErr = r.mkdirAll(rest)
+		if parentErr != nil || parent == nil {
+			return parent, parentErr
+		}
+	}
+
+	remoteFile := &File{
+		IsDir: true,
+		Name:  last,
+	}
+
+	args := upsertOpt{
+		parentId: parent.Id,
+		src:      remoteFile,
+	}
+	return r.UpsertByComparison(&args)
 }
 
 func newAuthConfig(context *config.Context) *oauth.Config {
