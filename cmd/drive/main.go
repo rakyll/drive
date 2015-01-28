@@ -493,37 +493,61 @@ func (cmd *emptyTrashCmd) Run(args []string) {
 }
 
 type trashCmd struct {
-	hidden *bool
+	hidden  *bool
+	matches *bool
 }
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
+	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
 	return fs
 }
 
 func (cmd *trashCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path:    path,
-		Sources: sources,
-	}).Trash())
+	if !*cmd.matches {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: sources,
+		}).Trash())
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).TrashByMatch())
+	}
 }
 
 type untrashCmd struct {
-	hidden *bool
+	hidden  *bool
+	matches *bool
 }
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
+	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
 	return fs
 }
 
 func (cmd *untrashCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path:    path,
-		Sources: sources,
-	}).Untrash())
+	if !*cmd.matches {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: sources,
+		}).Untrash())
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).UntrashByMatch())
+	}
 }
 
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {

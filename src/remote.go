@@ -28,8 +28,8 @@ import (
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"github.com/odeke-em/drive/config"
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
 const (
@@ -216,6 +216,7 @@ func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
 			}
 			results, err := req.Do()
 			if err != nil {
+				fmt.Println(err)
 				break
 			}
 			for _, f := range results.Items {
@@ -463,6 +464,29 @@ func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 		return nEmpty
 	}(parts)
 	return r.findShared(nonEmpty)
+}
+
+func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (chan *File, error) {
+	parent, err := r.FindByPath(dirPath)
+	filesChan := make(chan *File)
+	if err != nil || parent == nil {
+		close(filesChan)
+		return filesChan, err
+	}
+
+	req := r.service.Files.List()
+	keySearches := make([]string, len(keywords))
+
+	for i, key := range keywords {
+		quoted := strconv.Quote(key)
+		keySearches[i] = fmt.Sprintf("(title contains %s and trashed=%v)", quoted, inTrash)
+	}
+
+	expr := strings.Join(keySearches, " or ")
+	// And always make sure that we are searching from this parent
+	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
+	req.Q(expr)
+	return reqDoPage(req, true), nil
 }
 
 func (r *Remote) About() (about *drive.About, err error) {

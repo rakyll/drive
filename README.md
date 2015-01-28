@@ -210,11 +210,26 @@ Files can be trashed using the `trash` command:
 $ drive trash Demo
 ```
 
+To trash files that contain a prefix match e.g all files that begin with Untitled, or Make
+
+Note: This option uses the current working directory as the parent that the paths belong to.
+
+```shell
+$ drive trash -matches Untitled Make
+```
+
 Files that have been trashed can be restored using the `untrash` command:
 
 ```shell
 $ drive untrash Demo
 ```
+
+To untrash files that match a certain prefix pattern
+
+```shell
+$ drive untrash -matches pQueue photos Untitled
+```
+
 
 ### Emptying the Trash
 
