@@ -76,8 +76,8 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 			return
 		}
 	}
-
 	relPath = strings.Join([]string{"", relPath}, "/")
+
 	return
 }
 
@@ -85,9 +85,8 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	var r, l *File
 	r, err = g.rem.FindByPath(relToRoot)
 	if err != nil {
-		// fmt.Println(err)
 		// We cannot pull from a non-existant remote
-		if !isPush {
+		if !isPush || err != ErrPathNotExists {
 			return
 		}
 	}
@@ -98,8 +97,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	}
 
 	fmt.Println("Resolving...")
-	cl, err = g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
-	return
+	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
 }
 
 func (g *Commands) clearMountPoints() {

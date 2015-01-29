@@ -37,7 +37,10 @@ func (g *Commands) Pull() (err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
-		if cErr == nil && len(ccl) > 0 {
+		if cErr != nil {
+			return cErr
+		}
+		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
