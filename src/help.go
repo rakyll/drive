@@ -64,8 +64,9 @@ const (
 	DescVersion        = "prints the version"
 	DescAccountType    = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
 	DescRoles          = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
-	DescIgnoreChecksum = "avoids computation of checksums as a final check" +
-		"in case for example you are low on bandwidth"
+	DescIgnoreChecksum = "avoids computation of checksums as a final check." +
+		"\nUse cases may include:\n\t* when you are low on bandwidth e.g SSHFS." +
+		"\n\t* Are on a low power device"
 )
 
 const (
@@ -73,7 +74,7 @@ const (
 )
 
 var skipChecksumNote = fmt.Sprintf(
-	"\nNote: You can skip checksum verification by using `-%s`", CLIOptionIgnoreChecksum)
+	"\nNote: You can skip checksum verification by passing in flag `-%s`", CLIOptionIgnoreChecksum)
 
 var docMap = map[string][]string{
 	AboutKey: []string{
@@ -92,7 +93,7 @@ var docMap = map[string][]string{
 	InitKey: []string{
 		DescInit, "Requests for access to your Google Drive",
 		"Creating a folder that contains your credentials",
-		"Note: init in an already initialized drive will erase the old credentials",
+		"Note: `init` in an already initialized drive will erase the old credentials",
 	},
 	PullKey: []string{
 		DescPull, "Downloads content from the remote drive or modifies",
@@ -108,10 +109,12 @@ var docMap = map[string][]string{
 	},
 	ListKey: []string{
 		DescList,
-		"List the information related a remote path not necessarily present locally",
+		"List the information of a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
-	PubKey:   []string{DescPublish, "Accepts multiple paths"},
+	PubKey: []string{
+		DescPublish, "Accepts multiple paths",
+	},
 	QuotaKey: []string{DescQuota},
 	ShareKey: []string{
 		DescShare, "Accepts multiple paths",
@@ -120,16 +123,29 @@ var docMap = map[string][]string{
 		DescAccountType, "\n+ roles:", DescRoles,
 	},
 	StatKey: []string{
-		DescStat, "Accepts multiple paths",
+		DescStat, "provides detailed information about a remote file",
+		"Accepts multiple paths",
 	},
-	TouchKey: []string{DescTouch},
-	TrashKey: []string{DescTrash, "Accepts multiple paths"},
+	TouchKey: []string{
+		DescTouch, "Given a list of remote files `touch` updates their",
+		"last edit times to that currently on the server",
+	},
+	TrashKey: []string{
+		DescTrash, "Sends a list of remote files to trash",
+	},
 	UnshareKey: []string{
 		DescUnshare, "Accepts multiple paths",
 		"Accepted values for accountTypes::", DescAccountType,
 	},
-	UntrashKey: []string{DescUntrash, "Accepts multiple paths"},
-	UnpubKey:   []string{DescUnpublish, "Accepts multiple paths"},
+	UntrashKey: []string{
+		DescUntrash, "takes remote files out of the trash",
+		"Note: untrash is a relative path command so any resolutions are made",
+		"relative to the current working directory i.e",
+		"\n\t$ drive trash mnt/logos",
+	},
+	UnpubKey: []string{
+		DescUnpublish, "revokes public access to a list of remote files",
+	},
 	VersionKey: []string{
 		DescVersion, fmt.Sprintf("current version is: %s", Version),
 	},
@@ -163,6 +179,7 @@ func ShowDescription(topic string) {
 			for _, line := range documentation {
 				fmt.Printf("\t%s\n", line)
 			}
+			fmt.Printf("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
 		}
 	}
 }
