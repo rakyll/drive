@@ -25,6 +25,8 @@ import (
 
 var BytesPerKB = float64(1024)
 
+const RemoteDriveRootPath = "My Drive"
+
 const (
 	InTrash = 1 << iota
 	Folder
@@ -104,7 +106,11 @@ func (g *Commands) List() (err error) {
 	}
 
 	for _, r := range remotes {
-		if !g.breadthFirst(r.Id, "", r.Name, g.opts.Depth, g.opts.TypeMask, false) {
+		headPath := r.Name
+		if headPath == RemoteDriveRootPath {
+			headPath = ""
+		}
+		if !g.breadthFirst(r.Id, "", headPath, g.opts.Depth, g.opts.TypeMask, false) {
 			break
 		}
 	}
@@ -130,10 +136,10 @@ func (g *Commands) List() (err error) {
 }
 
 func (f *File) pretty(opt attribute) {
-	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
+	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, urlToPath(f.Name, false))
+
 	if opt.minimal {
 		fmt.Println(fmtdPath)
-
 		if owners(opt.mask) && len(f.OwnerNames) >= 1 {
 			fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
 		}
