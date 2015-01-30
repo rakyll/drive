@@ -25,7 +25,10 @@ import (
 	"strings"
 )
 
-var GDDirSuffix = ".gd"
+var (
+	GDDirSuffix   = ".gd"
+	PathSeparator = fmt.Sprintf("%c", os.PathSeparator)
+)
 
 type Context struct {
 	ClientId     string `json:"client_id"`
@@ -54,6 +57,12 @@ type MountPoint struct {
 	Name      string
 	AbsPath   string
 	MountPath string
+}
+
+type Mount struct {
+	CreatedMountDir   string
+	ShortestMountRoot string
+	Points            []*MountPoint
 }
 
 func (mpt *MountPoint) mounted() bool {
@@ -169,8 +178,47 @@ func indicesAbsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "indices")
 }
 
+func LeastNonExistantRoot(contextAbsPath string) string {
+	last := ""
+	p := contextAbsPath
+	for p != "" {
+		fInfo, _ := os.Stat(p)
+		if fInfo != nil {
+			break
+		}
+		last = p
+		p, _ = filepath.Split(strings.TrimRight(p, PathSeparator))
+	}
+	return last
+}
+
 func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool) (
-	mtPoints []*MountPoint, sources []string) {
+	mount *Mount, sources []string) {
+
+	createdMountDir := false
+	shortestMountRoot := ""
+
+	_, fErr := os.Stat(contextAbsPath)
+	if fErr != nil {
+		if !os.IsNotExist(fErr) {
+			return
+		}
+
+		if sRoot := LeastNonExistantRoot(contextAbsPath); sRoot != "" {
+			shortestMountRoot = sRoot
+			sources = append(sources, sRoot)
+		}
+
+		mkErr := os.MkdirAll(contextAbsPath, os.ModeDir|0755)
+		if mkErr != nil {
+			fmt.Printf("mountpoint: %v\n", mkErr)
+			return
+		}
+
+		createdMountDir = true
+	}
+
+	var mtPoints []*MountPoint
 	visitors := map[string]bool{}
 
 	for _, path := range paths {
@@ -198,7 +246,7 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 			if !os.IsExist(err) {
 				continue
 			}
-			// This is an old symlink with probably due to a name clash.
+			// This is an old symlink probably due to a name clash.
 			// TODO: Due to the name clash, find a good name for this symlink.
 			canClean = false
 		}
@@ -216,6 +264,15 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 			MountPath: mountPath,
 			Name:      relPath,
 		})
+	}
+	if len(mtPoints) >= 1 {
+		mount = &Mount{
+			Points: mtPoints,
+		}
+		if createdMountDir {
+			mount.CreatedMountDir = contextAbsPath
+			mount.ShortestMountRoot = shortestMountRoot
+		}
 	}
 	return
 }

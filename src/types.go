@@ -21,7 +21,7 @@ import (
 	"os"
 	"time"
 
-	drive "github.com/google/google-api-go-client/drive/v2"
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
 const (
@@ -73,6 +73,8 @@ type File struct {
 	Version int64
 	// The onwers of this file.
 	OwnerNames []string
+	// Permissions contains the overall permissions for this file
+	Permissions []*drive.Permission
 }
 
 func NewRemoteFile(f *drive.File) *File {
@@ -94,6 +96,7 @@ func NewRemoteFile(f *drive.File) *File {
 		UserPermission: f.UserPermission,
 		Version:        f.Version,
 		OwnerNames:     f.OwnerNames,
+		Permissions:    f.Permissions,
 	}
 }
 
@@ -112,12 +115,13 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 }
 
 type Change struct {
-	Dest      *File
-	Parent    string
-	Path      string
-	Src       *File
-	Force     bool
-	NoClobber bool
+	Dest           *File
+	Parent         string
+	Path           string
+	Src            *File
+	Force          bool
+	NoClobber      bool
+	IgnoreChecksum bool
 }
 
 type ByPrecedence []*Change
@@ -201,18 +205,6 @@ func md5Checksum(f *File) string {
 	return checksum
 }
 
-// if it's a regular file, see it it's modified.
-// The bare minimum case comparison
-func sameFile(src, dest *File) bool {
-	if src.Size != dest.Size || !src.ModTime.Equal(dest.ModTime) {
-		return false
-	}
-	if src.IsDir != dest.IsDir {
-		return false
-	}
-	return true
-}
-
 func checksumDiffers(mask int) bool {
 	return (mask & DifferMd5Checksum) != 0
 }
@@ -225,7 +217,11 @@ func modTimeDiffers(mask int) bool {
 	return (mask & DifferModTime) != 0
 }
 
-func fileDifferences(src, dest *File) int {
+func sizeDiffers(mask int) bool {
+	return (mask & DifferSize) != 0
+}
+
+func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 	if src == nil || dest == nil {
 		return DifferMd5Checksum | DifferSize | DifferModTime | DifferDirType
 	}
@@ -240,19 +236,20 @@ func fileDifferences(src, dest *File) int {
 	if src.IsDir != dest.IsDir {
 		difference |= DifferDirType
 	}
-	if md5Checksum(src) != md5Checksum(dest) {
-		difference |= DifferMd5Checksum
+
+	if !ignoreChecksum {
+		// Only compute the checksum if the size is the same.
+		if sizeDiffers(difference) || md5Checksum(src) != md5Checksum(dest) {
+			difference |= DifferMd5Checksum
+		}
 	}
 	return difference
 }
 
 // If the preliminary sameFile test passes,
 // then perform an Md5 checksum comparison
-func sameFileTillChecksum(src, dest *File) bool {
-	if !sameFile(src, dest) {
-		return false
-	}
-	return md5Checksum(src) == md5Checksum(dest)
+func sameFileTillChecksum(src, dest *File, ignoreChecksum bool) bool {
+	return fileDifferences(src, dest, ignoreChecksum) == DifferNone
 }
 
 func (c *Change) op() int {
@@ -269,7 +266,7 @@ func (c *Change) op() int {
 		return OpMod
 	}
 
-	if !c.Src.IsDir && !sameFileTillChecksum(c.Src, c.Dest) {
+	if !c.Src.IsDir && !sameFileTillChecksum(c.Src, c.Dest, c.IgnoreChecksum) {
 		return OpMod
 	}
 	return OpNone

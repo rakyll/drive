@@ -21,14 +21,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
-	drive "github.com/google/google-api-go-client/drive/v2"
 	"github.com/odeke-em/drive/config"
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
 const (
@@ -126,6 +127,41 @@ func hasExportLinks(f *File) bool {
 	return len(f.ExportLinks) >= 1
 }
 
+func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
+	req := r.service.Changes.List()
+	if startChangeId >= 0 {
+		req = req.StartChangeId(startChangeId)
+	}
+
+	changeChan := make(chan *drive.Change)
+	go func() {
+		pageToken := ""
+		for {
+			if pageToken != "" {
+				req = req.PageToken(pageToken)
+			}
+			res, err := req.Do()
+			if err != nil {
+				break
+			}
+			for _, chItem := range res.Items {
+				changeChan <- chItem
+			}
+			pageToken = res.NextPageToken
+			if pageToken == "" {
+				break
+			}
+		}
+		close(changeChan)
+	}()
+
+	return changeChan, nil
+}
+
+func (r *Remote) change(changeId string) (*drive.Change, error) {
+	return r.service.Changes.Get(changeId).Do()
+}
+
 func RetrieveRefreshToken(context *config.Context) (string, error) {
 	transport := newTransport(context)
 	url := transport.Config.AuthCodeURL("")
@@ -170,46 +206,47 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
 }
 
-func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (files []*File, err error) {
-	req := r.service.Files.List()
-
-	// TODO: use field selectors
-	expr := fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed)
-
-	pageToken := ""
-	var results *drive.FileList
-	// TODO: Support channeling of results as they arrive to avoid long waits for results
-
-	req.Q(expr)
-
-	for {
-		if pageToken != "" {
-			req = req.PageToken(pageToken)
-		}
-		results, err = req.Do()
-		if err != nil {
-			return
-		}
-		for _, f := range results.Items {
-			if isHidden(f.Title, hidden) { // ignore hidden files if hidden is not set
-				continue
+func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
+	fileChan := make(chan *File)
+	go func() {
+		pageToken := ""
+		for {
+			if pageToken != "" {
+				req = req.PageToken(pageToken)
 			}
-			files = append(files, NewRemoteFile(f))
+			results, err := req.Do()
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			for _, f := range results.Items {
+				if isHidden(f.Title, hidden) { // ignore hidden files
+					continue
+				}
+				fileChan <- NewRemoteFile(f)
+			}
+			pageToken = results.NextPageToken
+			if pageToken == "" {
+				break
+			}
 		}
-
-		pageToken = results.NextPageToken
-		if pageToken == "" {
-			break
-		}
-	}
-	return
+		close(fileChan)
+	}()
+	return fileChan
 }
 
-func (r *Remote) FindByParentId(parentId string, hidden bool) (files []*File, err error) {
+func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
+	req := r.service.Files.List()
+	// TODO: use field selectors
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
+	return reqDoPage(req, hidden)
+}
+
+func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
 	return r.findByParentIdRaw(parentId, false, hidden)
 }
 
-func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) (files []*File, err error) {
+func (r *Remote) FindByParentIdTrashed(parentId string, hidden bool) chan *File {
 	return r.findByParentIdRaw(parentId, true, hidden)
 }
 
@@ -227,13 +264,45 @@ func (r *Remote) Untrash(id string) error {
 	return err
 }
 
+func (r *Remote) idForEmail(email string) (string, error) {
+	perm, err := r.service.Permissions.GetIdForEmail(email).Do()
+	if err != nil {
+		return "", err
+	}
+	return perm.Id, nil
+}
+
+func (r *Remote) listPermissions(id string) ([]*drive.Permission, error) {
+	res, err := r.service.Permissions.List(id).Do()
+	if err != nil {
+		return nil, err
+	}
+	return res.Items, nil
+}
+
+func (r *Remote) insertPermissions(id, value, emailMessage string, role Role, accountType AccountType) (*drive.Permission, error) {
+	perm := &drive.Permission{Role: role.String(), Type: accountType.String()}
+	if value != "" {
+		perm.Value = value
+	}
+	req := r.service.Permissions.Insert(id, perm)
+
+	if emailMessage != "" {
+		req = req.EmailMessage(emailMessage)
+	}
+	return req.Do()
+}
+
+func (r *Remote) deletePermissions(id string, accountType AccountType) error {
+	return r.service.Permissions.Delete(id, accountType.String()).Do()
+}
+
 func (r *Remote) Unpublish(id string) error {
-	return r.service.Permissions.Delete(id, "anyone").Do()
+	return r.deletePermissions(id, Anyone)
 }
 
 func (r *Remote) Publish(id string) (string, error) {
-	perm := &drive.Permission{Type: "anyone", Role: "reader"}
-	_, err := r.service.Permissions.Insert(id, perm).Do()
+	_, err := r.insertPermissions(id, "", "", Reader, Anyone)
 	if err != nil {
 		return "", err
 	}
@@ -261,9 +330,15 @@ func (r *Remote) Download(id string, exportURL string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (r *Remote) Touch(id string) error {
-	_, err := r.service.Files.Touch(id).Do()
-	return err
+func (r *Remote) Touch(id string) (*File, error) {
+	f, err := r.service.Files.Touch(id).Do()
+	if err != nil {
+		return nil, err
+	}
+	if f == nil {
+		return nil, ErrPathNotExists
+	}
+	return NewRemoteFile(f), err
 }
 
 func toUTCString(t time.Time) string {
@@ -290,28 +365,37 @@ func indexContent(mask int) bool {
 	return (mask & OptContentAsIndexableText) != 0
 }
 
-func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File, mask int) (f *File, err error) {
+type upsertOpt struct {
+	parentId       string
+	fsAbsPath      string
+	src            *File
+	dest           *File
+	mask           int
+	ignoreChecksum bool
+}
+
+func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	var body io.Reader
-	body, err = os.Open(fsAbsPath)
-	if err != nil {
+	body, err = os.Open(args.fsAbsPath)
+	if err != nil && !args.src.IsDir {
 		return
 	}
 
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
-		Title:   urlToPath(src.Name, false),
-		Parents: []*drive.ParentReference{&drive.ParentReference{Id: parentId}},
+		Title:   urlToPath(args.src.Name, false),
+		Parents: []*drive.ParentReference{&drive.ParentReference{Id: args.parentId}},
 	}
-	if src.IsDir {
+	if args.src.IsDir {
 		uploaded.MimeType = DriveFolderMimeType
 	}
 
 	// Ensure that the ModifiedDate is retrieved from local
-	uploaded.ModifiedDate = toUTCString(src.ModTime)
+	uploaded.ModifiedDate = toUTCString(args.src.ModTime)
 
-	if src.Id == "" {
+	if args.src.Id == "" {
 		req := r.service.Files.Insert(uploaded)
-		if !src.IsDir && body != nil {
+		if !args.src.IsDir && body != nil {
 			req = req.Media(body)
 		}
 		if uploaded, err = req.Do(); err != nil {
@@ -321,30 +405,30 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File,
 	}
 
 	// update the existing
-	req := r.service.Files.Update(src.Id, uploaded)
+	req := r.service.Files.Update(args.src.Id, uploaded)
 
 	// We always want it to match up with the local time
 	req.SetModifiedDate(true)
 
 	// Next set all the desired attributes
 	// TODO: if ocr toggled respect the quota limits if ocr is enabled.
-	if ocr(mask) {
+	if ocr(args.mask) {
 		req.Ocr(true)
 	}
-	if convert(mask) {
+	if convert(args.mask) {
 		req.Convert(true)
 	}
-	if pin(mask) {
+	if pin(args.mask) {
 		req.Pinned(true)
 	}
-	if indexContent(mask) {
+	if indexContent(args.mask) {
 		req.UseContentAsIndexableText(true)
 	}
 
-	if !src.IsDir {
-		if dest == nil {
+	if !args.src.IsDir {
+		if args.dest == nil {
 			req = req.Media(body)
-		} else if mask := fileDifferences(src, dest); checksumDiffers(mask) {
+		} else if mask := fileDifferences(args.src, args.dest, args.ignoreChecksum); checksumDiffers(mask) {
 			req = req.Media(body)
 		}
 	}
@@ -354,24 +438,18 @@ func (r *Remote) UpsertByComparison(parentId, fsAbsPath string, src, dest *File,
 	return NewRemoteFile(uploaded), nil
 }
 
-func (r *Remote) findShared(p []string) (shared []*File, err error) {
+func (r *Remote) findShared(p []string) (chan *File, error) {
 	req := r.service.Files.List()
 	expr := "sharedWithMe=true"
 	if len(p) >= 1 {
 		expr = fmt.Sprintf("title = '%s' and %s", p[0], expr)
 	}
-	files, err := req.Do()
-	if err != nil || len(files.Items) < 1 {
-		return shared, ErrPathNotExists
-	}
-	shared = make([]*File, len(files.Items))
-	for i, it := range files.Items {
-		shared[i] = NewRemoteFile(it)
-	}
-	return
+	req = req.Q(expr)
+
+	return reqDoPage(req, false), nil
 }
 
-func (r *Remote) FindByPathShared(p string) (file []*File, err error) {
+func (r *Remote) FindByPathShared(p string) (chan *File, error) {
 	if p == "/" || p == "root" {
 		return r.findShared([]string{})
 	}
@@ -386,6 +464,29 @@ func (r *Remote) FindByPathShared(p string) (file []*File, err error) {
 		return nEmpty
 	}(parts)
 	return r.findShared(nonEmpty)
+}
+
+func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (chan *File, error) {
+	parent, err := r.FindByPath(dirPath)
+	filesChan := make(chan *File)
+	if err != nil || parent == nil {
+		close(filesChan)
+		return filesChan, err
+	}
+
+	req := r.service.Files.List()
+	keySearches := make([]string, len(keywords))
+
+	for i, key := range keywords {
+		quoted := strconv.Quote(key)
+		keySearches[i] = fmt.Sprintf("(title contains %s and trashed=%v)", quoted, inTrash)
+	}
+
+	expr := strings.Join(keySearches, " or ")
+	// And always make sure that we are searching from this parent
+	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
+	req.Q(expr)
+	return reqDoPage(req, true), nil
 }
 
 func (r *Remote) About() (about *drive.About, err error) {
@@ -428,6 +529,42 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err er
 
 func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
 	return r.findByPathRecvRaw(parentId, p, true)
+}
+
+func (r *Remote) mkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := r.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
+	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
+	if rest == "" || last == "" {
+		return nil, fmt.Errorf("cannot tamper with root")
+	}
+
+	parent, parentErr := r.FindByPath(rest)
+	if parentErr != nil && parentErr != ErrPathNotExists {
+		return parent, parentErr
+	}
+
+	if parent == nil {
+		parent, parentErr = r.mkdirAll(rest)
+		if parentErr != nil || parent == nil {
+			return parent, parentErr
+		}
+	}
+
+	remoteFile := &File{
+		IsDir: true,
+		Name:  last,
+	}
+
+	args := upsertOpt{
+		parentId: parent.Id,
+		src:      remoteFile,
+	}
+	return r.UpsertByComparison(&args)
 }
 
 func newAuthConfig(context *config.Context) *oauth.Config {

@@ -16,9 +16,11 @@ package drive
 
 import (
 	"fmt"
-	drive "github.com/google/google-api-go-client/drive/v2"
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"path/filepath"
 	"strings"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 var BytesPerKB = float64(1024)
@@ -46,7 +48,7 @@ func memoizeBytes() byteDescription {
 	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
 	maxLen := len(suffixes) - 1
 
-	f := func(b int64) string {
+	return func(b int64) string {
 		description, ok := cache[b]
 		if ok {
 			return description
@@ -66,8 +68,6 @@ func memoizeBytes() byteDescription {
 		cache[b] = description
 		return description
 	}
-
-	return f
 }
 
 var prettyBytes = memoizeBytes()
@@ -114,12 +114,13 @@ func (g *Commands) List() (err error) {
 		// TODO: Allow traversal of shared content as well as designated paths
 		// Next for shared
 		sharedRemotes, sErr := g.rem.FindByPathShared("")
-		if sErr == nil && len(sharedRemotes) >= 1 {
+		if sErr == nil {
 			opt := attribute{
 				minimal: isMinimal(g.opts.TypeMask),
 				parent:  "",
+				mask:    g.opts.TypeMask,
 			}
-			for _, sFile := range sharedRemotes {
+			for sFile := range sharedRemotes {
 				sFile.pretty(opt)
 			}
 		}
@@ -206,8 +207,6 @@ func (g *Commands) breadthFirst(parentId, parent,
 
 	req := g.rem.service.Files.List()
 	req.Q(expr)
-
-	// TODO: Get pageSize from g.opts
 	req.MaxResults(g.opts.PageSize)
 
 	var children []*drive.File
@@ -219,7 +218,11 @@ func (g *Commands) breadthFirst(parentId, parent,
 		parent:  headPath,
 	}
 
+	spin := spinner.New(10)
 	for {
+		spin.Reset()
+		spin.Start()
+
 		if pageToken != "" {
 			req = req.PageToken(pageToken)
 		}
@@ -229,6 +232,7 @@ func (g *Commands) breadthFirst(parentId, parent,
 			return false
 		}
 
+		spin.Stop()
 		for _, file := range res.Items {
 			rem := NewRemoteFile(file)
 			if isHidden(file.Title, g.opts.Hidden) {
@@ -250,10 +254,14 @@ func (g *Commands) breadthFirst(parentId, parent,
 		if pageToken == "" {
 			break
 		}
+
+		spin.Stop()
 		if !g.opts.NoPrompt && !nextPage() {
 			return false
 		}
 	}
+
+	spin.Stop()
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {

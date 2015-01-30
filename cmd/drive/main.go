@@ -51,6 +51,9 @@ func main() {
 	command.On(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
 	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
 	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
+	command.On(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
+	command.On(drive.StatKey, drive.DescStat, &statCmd{}, []string{})
+	command.On(drive.UnshareKey, drive.DescUnshare, &unshareCmd{}, []string{})
 	command.On(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
 	command.On(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
 	command.On(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
@@ -194,14 +197,37 @@ func (cmd *listCmd) Run(args []string) {
 	}).List())
 }
 
+type statCmd struct {
+	hidden    *bool
+	recursive *bool
+}
+
+func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
+	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
+	return fs
+}
+
+func (cmd *statCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	exitWithError(drive.New(context, &drive.Options{
+		Hidden:    *cmd.hidden,
+		Path:      path,
+		Recursive: *cmd.recursive,
+		Sources:   sources,
+	}).Stat())
+}
+
 type pullCmd struct {
-	exportsDir *string
-	export     *string
-	force      *bool
-	hidden     *bool
-	noPrompt   *bool
-	noClobber  *bool
-	recursive  *bool
+	exportsDir     *string
+	export         *string
+	force          *bool
+	hidden         *bool
+	noPrompt       *bool
+	noClobber      *bool
+	recursive      *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -212,6 +238,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the pull action")
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 
 	return fs
@@ -233,15 +260,16 @@ func (cmd *pullCmd) Run(args []string) {
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	exitWithError(drive.New(context, &drive.Options{
-		Exports:    uniqOrderedStr(exports),
-		ExportsDir: strings.Trim(*cmd.exportsDir, " "),
-		Force:      *cmd.force,
-		Hidden:     *cmd.hidden,
-		NoPrompt:   *cmd.noPrompt,
-		NoClobber:  *cmd.noClobber,
-		Path:       path,
-		Recursive:  *cmd.recursive,
-		Sources:    sources,
+		Exports:        uniqOrderedStr(exports),
+		ExportsDir:     strings.Trim(*cmd.exportsDir, " "),
+		Force:          *cmd.force,
+		Hidden:         *cmd.hidden,
+		IgnoreChecksum: *cmd.ignoreChecksum,
+		NoPrompt:       *cmd.noPrompt,
+		NoClobber:      *cmd.noClobber,
+		Path:           path,
+		Recursive:      *cmd.recursive,
+		Sources:        sources,
 	}).Pull())
 }
 
@@ -257,7 +285,8 @@ type pushCmd struct {
 	convert *bool
 	// ocr when set indicates that Optical Character Recognition should be
 	// attempted on .[gif, jpg, pdf, png] uploads
-	ocr *bool
+	ocr            *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -268,6 +297,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
 	return fs
 }
@@ -320,12 +350,13 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 	}
 
 	return &drive.Options{
-		Force:     *cmd.force,
-		Hidden:    *cmd.hidden,
-		NoClobber: *cmd.noClobber,
-		NoPrompt:  *cmd.noPrompt,
-		TypeMask:  mask,
-		Recursive: *cmd.recursive,
+		Force:          *cmd.force,
+		Hidden:         *cmd.hidden,
+		NoClobber:      *cmd.noClobber,
+		NoPrompt:       *cmd.noPrompt,
+		TypeMask:       mask,
+		IgnoreChecksum: *cmd.ignoreChecksum,
+		Recursive:      *cmd.recursive,
 	}
 }
 
@@ -337,7 +368,7 @@ func (cmd *pushCmd) pushMounted(args []string) {
 	if !*cmd.mountedPush {
 		contextArgs = args
 	} else {
-		// Expectation is that at least one path has to be passed
+		// Expectation is that at least one path has to be passed in
 		if argc < 2 {
 			cwd, cerr := os.Getwd()
 			if cerr != nil {
@@ -359,11 +390,15 @@ func (cmd *pushCmd) pushMounted(args []string) {
 		path = ""
 	}
 
-	mountPoints, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
-	sources = append(sources, auxSrcs...)
+	mount, auxSrcs := config.MountPoints(path, contextAbsPath, rest, *cmd.hidden)
+
+	root := context.AbsPathOf("")
+
+	sources, err = relativePathsOpt(root, auxSrcs, true)
+	exitWithError(err)
 
 	options := cmd.createPushOptions()
-	options.Mounts = mountPoints
+	options.Mount = mount
 	options.Sources = sources
 
 	exitWithError(drive.New(context, options).Push())
@@ -399,21 +434,24 @@ func (cmd *aboutCmd) Run(args []string) {
 }
 
 type diffCmd struct {
-	hidden *bool
+	hidden         *bool
+	ignoreChecksum *bool
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	return fs
 }
 
 func (cmd *diffCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
-		Recursive: true,
-		Path:      path,
-		Hidden:    *cmd.hidden,
-		Sources:   sources,
+		Recursive:      true,
+		Path:           path,
+		Hidden:         *cmd.hidden,
+		Sources:        sources,
+		IgnoreChecksum: *cmd.ignoreChecksum,
 	}).Diff())
 }
 
@@ -455,37 +493,61 @@ func (cmd *emptyTrashCmd) Run(args []string) {
 }
 
 type trashCmd struct {
-	hidden *bool
+	hidden  *bool
+	matches *bool
 }
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
+	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
 	return fs
 }
 
 func (cmd *trashCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path:    path,
-		Sources: sources,
-	}).Trash())
+	if !*cmd.matches {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: sources,
+		}).Trash())
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).TrashByMatch())
+	}
 }
 
 type untrashCmd struct {
-	hidden *bool
+	hidden  *bool
+	matches *bool
 }
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
+	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
 	return fs
 }
 
 func (cmd *untrashCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Path:    path,
-		Sources: sources,
-	}).Untrash())
+	if !*cmd.matches {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: sources,
+		}).Untrash())
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).UntrashByMatch())
+	}
 }
 
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -499,6 +561,61 @@ func (cmd *publishCmd) Run(args []string) {
 		Path:    path,
 		Sources: sources,
 	}).Publish())
+}
+
+type unshareCmd struct {
+	accountType *string
+}
+
+func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.accountType = fs.String("type", "", "scope of account to revoke access to")
+	return fs
+}
+
+func (cmd *unshareCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	meta := map[string][]string{
+		"accountType": uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Meta:    &meta,
+		Path:    path,
+		Sources: sources,
+	}).Unshare())
+}
+
+type shareCmd struct {
+	emails      *string
+	message     *string
+	role        *string
+	accountType *string
+}
+
+func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.emails = fs.String("emails", "", "emails to share the file to")
+	cmd.message = fs.String("message", "", "message to send receipients")
+	cmd.role = fs.String("role", "", "role to set to receipients of share")
+	cmd.accountType = fs.String("type", "", "scope of accounts to share files with")
+	return fs
+}
+
+func (cmd *shareCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+
+	meta := map[string][]string{
+		"emailMessage": []string{*cmd.message},
+		"emails":       uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.emails, ","))),
+		"role":         uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.role, ","))),
+		"accountType":  uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+	}
+
+	exitWithError(drive.New(context, &drive.Options{
+		Meta:    &meta,
+		Path:    path,
+		Sources: sources,
+	}).Share())
 }
 
 func initContext(args []string) *config.Context {
@@ -574,16 +691,15 @@ func exitWithError(err error) {
 	}
 }
 
-func preprocessArgs(args []string) ([]string, *config.Context, string) {
-	var relPaths []string
-	context, path := discoverContext(args)
-	root := context.AbsPathOf("")
+func relativePaths(root string, args []string) ([]string, error) {
+	return relativePathsOpt(root, args, false)
+}
 
-	if len(args) < 1 {
-		args = []string{"."}
-	}
-
+func relativePathsOpt(root string, args []string, leastNonExistant bool) ([]string, error) {
 	var err error
+	var relPath string
+	var relPaths []string
+
 	for _, p := range args {
 		p, err = filepath.Abs(p)
 		if err != nil {
@@ -591,16 +707,39 @@ func preprocessArgs(args []string) ([]string, *config.Context, string) {
 			continue
 		}
 
-		relPath, err := filepath.Rel(root, p)
+		if leastNonExistant {
+			sRoot := config.LeastNonExistantRoot(p)
+			if sRoot != "" {
+				p = sRoot
+			}
+		}
+
+		relPath, err = filepath.Rel(root, p)
+		if err != nil {
+			break
+		}
+
 		if relPath == "." {
 			relPath = ""
 		}
 
-		exitWithError(err)
-
 		relPath = "/" + relPath
 		relPaths = append(relPaths, relPath)
 	}
+
+	return relPaths, err
+}
+
+func preprocessArgs(args []string) ([]string, *config.Context, string) {
+	context, path := discoverContext(args)
+	root := context.AbsPathOf("")
+
+	if len(args) < 1 {
+		args = []string{"."}
+	}
+
+	relPaths, err := relativePaths(root, args)
+	exitWithError(err)
 
 	return uniqOrderedStr(relPaths), context, path
 }

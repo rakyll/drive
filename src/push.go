@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 )
 
@@ -49,15 +50,21 @@ func (g *Commands) Push() (err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
-		if cErr == nil && len(ccl) > 0 {
+		if cErr != nil {
+			return cErr
+		}
+		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
 
-	for _, mt := range g.opts.Mounts {
-		ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
-		if cerr == nil {
-			cl = append(cl, ccl...)
+	mount := g.opts.Mount
+	if mount != nil {
+		for _, mt := range mount.Points {
+			ccl, cerr := lonePush(g, root, mt.Name, mt.MountPath)
+			if cerr == nil {
+				cl = append(cl, ccl...)
+			}
 		}
 	}
 
@@ -114,8 +121,11 @@ func (g *Commands) Touch() (err error) {
 				if relToRootPath == root {
 					continue
 				}
-				if tErr := g.touch(relToRootPath); tErr != nil {
+				file, tErr := g.touch(relToRootPath)
+				if tErr != nil {
 					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
+				} else if false { // TODO: Print this out if verbosity is set
+					fmt.Printf("%s: %v\n", relToRootPath, file.ModTime)
 				}
 			}
 			wg.Done()
@@ -128,14 +138,13 @@ func (g *Commands) Touch() (err error) {
 	return
 }
 
-func (g *Commands) touch(relToRootPath string) (err error) {
-	var file *File
-	file, err = g.rem.FindByPath(relToRootPath)
+func (g *Commands) touch(relToRootPath string) (*File, error) {
+	file, err := g.rem.FindByPath(relToRootPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if file == nil {
-		return ErrPathNotExists
+		return nil, ErrPathNotExists
 	}
 	return g.rem.Touch(file.Id)
 }
@@ -188,13 +197,31 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	p := strings.Split(change.Path, "/")
 	p = append([]string{"/"}, p[:len(p)-1]...)
-	parent, err = g.rem.FindByPath(gopath.Join(p...))
+	parentPath := gopath.Join(p...)
+	parent, err = g.rem.FindByPath(parentPath)
 	if err != nil {
-		fmt.Println(parent, err)
-		return
+		spin := spinner.New(10)
+		spin.Start()
+		parent, err = g.rem.mkdirAll(parentPath)
+		spin.Stop()
+		if err != nil || parent == nil {
+			fmt.Printf("%s: %v", change.Path, err)
+			return
+		}
 	}
 
-	_, err = g.rem.UpsertByComparison(parent.Id, absPath, change.Src, change.Dest, g.opts.TypeMask)
+	args := upsertOpt{
+		parentId:       parent.Id,
+		fsAbsPath:      absPath,
+		src:            change.Src,
+		dest:           change.Dest,
+		mask:           g.opts.TypeMask,
+		ignoreChecksum: g.opts.IgnoreChecksum,
+	}
+	_, err = g.rem.UpsertByComparison(&args)
+	if err != nil {
+		fmt.Printf("%s: %v\n", change.Path, err)
+	}
 	return err
 }
 
@@ -229,20 +256,26 @@ func (f *File) ToIndexFile() *config.IndexFile {
 	}
 }
 
-func list(context *config.Context, p string, hidden bool) (files []*File, err error) {
+func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
 	f, err = ioutil.ReadDir(absPath)
+	fileChan = make(chan *File)
 	if err != nil {
+		close(fileChan)
 		return
 	}
-	for _, file := range f {
-		if file.Name() == config.GDDirSuffix {
-			continue
+
+	go func() {
+		for _, file := range f {
+			if file.Name() == config.GDDirSuffix {
+				continue
+			}
+			if !isHidden(file.Name(), hidden) {
+				fileChan <- NewLocalFile(gopath.Join(absPath, file.Name()), file)
+			}
 		}
-		if !isHidden(file.Name(), hidden) {
-			files = append(files, NewLocalFile(gopath.Join(absPath, file.Name()), file))
-		}
-	}
+		close(fileChan)
+	}()
 	return
 }

@@ -36,7 +36,10 @@ func (g *Commands) Diff() (err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
-		if cErr == nil && len(ccl) > 0 {
+		if cErr != nil {
+			return cErr
+		}
+		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
@@ -96,7 +99,11 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 			change.Path, l.Size)
 	}
 
-	if sameFileTillChecksum(r, l) {
+	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
+	if modTimeDiffers(mask) {
+		fmt.Printf("* %-15s %-40s\n* %-15s %-40s\n",
+			"remote:", toUTCString(r.ModTime), "local:", toUTCString(l.ModTime))
+	} else if mask == DifferNone {
 		// No output when "no changes found"
 		return nil
 	}

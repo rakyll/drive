@@ -37,7 +37,10 @@ func (g *Commands) Pull() (err error) {
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
-		if cErr == nil && len(ccl) > 0 {
+		if cErr != nil {
+			return cErr
+		}
+		if len(ccl) > 0 {
 			cl = append(cl, ccl...)
 		}
 	}
@@ -98,7 +101,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 	// Simple heuristic to avoid downloading all the
 	// content yet it could just be a modTime difference
-	mask := fileDifferences(change.Src, change.Dest)
+	mask := fileDifferences(change.Src, change.Dest, change.IgnoreChecksum)
 	if checksumDiffers(mask) {
 		// download and replace
 		if err = g.download(change, exports); err != nil {

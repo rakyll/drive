@@ -31,32 +31,50 @@ const (
 	PubKey        = "pub"
 	HelpKey       = "help"
 	QuotaKey      = "quota"
+	ShareKey      = "share"
+	StatKey       = "stat"
 	TouchKey      = "touch"
 	TrashKey      = "trash"
+	UnshareKey    = "unshare"
 	UntrashKey    = "untrash"
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 )
 
 const (
-	DescAbout      = "print out information about your Google drive"
-	DescAll        = "print out the entire help section"
-	DescDiff       = "compares local files with their remote equivalent"
-	DescEmptyTrash = "permanently cleans out your trash"
-	DescFeatures   = "returns information about the features of your drive"
-	DescHelp       = "Get help for a topic"
-	DescInit       = "initializes a directory and authenticates user"
-	DescList       = "lists the contents of remote path"
-	DescQuota      = "prints out information related to your quota space"
-	DescPublish    = "publishes a file and prints its publicly available url"
-	DescPull       = "pulls remote changes from Google Drive"
-	DescPush       = "push local changes to Google Drive"
-	DescTouch      = "updates a remote file's modification time to that currently on the server"
-	DescTrash      = "moves files to trash"
-	DescUntrash    = "restores files from trash to their original locations"
-	DescUnpublish  = "revokes public access to a file"
-	DescVersion    = "prints the version"
+	DescAbout          = "print out information about your Google drive"
+	DescAll            = "print out the entire help section"
+	DescDiff           = "compares local files with their remote equivalent"
+	DescEmptyTrash     = "permanently cleans out your trash"
+	DescFeatures       = "returns information about the features of your drive"
+	DescHelp           = "Get help for a topic"
+	DescInit           = "initializes a directory and authenticates user"
+	DescList           = "lists the contents of remote path"
+	DescQuota          = "prints out information related to your quota space"
+	DescPublish        = "publishes a file and prints its publicly available url"
+	DescPull           = "pulls remote changes from Google Drive"
+	DescPush           = "push local changes to Google Drive"
+	DescShare          = "share files with specific emails giving the specified users specifies roles and permissions"
+	DescStat           = "display information about a file"
+	DescTouch          = "updates a remote file's modification time to that currently on the server"
+	DescTrash          = "moves files to trash"
+	DescUnshare        = "revoke a user's access to a file"
+	DescUntrash        = "restores files from trash to their original locations"
+	DescUnpublish      = "revokes public access to a file"
+	DescVersion        = "prints the version"
+	DescAccountType    = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
+	DescRoles          = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
+	DescIgnoreChecksum = "avoids computation of checksums as a final check." +
+		"\nUse cases may include:\n\t* when you are low on bandwidth e.g SSHFS." +
+		"\n\t* Are on a low power device"
 )
+
+const (
+	CLIOptionIgnoreChecksum = "ignore-checksum"
+)
+
+var skipChecksumNote = fmt.Sprintf(
+	"\nNote: You can skip checksum verification by passing in flag `-%s`", CLIOptionIgnoreChecksum)
 
 var docMap = map[string][]string{
 	AboutKey: []string{
@@ -64,6 +82,7 @@ var docMap = map[string][]string{
 	},
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",
+		skipChecksumNote,
 	},
 	EmptyTrashKey: []string{
 		DescEmptyTrash,
@@ -74,29 +93,59 @@ var docMap = map[string][]string{
 	InitKey: []string{
 		DescInit, "Requests for access to your Google Drive",
 		"Creating a folder that contains your credentials",
-		"Note: init in an already initialized drive will erase the old credentials",
+		"Note: `init` in an already initialized drive will erase the old credentials",
 	},
 	PullKey: []string{
 		DescPull, "Downloads content from the remote drive or modifies",
 		" local content to match that on your Google Drive",
+		skipChecksumNote,
 	},
 	PushKey: []string{
 		DescPush, "Uploads content to your Google Drive from your local path",
 		"Push comes in a couple of flavors",
 		"\t* Ordinary push: `drive push path1 path2 path3`",
 		"\t* Mounted push: `drive push -m path1 [path2 path3] drive_context_path`",
+		skipChecksumNote,
 	},
 	ListKey: []string{
 		DescList,
-		"List the information related a remote path not necessarily present locally",
+		"List the information of a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
-	PubKey:     []string{DescPublish, "Accepts multiple paths"},
-	QuotaKey:   []string{DescQuota},
-	TouchKey:   []string{DescTouch},
-	TrashKey:   []string{DescTrash, "Accepts multiple paths"},
-	UntrashKey: []string{DescUntrash, "Accepts multiple paths"},
-	UnpubKey:   []string{DescUnpublish, "Accepts multiple paths"},
+	PubKey: []string{
+		DescPublish, "Accepts multiple paths",
+	},
+	QuotaKey: []string{DescQuota},
+	ShareKey: []string{
+		DescShare, "Accepts multiple paths",
+		"Specify the emails to share with as well as the message to send them on notification",
+		"Accepted values for:\n+ accountType: ",
+		DescAccountType, "\n+ roles:", DescRoles,
+	},
+	StatKey: []string{
+		DescStat, "provides detailed information about a remote file",
+		"Accepts multiple paths",
+	},
+	TouchKey: []string{
+		DescTouch, "Given a list of remote files `touch` updates their",
+		"last edit times to that currently on the server",
+	},
+	TrashKey: []string{
+		DescTrash, "Sends a list of remote files to trash",
+	},
+	UnshareKey: []string{
+		DescUnshare, "Accepts multiple paths",
+		"Accepted values for accountTypes::", DescAccountType,
+	},
+	UntrashKey: []string{
+		DescUntrash, "takes remote files out of the trash",
+		"Note: untrash is a relative path command so any resolutions are made",
+		"relative to the current working directory i.e",
+		"\n\t$ drive trash mnt/logos",
+	},
+	UnpubKey: []string{
+		DescUnpublish, "revokes public access to a list of remote files",
+	},
 	VersionKey: []string{
 		DescVersion, fmt.Sprintf("current version is: %s", Version),
 	},
@@ -130,6 +179,7 @@ func ShowDescription(topic string) {
 			for _, line := range documentation {
 				fmt.Printf("\t%s\n", line)
 			}
+			fmt.Printf("\n* For usage flags: \033[32m`drive %s -h`\033[00m\n\n", topic)
 		}
 	}
 }

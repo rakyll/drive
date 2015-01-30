@@ -17,7 +17,6 @@ package drive
 import (
 	"fmt"
 	"strings"
-	"sync"
 )
 
 func (g *Commands) Trash() (err error) {
@@ -77,6 +76,49 @@ func (g *Commands) trasher(relToRoot string, toTrash bool) (change *Change, err 
 	return
 }
 
+func (g *Commands) trashByMatch(inTrash bool) error {
+	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, inTrash)
+	if err != nil {
+		return err
+	}
+	var cl []*Change
+	p := g.opts.Path
+	if p == "/" {
+		p = ""
+	}
+	for match := range matches {
+		if match == nil {
+			continue
+		}
+		ch := &Change{Path: p + "/" + match.Name}
+		if inTrash {
+			ch.Src = match
+		} else {
+			ch.Dest = match
+		}
+		cl = append(cl, ch)
+	}
+
+	if len(cl) < 1 {
+		return fmt.Errorf("no matches found!")
+	}
+
+	toTrash := !inTrash
+	ok := printChangeList(cl, g.opts.NoPrompt, false)
+	if ok {
+		return g.playTrashChangeList(cl, toTrash)
+	}
+	return nil
+}
+
+func (g *Commands) TrashByMatch() error {
+	return g.trashByMatch(false)
+}
+
+func (g *Commands) UntrashByMatch() error {
+	return g.trashByMatch(true)
+}
+
 func (g *Commands) reduce(args []string, toTrash bool) error {
 	var cl []*Change
 	for _, relToRoot := range args {
@@ -96,7 +138,6 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 }
 
 func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
-	var next []*Change
 	g.taskStart(len(cl))
 
 	var f = g.remoteUntrash
@@ -104,28 +145,15 @@ func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
 		f = g.remoteDelete
 	}
 
-	for {
-		if len(cl) > maxNumOfConcPullTasks {
-			next, cl = cl[:maxNumOfConcPullTasks], cl[maxNumOfConcPullTasks:len(cl)]
-		} else {
-			next, cl = cl, []*Change{}
+	for _, c := range cl {
+		if c.Op() == OpNone {
+			continue
 		}
-		if len(next) == 0 {
-			break
+
+		cErr := f(c)
+		if cErr != nil {
+			fmt.Println(cErr)
 		}
-		var wg sync.WaitGroup
-		wg.Add(len(next))
-		// play the changes
-		// TODO: add timeouts
-		for _, c := range next {
-			if c.Op() != OpNone {
-				go func() error {
-					defer wg.Done()
-					return f(c)
-				}()
-			}
-		}
-		wg.Wait()
 	}
 
 	g.taskFinish()

@@ -39,11 +39,13 @@ type Options struct {
 	Force bool
 	// Hidden discovers hidden paths if set
 	Hidden bool
+	// IgnoreChecksum when set avoids the step
+	// of comparing checksums as a final check.
+	IgnoreChecksum bool
 	// Allows listing of content in trash
 	InTrash bool
-	// Mounts is a list of all mountpoints
-	// of paths that are not in the current drive context
-	Mounts []*config.MountPoint
+	Meta    *map[string][]string
+	Mount   *config.Mount
 	// NoClobber when set prevents overwriting of stale content
 	NoClobber bool
 	// NoPrompt overwrites any prompt pauses

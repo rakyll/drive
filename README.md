@@ -19,10 +19,13 @@
   - [Pushing](#pushing)
   - [Publishing](#publishing)
   - [Unpublishing](#unpublishing)
+  - [Sharing and Emailing](#sharing-and-emailing)
+  - [Unsharing](#unsharing)
   - [Touching](#touch)
   - [Trashing and Untrashing](#trashing-and-untrashing)
   - [Emptying the Trash](#emptying-the-trash)
   - [Listing Files](#listing-files)
+  - [Stating Files](#stating-files)
   - [Quota](#quota)
   - [Features](#features)
   - [About](#about)
@@ -89,6 +92,12 @@ To pull specific files or directories, pass in one or more paths:
 $ drive pull photos/img001.png docs
 ```
 
+Note: To ignore checksum verification during a pull:
+
+```shell
+$ drive pull -ignore-checksum
+```
+
 #### Exporting Docs
 
 By default, the `pull` command will export Google Docs documents as PDF files. To specify other formats, use the `-export` option:
@@ -124,6 +133,13 @@ The `push` command uploads data to Google Drive to mirror data stored locally.
 
 Like `pull`, you can run it without any arguments to push all of the files from the current path, or you can pass in one or more paths to push specific files or directories.
 
+Note: To ignore checksum verification during a push:
+
+```shell
+$ drive push -ignore-checksum
+```
+
+
 To get Google Drive to convert a file to its native Google Docs format
 
 ```shell
@@ -156,6 +172,28 @@ The `unpub` command is the opposite of `pub`. It unpublishes a previously publis
 $ drive unpub photos
 ```
 
+### Sharing and Emailing
+
+The `share` command enables you to share a set of files with specific users and assign them specific roles as well as specific generic access to the files. It also allows for email notifications on share.
+
+```shell
+$ drive share -emails odeke@ualberta.ca,odeke.ex@gmail.com -message "This is the substring file I told you about" -role writer -type group mnt/substringfinder.c projects/kmp.c
+```
+
+For example to share a file with users of a mailing list and a custom message
+
+```shell
+$ drive share -emails drive-mailing-list@gmail.com -message "Here is the drive code" -role group mnt/drive
+```
+
+### Unsharing
+
+The `unshare` command revokes access of a specific accountType to a set of files.
+
+```shell
+$ drive unshare -type group mnt/drive
+```
+
 ### Touching
 
 Files that exist remotely can be touched i.e their modification time updated to that on the remote server using the `touch` command:
@@ -172,11 +210,26 @@ Files can be trashed using the `trash` command:
 $ drive trash Demo
 ```
 
+To trash files that contain a prefix match e.g all files that begin with Untitled, or Make
+
+Note: This option uses the current working directory as the parent that the paths belong to.
+
+```shell
+$ drive trash -matches Untitled Make
+```
+
 Files that have been trashed can be restored using the `untrash` command:
 
 ```shell
 $ drive untrash Demo
 ```
+
+To untrash files that match a certain prefix pattern
+
+```shell
+$ drive untrash -matches pQueue photos Untitled
+```
+
 
 ### Emptying the Trash
 
@@ -212,6 +265,21 @@ To get detailed information about the listings e.g owner information and the ver
 
 ```shell
 $ drive list -owners -l -version
+```
+
+### Stating Files
+
+The `stat` commands show detailed file information for example people with whom it is shared, their roles and accountTypes, and
+fileId etc. It is useful to help determine whom and what you want to be set when performing share/unshare
+
+```shell
+$ drive stat mnt
+```
+
+By default `stat` won't recursively stat a directory, to enable recursive stating:
+
+```shell
+$ drive stat -recursive mnt
 ```
 
 ### Quota

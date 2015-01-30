@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 type dirList struct {
@@ -74,8 +76,8 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 			return
 		}
 	}
-
 	relPath = strings.Join([]string{"", relPath}, "/")
+
 	return
 }
 
@@ -83,9 +85,8 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	var r, l *File
 	r, err = g.rem.FindByPath(relToRoot)
 	if err != nil {
-		// fmt.Println(err)
 		// We cannot pull from a non-existant remote
-		if !isPush {
+		if !isPush || err != ErrPathNotExists {
 			return
 		}
 	}
@@ -96,14 +97,32 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	}
 
 	fmt.Println("Resolving...")
-	cl, err = g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
-	return
+	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
 }
 
 func (g *Commands) clearMountPoints() {
-	for _, mtpt := range g.opts.Mounts {
-		mtpt.Unmount()
+	if g.opts.Mount == nil {
+		return
 	}
+	mount := g.opts.Mount
+	for _, point := range mount.Points {
+		point.Unmount()
+	}
+
+	if mount.CreatedMountDir != "" {
+		if rmErr := os.RemoveAll(mount.CreatedMountDir); rmErr != nil {
+			fmt.Printf("clearMountPoints removing %s: %v\n", mount.CreatedMountDir, rmErr)
+		}
+	}
+	if mount.ShortestMountRoot != "" {
+		if rmErr := os.RemoveAll(mount.ShortestMountRoot); rmErr != nil {
+			fmt.Printf("clearMountPoints: shortestMountRoot: %v\n", mount.ShortestMountRoot, rmErr)
+		}
+	}
+}
+
+func (g *Commands) differ(a, b *File) bool {
+	return fileDifferences(a, b, g.opts.IgnoreChecksum) == DifferNone
 }
 
 func (g *Commands) resolveChangeListRecv(
@@ -120,7 +139,7 @@ func (g *Commands) resolveChangeListRecv(
 		if !g.opts.Force && hasExportLinks(r) {
 			// The case when we have files that don't provide the download urls
 			// but exportable links, we just need to check that mod times are the same.
-			mask := fileDifferences(r, l)
+			mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
 			if !dirTypeDiffers(mask) && !modTimeDiffers(mask) {
 				return cl, nil
 			}
@@ -130,6 +149,7 @@ func (g *Commands) resolveChangeListRecv(
 
 	change.Force = g.opts.Force
 	change.NoClobber = g.opts.NoClobber
+	change.IgnoreChecksum = g.opts.IgnoreChecksum
 
 	if change.Op() != OpNone {
 		cl = append(cl, change)
@@ -147,20 +167,23 @@ func (g *Commands) resolveChangeListRecv(
 	}
 
 	// look-up for children
-	var localChildren []*File
-	if l != nil {
+	var localChildren chan *File
+	if l == nil {
+		localChildren = make(chan *File)
+		close(localChildren)
+	} else {
 		localChildren, err = list(g.context, p, g.opts.Hidden)
 		if err != nil {
 			return
 		}
 	}
 
-	var remoteChildren []*File
+	var remoteChildren chan *File
 	if r != nil {
-		remoteChildren, err = g.rem.FindByParentId(r.Id, g.opts.Hidden)
-		if err != nil {
-			return
-		}
+		remoteChildren = g.rem.FindByParentId(r.Id, g.opts.Hidden)
+	} else {
+		remoteChildren = make(chan *File)
+		close(remoteChildren)
 	}
 	dirlist := merge(remoteChildren, localChildren)
 
@@ -176,6 +199,9 @@ func (g *Commands) resolveChangeListRecv(
 
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
+	spin := spinner.New(10)
+	spin.Start()
+
 	for j := 0; j < chunkCount; j += 1 {
 		end := i + chunkSize
 		if end >= srcLen {
@@ -200,21 +226,23 @@ func (g *Commands) resolveChangeListRecv(
 		i += chunkSize
 	}
 	wg.Wait()
+	spin.Stop()
 	return cl, nil
 }
 
-func merge(remotes, locals []*File) (merged []*dirList) {
+func merge(remotes, locals chan *File) (merged []*dirList) {
+	spin := spinner.New(1)
+	spin.Start()
+
 	localMap := map[string]*File{}
 
-	// Add support for FileSystems that allow same names but different files.
-
-	for _, l := range locals {
+	// TODO: Add support for FileSystems that allow same names but different files.
+	for l := range locals {
 		localMap[l.Name] = l
 	}
 
-	for _, r := range remotes {
+	for r := range remotes {
 		list := &dirList{remote: r}
-
 		// look for local
 		l, ok := localMap[r.Name]
 		if ok {
@@ -228,6 +256,7 @@ func merge(remotes, locals []*File) (merged []*dirList) {
 	for _, l := range localMap {
 		merged = append(merged, &dirList{local: l})
 	}
+	spin.Stop()
 	return
 }
 
@@ -291,12 +320,10 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		fmt.Println("Everything is up-to-date.")
 		return false
 	}
-
 	summarizeChanges(changes, !noPrompt)
 
 	if noPrompt {
 		return true
 	}
-
 	return promptForChanges()
 }
