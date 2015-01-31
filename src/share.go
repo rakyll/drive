@@ -40,6 +40,11 @@ const (
 	Commenter
 )
 
+const (
+	NoopOnShare = 1 << iota
+	Notify
+)
+
 type shareChange struct {
 	emailMessage string
 	emails       []string
@@ -47,6 +52,16 @@ type shareChange struct {
 	accountType  AccountType
 	files        []*File
 	revoke       bool
+	notify       bool
+}
+
+type permission struct {
+	fileId      string
+	value       string
+	message     string
+	role        Role
+	accountType AccountType
+	notify      bool
 }
 
 func (r *Role) String() string {
@@ -79,14 +94,14 @@ func (a *AccountType) String() string {
 
 func stringToRole() func(string) Role {
 	roleMap := make(map[string]Role)
-	roles := []Role{UnknownRole, Anyone, User, Domain, Group}
+	roles := []Role{UnknownRole, Owner, Reader, Writer, Commenter}
 	for _, role := range roles {
 		roleMap[role.String()] = role
 	}
 	return func(s string) Role {
 		r, ok := roleMap[strings.ToLower(s)]
 		if !ok {
-			return UnknownRole
+			return Reader
 		}
 		return r
 	}
@@ -94,14 +109,14 @@ func stringToRole() func(string) Role {
 
 func stringToAccountType() func(string) AccountType {
 	accountMap := make(map[string]AccountType)
-	accounts := []AccountType{UnknownAccountType, Owner, Reader, Writer, Commenter}
+	accounts := []AccountType{UnknownAccountType, Anyone, User, Domain, Group}
 	for _, account := range accounts {
 		accountMap[account.String()] = account
 	}
 	return func(s string) AccountType {
 		a, ok := accountMap[strings.ToLower(s)]
 		if !ok {
-			return UnknownAccountType
+			return User
 		}
 		return a
 	}
@@ -158,7 +173,8 @@ func showPromptShareChanges(change *shareChange) bool {
 		return false
 	}
 	if change.revoke {
-		fmt.Printf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n", change.accountType.String())
+		fmt.Printf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n",
+			change.accountType.String())
 		for _, file := range change.files {
 			fmt.Println("+ ", file.Name)
 		}
@@ -170,7 +186,10 @@ func showPromptShareChanges(change *shareChange) bool {
 		return false
 	}
 
-	fmt.Println("Message:\n\t", change.emailMessage)
+	if change.notify {
+		fmt.Println("Message:\n\t", change.emailMessage)
+	}
+
 	fmt.Println("Receipients:")
 	for _, email := range change.emails {
 		fmt.Printf("\t\033[92m+\033[00m %s\n", email)
@@ -190,6 +209,7 @@ func (c *Commands) playShareChanges(change *shareChange) error {
 	if !showPromptShareChanges(change) {
 		return nil
 	}
+
 	for _, file := range change.files {
 		if change.revoke {
 			if err := c.rem.deletePermissions(file.Id, change.accountType); err != nil {
@@ -198,7 +218,15 @@ func (c *Commands) playShareChanges(change *shareChange) error {
 		}
 
 		for _, email := range change.emails {
-			_, err := c.rem.insertPermissions(file.Id, email, change.emailMessage, change.role, change.accountType)
+			perm := permission{
+				fileId:      file.Id,
+				value:       email,
+				message:     change.emailMessage,
+				notify:      change.notify,
+				role:        change.role,
+				accountType: change.accountType,
+			}
+			_, err := c.rem.insertPermissions(&perm)
 			if err != nil {
 				return err
 			}
@@ -215,7 +243,11 @@ func (c *Commands) share(revoke bool) (err error) {
 	var emails []string
 	var emailMessage string
 
+	// Setup the defaults
+	role = Reader
+	accountType = User
 	meta := *c.opts.Meta
+
 	if meta != nil {
 		emailList, eOk := meta["emails"]
 		if eOk {
@@ -241,6 +273,8 @@ func (c *Commands) share(revoke bool) (err error) {
 		}
 	}
 
+	notify := (c.opts.TypeMask & Notify) != 0
+
 	change := shareChange{
 		accountType:  accountType,
 		emailMessage: emailMessage,
@@ -248,6 +282,7 @@ func (c *Commands) share(revoke bool) (err error) {
 		files:        files,
 		revoke:       revoke,
 		role:         role,
+		notify:       notify,
 	}
 
 	return c.playShareChanges(&change)

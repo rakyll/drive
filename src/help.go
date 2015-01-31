@@ -62,7 +62,7 @@ const (
 	DescUntrash        = "restores files from trash to their original locations"
 	DescUnpublish      = "revokes public access to a file"
 	DescVersion        = "prints the version"
-	DescAccountType    = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
+	DescAccountTypes   = "\n\t* anyone.\n\t* user.\n\t* domain.\n\t* group"
 	DescRoles          = "\n\t* owner.\n\t* reader.\n\t* writer.\n\t* commenter."
 	DescIgnoreChecksum = "avoids computation of checksums as a final check." +
 		"\nUse cases may include:\n\t* when you are low on bandwidth e.g SSHFS." +
@@ -120,7 +120,7 @@ var docMap = map[string][]string{
 		DescShare, "Accepts multiple paths",
 		"Specify the emails to share with as well as the message to send them on notification",
 		"Accepted values for:\n+ accountType: ",
-		DescAccountType, "\n+ roles:", DescRoles,
+		DescAccountTypes, "\n+ roles:", DescRoles,
 	},
 	StatKey: []string{
 		DescStat, "provides detailed information about a remote file",
@@ -135,7 +135,7 @@ var docMap = map[string][]string{
 	},
 	UnshareKey: []string{
 		DescUnshare, "Accepts multiple paths",
-		"Accepted values for accountTypes::", DescAccountType,
+		"Accepted values for accountTypes::", DescAccountTypes,
 	},
 	UntrashKey: []string{
 		DescUntrash, "takes remote files out of the trash",

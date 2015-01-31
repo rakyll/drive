@@ -591,13 +591,15 @@ type shareCmd struct {
 	message     *string
 	role        *string
 	accountType *string
+	notify      *bool
 }
 
 func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.emails = fs.String("emails", "", "emails to share the file to")
 	cmd.message = fs.String("message", "", "message to send receipients")
-	cmd.role = fs.String("role", "", "role to set to receipients of share")
-	cmd.accountType = fs.String("type", "", "scope of accounts to share files with")
+	cmd.role = fs.String("role", "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
+	cmd.accountType = fs.String("type", "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
+	cmd.notify = fs.Bool("notify", true, "toggle whether to notify receipients about share")
 	return fs
 }
 
@@ -611,10 +613,16 @@ func (cmd *shareCmd) Run(args []string) {
 		"accountType":  uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
 	}
 
+	mask := drive.NoopOnShare
+	if *cmd.notify {
+		mask = drive.Notify
+	}
+
 	exitWithError(drive.New(context, &drive.Options{
-		Meta:    &meta,
-		Path:    path,
-		Sources: sources,
+		Meta:     &meta,
+		Path:     path,
+		Sources:  sources,
+		TypeMask: mask,
 	}).Share())
 }
 
