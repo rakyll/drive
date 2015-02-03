@@ -21,6 +21,7 @@ import (
 const (
 	AboutKey      = "about"
 	AllKey        = "all"
+	CopyKey       = "copy"
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
 	FeaturesKey   = "features"
@@ -44,6 +45,7 @@ const (
 const (
 	DescAbout          = "print out information about your Google drive"
 	DescAll            = "print out the entire help section"
+	DescCopy           = "copy remote paths to a destination"
 	DescDiff           = "compares local files with their remote equivalent"
 	DescEmptyTrash     = "permanently cleans out your trash"
 	DescFeatures       = "returns information about the features of your drive"
@@ -79,6 +81,9 @@ var skipChecksumNote = fmt.Sprintf(
 var docMap = map[string][]string{
 	AboutKey: []string{
 		DescAbout,
+	},
+	CopyKey: []string{
+		DescCopy,
 	},
 	DiffKey: []string{
 		DescDiff, "Accepts multiple remote paths for line by line comparison",

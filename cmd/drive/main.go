@@ -41,6 +41,7 @@ func main() {
 	runtime.GOMAXPROCS(int(maxProcs))
 
 	command.On(drive.AboutKey, drive.DescAbout, &aboutCmd{}, []string{})
+	command.On(drive.CopyKey, drive.DescCopy, &copyCmd{}, []string{})
 	command.On(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
 	command.On(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
 	command.On(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
@@ -519,6 +520,27 @@ func (cmd *trashCmd) Run(args []string) {
 			Sources: args,
 		}).TrashByMatch())
 	}
+}
+
+type copyCmd struct {
+	recursive *bool
+}
+
+func (cmd *copyCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.recursive = fs.Bool("r", false, "recursive copying")
+	return fs
+}
+
+func (cmd *copyCmd) Run(args []string) {
+	if len(args) < 2 {
+		args = append(args, ".")
+	}
+	sources, context, path := preprocessArgs(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path:      path,
+		Sources:   sources,
+		Recursive: *cmd.recursive,
+	}).Copy())
 }
 
 type untrashCmd struct {

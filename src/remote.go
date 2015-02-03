@@ -448,6 +448,18 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	return NewRemoteFile(uploaded), nil
 }
 
+func (r *Remote) copy(name, fileId, parentId string) (*File, error) {
+	f := &drive.File{Title: name}
+	if parentId != "" {
+		f.Parents = []*drive.ParentReference{&drive.ParentReference{Id: parentId}}
+	}
+	copied, err := r.service.Files.Copy(fileId, f).Do()
+	if err != nil {
+		return nil, err
+	}
+	return NewRemoteFile(copied), nil
+}
+
 func (r *Remote) findShared(p []string) (chan *File, error) {
 	req := r.service.Files.List()
 	expr := "sharedWithMe=true"
@@ -497,6 +509,12 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
 	req.Q(expr)
 	return reqDoPage(req, true), nil
+}
+
+func (r *Remote) findChildren(parentId string) chan *File {
+	req := r.service.Files.List()
+	req.Q(fmt.Sprintf("%s in parents", strconv.Quote(parentId)))
+	return reqDoPage(req, true)
 }
 
 func (r *Remote) About() (about *drive.About, err error) {

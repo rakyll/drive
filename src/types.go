@@ -65,6 +65,8 @@ type File struct {
 	Size        int64
 	Etag        string
 	Shared      bool
+	// Copyable decides if the user has allowed for the file to be copied
+	Copyable bool
 	// UserPermission contains the permissions for the authenticated user on this file
 	UserPermission *drive.Permission
 	// CacheChecksum when set avoids recomputation of checksums
@@ -89,9 +91,32 @@ func NewRemoteFile(f *drive.File) *File {
 		Md5Checksum: f.Md5Checksum,
 		MimeType:    f.MimeType,
 		ModTime:     mtime,
+		Copyable:    f.Copyable,
 		// We must convert each title to match that on the FS.
 		Name:           urlToPath(f.Title, true),
 		Size:           f.FileSize,
+		Shared:         f.Shared,
+		UserPermission: f.UserPermission,
+		Version:        f.Version,
+		OwnerNames:     f.OwnerNames,
+		Permissions:    f.Permissions,
+	}
+}
+
+func DupFile(f *File) *File {
+	return &File{
+		BlobAt:      f.BlobAt,
+		Etag:        f.Etag,
+		ExportLinks: f.ExportLinks,
+		Id:          f.Id,
+		IsDir:       f.IsDir,
+		Md5Checksum: f.Md5Checksum,
+		MimeType:    f.MimeType,
+		ModTime:     f.ModTime,
+		Copyable:    f.Copyable,
+		// We must convert each title to match that on the FS.
+		Name:           f.Name,
+		Size:           f.Size,
 		Shared:         f.Shared,
 		UserPermission: f.UserPermission,
 		Version:        f.Version,

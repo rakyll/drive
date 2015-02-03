@@ -78,7 +78,8 @@ func (g *Commands) Stat() error {
 }
 
 func prettyPermission(perm *drive.Permission) {
-	fmt.Printf("\n*\nName: %v <%s>\nRole: %v\nAccountType: %v\n*\n", perm.Name, perm.EmailAddress, perm.Role, perm.Type)
+	fmt.Printf("\n*\nName: %v <%s>\nRole: %v\nAccountType: %v\n*\n",
+		perm.Name, perm.EmailAddress, perm.Role, perm.Type)
 }
 
 func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
@@ -103,7 +104,13 @@ func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
 			return
 		}
 
-		fmt.Printf("\n\033[92m%s\033[00m\nFileId: %s\nSize: %v\n", relToRootPath, file.Id, prettyBytes(file.Size))
+		dirType := "file"
+		if file.IsDir {
+			dirType = "folder"
+		}
+
+		fmt.Printf("\n\033[92m%s\033[00m\nFileId: %s\nSize: %v\nDirType: %s\nMimeType: %s\nModTime: %s\n",
+			relToRootPath, file.Id, prettyBytes(file.Size), dirType, file.MimeType, file.ModTime)
 		for _, perm := range perms {
 			prettyPermission(perm)
 		}
