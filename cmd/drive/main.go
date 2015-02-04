@@ -204,7 +204,7 @@ type statCmd struct {
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
-	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
+	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	return fs
 }
 
@@ -318,14 +318,12 @@ func (cmd *pushCmd) Run(args []string) {
 
 type touchCmd struct {
 	hidden    *bool
-	noPrompt  *bool
 	recursive *bool
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
-	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
-	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
 	return fs
 }
 
@@ -333,7 +331,6 @@ func (cmd *touchCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Hidden:    *cmd.hidden,
-		NoPrompt:  *cmd.noPrompt,
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   sources,

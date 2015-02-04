@@ -16,14 +16,15 @@ package drive
 
 import (
 	"fmt"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"sync"
 	"time"
+
+	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
 type keyValue struct {
-	path string
-	err  error
+	key   string
+	value interface{}
 }
 
 func (g *Commands) Stat() error {
@@ -62,9 +63,10 @@ func (g *Commands) Stat() error {
 			case v := <-childChan:
 				if v == nil { // Closed
 					delete(channelMap, key)
-				} else {
-					if v.err != nil {
-						fmt.Printf("v: %s err: %v\n", v.path, v.err)
+				} else if v.value != nil {
+					err := v.value.(error)
+					if err != nil {
+						fmt.Printf("v: %s err: %v\n", v.key, err)
 					}
 				}
 			default:
@@ -78,7 +80,35 @@ func (g *Commands) Stat() error {
 }
 
 func prettyPermission(perm *drive.Permission) {
-	fmt.Printf("\n*\nName: %v <%s>\nRole: %v\nAccountType: %v\n*\n", perm.Name, perm.EmailAddress, perm.Role, perm.Type)
+	fmt.Printf("\n*\nName: %v <%s>\n", perm.Name, perm.EmailAddress)
+	kvList := []*keyValue{
+		&keyValue{"Role", perm.Role},
+		&keyValue{"AccountType", perm.Type},
+	}
+	for _, kv := range kvList {
+		fmt.Printf("%-20s %-30v\n", kv.key, kv.value.(string))
+	}
+	fmt.Printf("*\n")
+}
+
+func prettyFileStat(relToRootPath string, file *File) {
+	dirType := "file"
+	if file.IsDir {
+		dirType = "folder"
+	}
+
+	fmt.Printf("\n\033[92m%s\033[00m\n", relToRootPath)
+	kvList := []*keyValue{
+		&keyValue{"FileId", file.Id},
+		&keyValue{"Bytes", fmt.Sprintf("%v", file.Size)},
+		&keyValue{"Size", prettyBytes(file.Size)},
+		&keyValue{"DirType", dirType},
+		&keyValue{"MimeTye", file.MimeType},
+		&keyValue{"ModTime", fmt.Sprintf("%v", file.ModTime)},
+	}
+	for _, kv := range kvList {
+		fmt.Printf("%-20s %-30v\n", kv.key, kv.value.(string))
+	}
 }
 
 func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
@@ -88,7 +118,7 @@ func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
 	throttle := time.Tick(1e9 / 5)
 	go func() {
 		kv := &keyValue{
-			path: relToRootPath,
+			key: relToRootPath,
 		}
 
 		defer func() {
@@ -97,13 +127,12 @@ func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
 			close(statChan)
 		}()
 
+		prettyFileStat(relToRootPath, file)
 		perms, permErr := g.rem.listPermissions(file.Id)
 		if permErr != nil {
-			kv.err = permErr
+			kv.value = permErr
 			return
 		}
-
-		fmt.Printf("\n\033[92m%s\033[00m\nFileId: %s\nSize: %v\n", relToRootPath, file.Id, prettyBytes(file.Size))
 		for _, perm := range perms {
 			prettyPermission(perm)
 		}

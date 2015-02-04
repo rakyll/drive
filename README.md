@@ -279,7 +279,7 @@ $ drive stat mnt
 By default `stat` won't recursively stat a directory, to enable recursive stating:
 
 ```shell
-$ drive stat -recursive mnt
+$ drive stat -r mnt
 ```
 
 ### Quota
