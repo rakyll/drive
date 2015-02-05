@@ -158,6 +158,22 @@ func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
 	return changeChan, nil
 }
 
+func buildExpression(parentId string, typeMask int, inTrash bool) string {
+	var exprBuilder []string
+
+	if inTrash || (typeMask&InTrash) != 0 {
+		exprBuilder = append(exprBuilder, "trashed=true")
+	} else {
+		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
+	}
+
+	// Folder and NonFolder are mutually exclusive.
+	if (typeMask & Folder) != 0 {
+		exprBuilder = append(exprBuilder, fmt.Sprintf("mimeType = '%s'", DriveFolderMimeType))
+	}
+	return strings.Join(exprBuilder, " and ")
+}
+
 func (r *Remote) change(changeId string) (*drive.Change, error) {
 	return r.service.Changes.Get(changeId).Do()
 }
@@ -186,8 +202,12 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
+func rootLike(p string) bool {
+	return p == "/" || p == "" || p == "root"
+}
+
 func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
-	if p == "/" {
+	if rootLike(p) {
 		return r.FindById("root")
 	}
 	parts := strings.Split(p, "/")
@@ -206,7 +226,7 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
 }
 
-func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
+func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
 	fileChan := make(chan *File)
 	go func() {
 		pageToken := ""
@@ -229,6 +249,11 @@ func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
 			if pageToken == "" {
 				break
 			}
+
+			if promptOnPagination && !nextPage() {
+				fileChan <- nil
+				break
+			}
 		}
 		close(fileChan)
 	}()
@@ -239,7 +264,7 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileC
 	req := r.service.Files.List()
 	// TODO: use field selectors
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
-	return reqDoPage(req, hidden)
+	return reqDoPage(req, hidden, false)
 }
 
 func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
@@ -456,7 +481,7 @@ func (r *Remote) findShared(p []string) (chan *File, error) {
 	}
 	req = req.Q(expr)
 
-	return reqDoPage(req, false), nil
+	return reqDoPage(req, false, false), nil
 }
 
 func (r *Remote) FindByPathShared(p string) (chan *File, error) {
@@ -496,7 +521,7 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	// And always make sure that we are searching from this parent
 	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
 	req.Q(expr)
-	return reqDoPage(req, true), nil
+	return reqDoPage(req, true, false), nil
 }
 
 func (r *Remote) About() (about *drive.About, err error) {

@@ -103,7 +103,7 @@ func prettyFileStat(relToRootPath string, file *File) {
 		&keyValue{"Bytes", fmt.Sprintf("%v", file.Size)},
 		&keyValue{"Size", prettyBytes(file.Size)},
 		&keyValue{"DirType", dirType},
-		&keyValue{"MimeTye", file.MimeType},
+		&keyValue{"MimeType", file.MimeType},
 		&keyValue{"ModTime", fmt.Sprintf("%v", file.ModTime)},
 	}
 	for _, kv := range kvList {
