@@ -106,6 +106,9 @@ func prettyFileStat(relToRootPath string, file *File) {
 		&keyValue{"MimeType", file.MimeType},
 		&keyValue{"ModTime", fmt.Sprintf("%v", file.ModTime)},
 	}
+	if !file.IsDir {
+		kvList = append(kvList, &keyValue{"Md5Checksum", file.Md5Checksum})
+	}
 	for _, kv := range kvList {
 		fmt.Printf("%-20s %-30v\n", kv.key, kv.value.(string))
 	}
