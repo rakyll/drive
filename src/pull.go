@@ -34,6 +34,8 @@ const (
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
 	var cl []*Change
+
+	fmt.Println("Resolving...")
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
