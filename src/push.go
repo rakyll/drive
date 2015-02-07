@@ -36,6 +36,7 @@ func (g *Commands) Push() (err error) {
 	root := g.context.AbsPathOf("")
 	var cl []*Change
 
+	fmt.Println("Resolving...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 

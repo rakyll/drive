@@ -104,6 +104,7 @@ func prettyFileStat(relToRootPath string, file *File) {
 		&keyValue{"Size", prettyBytes(file.Size)},
 		&keyValue{"DirType", dirType},
 		&keyValue{"MimeType", file.MimeType},
+		&keyValue{"Etag", file.Etag},
 		&keyValue{"ModTime", fmt.Sprintf("%v", file.ModTime)},
 	}
 	if !file.IsDir {

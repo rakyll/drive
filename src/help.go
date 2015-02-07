@@ -39,6 +39,8 @@ const (
 	UntrashKey    = "untrash"
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
+
+	ForceKey = "force"
 )
 
 const (

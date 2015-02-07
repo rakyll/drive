@@ -73,7 +73,6 @@ $ cd ~/gdrive
 ### Pulling
 
 The `pull` command downloads data from Google Drive that does not exist locally, and deletes local data that is not present on Google Drive. 
-
 Run it without any arguments to pull all of the files from the current path:
 
 ```shell
@@ -84,6 +83,21 @@ To force download from paths that otherwise would be marked with no-changes
 
 ```shell
 $ drive pull -force
+```
+
++ Note:
+  In relation to [#57](https://github.com/odeke-em/drive/issues/57) and [@rakyll's #49](https://github.com/rakyll/drive/issues/49).
+   A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-force` e.g:
+
+```shell
+$ drive pull -force collaboration_documents
+```
+
+Playing the safety card even more, if you want to get changes that are non clobberable ie only additions
+run drive with flag `-no-clobber` e.g:
+
+```shell
+$ drive pull -no-clobber Makefile
 ```
 
 To pull specific files or directories, pass in one or more paths:
@@ -97,6 +111,7 @@ Note: To ignore checksum verification during a pull:
 ```shell
 $ drive pull -ignore-checksum
 ```
+
 
 #### Exporting Docs
 
@@ -137,6 +152,18 @@ Note: To ignore checksum verification during a push:
 
 ```shell
 $ drive push -ignore-checksum
+```
+
+For safety with non clobberable changes i.e only additions:
+
+```shell
+$ drive push -no-clobber
+```
+
++ Due to the reasons explained in the pull section, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-force` flag i.e:
+
+```shell
+$ drive push -force sure_of_content
 ```
 
 
