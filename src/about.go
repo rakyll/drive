@@ -19,7 +19,7 @@ import (
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
-const Version = "0.0.7"
+const Version = "0.0.8a"
 
 const (
 	Barely = iota

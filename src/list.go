@@ -16,7 +16,6 @@ package drive
 
 import (
 	"fmt"
-	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 	"path/filepath"
 	"strings"
 
@@ -24,6 +23,8 @@ import (
 )
 
 var BytesPerKB = float64(1024)
+
+const RemoteDriveRootPath = "My Drive"
 
 const (
 	InTrash = 1 << iota
@@ -75,13 +76,13 @@ var prettyBytes = memoizeBytes()
 func (g *Commands) List() (err error) {
 	root := g.context.AbsPathOf("")
 	var relPath string
-	var relPaths []string
-	var remotes []*File
 
 	resolver := g.rem.FindByPath
 	if g.opts.InTrash {
 		resolver = g.rem.FindByPathTrashed
 	}
+
+	var kvList []*keyValue
 
 	for _, p := range g.opts.Sources {
 		relP := g.context.AbsPathOf(p)
@@ -94,20 +95,25 @@ func (g *Commands) List() (err error) {
 			relPath = ""
 		}
 		relPath = "/" + relPath
-		relPaths = append(relPaths, relPath)
 		r, rErr := resolver(relPath)
 		if rErr != nil {
 			fmt.Printf("%v: '%s'\n", rErr, relPath)
 			return
 		}
-		remotes = append(remotes, r)
+		kvList = append(kvList, &keyValue{key: relPath, value: r})
 	}
 
-	for _, r := range remotes {
-		if !g.breadthFirst(r.Id, "", r.Name, g.opts.Depth, g.opts.TypeMask, false) {
+	spin := spinner.New(10)
+	spin.Start()
+	for _, kv := range kvList {
+		if kv == nil || kv.value == nil {
+			continue
+		}
+		if !g.breadthFirst(kv.value.(*File), "", kv.key, g.opts.Depth, g.opts.TypeMask, false) {
 			break
 		}
 	}
+	spin.Stop()
 
 	// No-op for now for explicitly traversing shared content
 	if false {
@@ -130,10 +136,10 @@ func (g *Commands) List() (err error) {
 }
 
 func (f *File) pretty(opt attribute) {
-	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, f.Name)
+	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, urlToPath(f.Name, false))
+
 	if opt.minimal {
 		fmt.Println(fmtdPath)
-
 		if owners(opt.mask) && len(f.OwnerNames) >= 1 {
 			fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
 		}
@@ -159,27 +165,32 @@ func (f *File) pretty(opt attribute) {
 		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
 	}
 
-	fmt.Printf(" %-10s\t%-60s\t\t%-20s\n", prettyBytes(f.Size), fmtdPath, f.ModTime)
+	fmt.Printf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
-func buildExpression(parentId string, typeMask int, inTrash bool) string {
-	var exprBuilder []string
-
-	if inTrash || (typeMask&InTrash) != 0 {
-		exprBuilder = append(exprBuilder, "trashed=true")
-	} else {
-		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
+func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool) bool {
+	headPath := ""
+	if !rootLike(prefixPath) {
+		headPath = prefixPath
 	}
 
-	// Folder and NonFolder are mutually exclusive.
-	if (typeMask & Folder) != 0 {
-		exprBuilder = append(exprBuilder, fmt.Sprintf("mimeType = '%s'", DriveFolderMimeType))
+	opt := attribute{
+		minimal: isMinimal(g.opts.TypeMask),
+		mask:    mask,
+		parent:  headPath,
 	}
-	return strings.Join(exprBuilder, " and ")
-}
 
-func (g *Commands) breadthFirst(parentId, parent,
-	child string, depth, typeMask int, inTrash bool) bool {
+	if f.Name != RemoteDriveRootPath {
+		if f.Name != "" && walkTrail != "" {
+			headPath = headPath + "/" + f.Name
+		}
+	}
+	if !f.IsDir {
+		if walkTrail == "" {
+			f.pretty(opt)
+		}
+		return true
+	}
 
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
@@ -190,82 +201,42 @@ func (g *Commands) breadthFirst(parentId, parent,
 		depth -= 1
 	}
 
-	headPath := ""
-	if parent != "" {
-		headPath = parent
-	}
-	if child != "" {
-		headPath = headPath + "/" + child
-	}
-
-	pageToken := ""
-	expr := "trashed=true"
-
-	if !inTrash {
-		expr = buildExpression(parentId, typeMask, g.opts.InTrash)
-	}
+	expr := buildExpression(f.Id, mask, inTrash)
 
 	req := g.rem.service.Files.List()
 	req.Q(expr)
 	req.MaxResults(g.opts.PageSize)
 
-	var children []*drive.File
-	onlyFiles := (typeMask & NonFolder) != 0
+	fileChan := reqDoPage(req, g.opts.Hidden, !g.opts.NoPrompt)
 
-	opt := attribute{
-		minimal: isMinimal(g.opts.TypeMask),
-		mask:    typeMask,
-		parent:  headPath,
-	}
+	var children []*File
+	onlyFiles := (g.opts.TypeMask & NonFolder) != 0
 
-	spin := spinner.New(10)
-	for {
-		spin.Reset()
-		spin.Start()
+	opt.parent = headPath
 
-		if pageToken != "" {
-			req = req.PageToken(pageToken)
-		}
-		res, err := req.Do()
-		if err != nil {
-			fmt.Println(err)
+	for file := range fileChan {
+		if file == nil {
 			return false
 		}
-
-		spin.Stop()
-		for _, file := range res.Items {
-			rem := NewRemoteFile(file)
-			if isHidden(file.Title, g.opts.Hidden) {
-				continue
-			}
-			children = append(children, file)
-
-			// The case in which only directories wanted is covered by the buildExpression clause
-			// reason being that only folder are allowed to be roots, including the only files clause
-			// would result in incorrect traversal since non-folders don't have children.
-			// Just don't print it, however, the folder will still be explored.
-			if onlyFiles && rem.IsDir {
-				continue
-			}
-			rem.pretty(opt)
+		if isHidden(file.Name, g.opts.Hidden) {
+			continue
 		}
 
-		pageToken = res.NextPageToken
-		if pageToken == "" {
-			break
-		}
+		children = append(children, file)
 
-		spin.Stop()
-		if !g.opts.NoPrompt && !nextPage() {
-			return false
+		// The case in which only directories wanted is covered by the buildExpression clause
+		// reason being that only folder are allowed to be roots, including the only files clause
+		// would result in incorrect traversal since non-folders don't have children.
+		// Just don't print it, however, the folder will still be explored.
+		if onlyFiles && file.IsDir {
+			continue
 		}
+		file.pretty(opt)
 	}
-
-	spin.Stop()
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file.Id, headPath, file.Title, depth, typeMask, inTrash) {
+			if !g.breadthFirst(file, "bread-crumbs", headPath, depth, g.opts.TypeMask, inTrash) {
 				return false
 			}
 		}

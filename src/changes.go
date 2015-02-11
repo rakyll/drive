@@ -96,7 +96,6 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 		l = NewLocalFile(fsPath, localinfo)
 	}
 
-	fmt.Println("Resolving...")
 	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
 }
 
@@ -276,17 +275,32 @@ func reduceToSize(changes []*Change, isPush bool) (totalSize int64) {
 	return totalSize
 }
 
-func summarizeChanges(changes []*Change, reduce bool) {
+func checkAndPrintChanges(changes []*Change, reduce bool) bool {
+	// Firstly detect the conflicting changes and if present return false
+	var conflicts []string
 	for _, c := range changes {
-		if c.Op() != OpNone {
-			fmt.Println(c.Symbol(), c.Path)
+		if c.Op() == OpModConflict {
+			conflicts = append(conflicts, c.Path)
 		}
 	}
+
+	conflictCount := len(conflicts)
+	if conflictCount >= 1 {
+		fmt.Printf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", conflictCount, ForceKey)
+		for _, path := range conflicts {
+			fmt.Println(path)
+		}
+		return false
+	}
+
 	if reduce {
 		opMap := map[int]sizeCounter{}
 
 		for _, c := range changes {
 			op := c.Op()
+			if op != OpNone {
+				fmt.Println(c.Symbol(), c.Path)
+			}
 			counter := opMap[op]
 			counter.count += 1
 			if c.Src != nil {
@@ -306,6 +320,7 @@ func summarizeChanges(changes []*Change, reduce bool) {
 			fmt.Printf("%s %s\n", name, counter.String())
 		}
 	}
+	return true
 }
 
 func promptForChanges() bool {
@@ -320,7 +335,9 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		fmt.Println("Everything is up-to-date.")
 		return false
 	}
-	summarizeChanges(changes, !noPrompt)
+	if !checkAndPrintChanges(changes, !noPrompt) {
+		return false
+	}
 
 	if noPrompt {
 		return true

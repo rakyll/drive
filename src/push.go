@@ -22,7 +22,6 @@ import (
 	gopath "path"
 	"sort"
 	"strings"
-	"sync"
 
 	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
@@ -37,6 +36,7 @@ func (g *Commands) Push() (err error) {
 	root := g.context.AbsPathOf("")
 	var cl []*Change
 
+	fmt.Println("Resolving...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
@@ -93,60 +93,6 @@ func (g *Commands) Push() (err error) {
 		return g.playPushChangeList(cl)
 	}
 	return
-}
-
-func (g *Commands) Touch() (err error) {
-	root := "/"
-	chunkSize := 4
-	srcLen := len(g.opts.Sources)
-	q, r := srcLen/chunkSize, srcLen%chunkSize
-	i, chunkCount := 0, q
-
-	if r != 0 {
-		chunkCount += 1
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(chunkCount)
-
-	for j := 0; j < chunkCount; j += 1 {
-		end := i + chunkSize
-		if end >= srcLen {
-			end = srcLen
-		}
-		chunk := g.opts.Sources[i:end]
-		go func(wg *sync.WaitGroup, chunk []string) {
-			for _, relToRootPath := range chunk {
-				// Ignore the case in which root is to be touched.
-				if relToRootPath == root {
-					continue
-				}
-				file, tErr := g.touch(relToRootPath)
-				if tErr != nil {
-					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
-				} else if false { // TODO: Print this out if verbosity is set
-					fmt.Printf("%s: %v\n", relToRootPath, file.ModTime)
-				}
-			}
-			wg.Done()
-		}(&wg, chunk)
-
-		i += chunkSize
-	}
-
-	wg.Wait()
-	return
-}
-
-func (g *Commands) touch(relToRootPath string) (*File, error) {
-	file, err := g.rem.FindByPath(relToRootPath)
-	if err != nil {
-		return nil, err
-	}
-	if file == nil {
-		return nil, ErrPathNotExists
-	}
-	return g.rem.Touch(file.Id)
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {

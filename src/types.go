@@ -29,6 +29,7 @@ const (
 	OpAdd
 	OpDelete
 	OpMod
+	OpModConflict
 )
 
 const (
@@ -47,10 +48,11 @@ const (
 var BigFileSize = int64(1024 * 1024 * 400)
 
 var opPrecedence = map[int]int{
-	OpNone:   0,
-	OpDelete: 1,
-	OpAdd:    2,
-	OpMod:    3,
+	OpNone:        0,
+	OpDelete:      1,
+	OpAdd:         2,
+	OpMod:         3,
+	OpModConflict: 4,
 }
 
 type File struct {
@@ -121,6 +123,7 @@ type Change struct {
 	Src            *File
 	Force          bool
 	NoClobber      bool
+	IgnoreConflict bool
 	IgnoreChecksum bool
 }
 
@@ -158,6 +161,8 @@ func opToString(op int) (string, string) {
 		return "\033[31m-\033[0m", "Deletion"
 	case OpMod:
 		return "\033[33mM\033[0m", "Modification"
+	case OpModConflict:
+		return "\033[35mX\033[0m", "Clashing modification"
 	default:
 		return "", ""
 	}
@@ -238,7 +243,7 @@ func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 	}
 
 	if !ignoreChecksum {
-		// Only compute the checksum if the size is the same.
+		// Only compute the checksum if the size differs
 		if sizeDiffers(difference) || md5Checksum(src) != md5Checksum(dest) {
 			difference |= DifferMd5Checksum
 		}
@@ -246,8 +251,6 @@ func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 	return difference
 }
 
-// If the preliminary sameFile test passes,
-// then perform an Md5 checksum comparison
 func sameFileTillChecksum(src, dest *File, ignoreChecksum bool) bool {
 	return fileDifferences(src, dest, ignoreChecksum) == DifferNone
 }
@@ -265,18 +268,33 @@ func (c *Change) op() int {
 	if c.Src.IsDir != c.Dest.IsDir {
 		return OpMod
 	}
+	if c.Src.IsDir {
+		return OpNone
+	}
 
-	if !c.Src.IsDir && !sameFileTillChecksum(c.Src, c.Dest, c.IgnoreChecksum) {
+	mask := fileDifferences(c.Src, c.Dest, c.IgnoreChecksum)
+
+	if sizeDiffers(mask) || checksumDiffers(mask) {
+		if c.IgnoreConflict {
+			return OpMod
+		}
+		return OpModConflict
+	}
+	if modTimeDiffers(mask) {
 		return OpMod
 	}
+
 	return OpNone
 }
 
 func (c *Change) Op() int {
+	op := c.op()
 	if c.Force {
+		if op == OpModConflict {
+			return OpMod
+		}
 		return OpAdd
 	}
-	op := c.op()
 	if op != OpAdd && c.NoClobber {
 		return OpNone
 	}

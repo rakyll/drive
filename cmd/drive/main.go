@@ -204,7 +204,7 @@ type statCmd struct {
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
-	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
+	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	return fs
 }
 
@@ -318,14 +318,12 @@ func (cmd *pushCmd) Run(args []string) {
 
 type touchCmd struct {
 	hidden    *bool
-	noPrompt  *bool
 	recursive *bool
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
-	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
-	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
 	return fs
 }
 
@@ -333,7 +331,6 @@ func (cmd *touchCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		Hidden:    *cmd.hidden,
-		NoPrompt:  *cmd.noPrompt,
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   sources,
@@ -591,13 +588,15 @@ type shareCmd struct {
 	message     *string
 	role        *string
 	accountType *string
+	notify      *bool
 }
 
 func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.emails = fs.String("emails", "", "emails to share the file to")
 	cmd.message = fs.String("message", "", "message to send receipients")
-	cmd.role = fs.String("role", "", "role to set to receipients of share")
-	cmd.accountType = fs.String("type", "", "scope of accounts to share files with")
+	cmd.role = fs.String("role", "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
+	cmd.accountType = fs.String("type", "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
+	cmd.notify = fs.Bool("notify", true, "toggle whether to notify receipients about share")
 	return fs
 }
 
@@ -611,10 +610,16 @@ func (cmd *shareCmd) Run(args []string) {
 		"accountType":  uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
 	}
 
+	mask := drive.NoopOnShare
+	if *cmd.notify {
+		mask = drive.Notify
+	}
+
 	exitWithError(drive.New(context, &drive.Options{
-		Meta:    &meta,
-		Path:    path,
-		Sources: sources,
+		Meta:     &meta,
+		Path:     path,
+		Sources:  sources,
+		TypeMask: mask,
 	}).Share())
 }
 
