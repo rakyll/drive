@@ -44,12 +44,7 @@ type Index struct {
 	MimeType    string `json:"mime_type"`
 	ModTime     int64  `json:"mod_time"`
 	Version     int64  `json:"version"`
-	Remote      bool   `json:"remote"`
-}
-
-type IndexFile struct {
-	Name  string  `json:"name"`
-	Index []Index `json:"index"`
+	IndexTime   int64  `json:"index_time"`
 }
 
 type MountPoint struct {
@@ -86,28 +81,32 @@ func (c *Context) Read() (err error) {
 	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {
 		return
 	}
-	err = json.Unmarshal(data, c)
+	if err = json.Unmarshal(data, c); err != nil {
+		return
+	}
+	indicesPath := indicesAbsPath("", "")
+	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
 
-func (c *Context) ReadIndices(p string) (*IndexFile, error) {
+func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
 	var data []byte
 	var err error
-	if data, err = ioutil.ReadFile(indicesAbsPath(c.AbsPath)); err != nil {
+	if data, err = ioutil.ReadFile(indicesAbsPath(dir, path)); err != nil {
 		return nil, err
 	}
 
-	index := IndexFile{}
+	index := Index{}
 	err = json.Unmarshal(data, &index)
 	return &index, err
 }
 
-func (c *Context) WriteIndices(index *IndexFile, p string) (err error) {
+func (c *Context) SerializeIndex(index *Index, p string) (err error) {
 	var data []byte
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
-	return ioutil.WriteFile(indicesAbsPath(p), data, 0600)
+	return ioutil.WriteFile(indicesAbsPath(p, index.FileId), data, 0600)
 }
 
 func (c *Context) Write() (err error) {
@@ -161,6 +160,10 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 	if err = os.MkdirAll(pathGD, 0755); err != nil {
 		return
 	}
+	indicesPath := indicesAbsPath("", "")
+	if err = os.MkdirAll(indicesPath, 0755); err != nil {
+		return
+	}
 	c = &Context{AbsPath: absPath}
 	err = c.Write()
 	return
@@ -174,8 +177,8 @@ func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
 }
 
-func indicesAbsPath(absPath string) string {
-	return path.Join(gdPath(absPath), "indices")
+func indicesAbsPath(absPath, aux string) string {
+	return path.Join(gdPath(absPath), "indices", aux)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {

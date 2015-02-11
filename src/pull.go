@@ -47,9 +47,24 @@ func (g *Commands) Pull() (err error) {
 		}
 	}
 
-	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
+	nonConflicts, conflicts := sift(cl)
+	resolved, unresolved := resolveConflicts(conflicts, false, g.deserializeIndex)
+	if len(unresolved) >= 1 {
+		if conflictsPersist(unresolved) {
+			return
+		}
+		for _, ch := range unresolved {
+			resolved = append(resolved, ch)
+		}
+	}
+
+	for _, ch := range resolved {
+		nonConflicts = append(nonConflicts, ch)
+	}
+
+	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
 	if ok {
-		return g.playPullChangeList(cl, g.opts.Exports)
+		return g.playPullChangeList(nonConflicts, g.opts.Exports)
 	}
 
 	return
@@ -82,6 +97,8 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 			switch c.Op() {
 			case OpMod:
 				go g.localMod(&wg, c, exports)
+			case OpModConflict:
+				go g.localMod(&wg, c, exports)
 			case OpAdd:
 				go g.localAdd(&wg, c, exports)
 			case OpDelete:
@@ -96,8 +113,20 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 }
 
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
-	defer g.taskDone()
-	defer wg.Done()
+	defer func() {
+		if err == nil {
+			src := change.Src
+			index := src.ToIndex()
+			wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+			// TODO: Should indexing errors be reported?
+			if wErr != nil {
+				fmt.Printf("serializeIndex %s: %v\n", src.Name, wErr)
+			}
+		}
+		g.taskDone()
+		wg.Done()
+	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
@@ -110,13 +139,26 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 			return
 		}
 	}
-	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	return
 }
 
 func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+	defer func() {
+		if err == nil {
+			src := change.Src
+			index := src.ToIndex()
+			sErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
-	defer g.taskDone()
-	defer wg.Done()
+			// TODO: Should indexing errors be reported?
+			if sErr != nil {
+				fmt.Printf("serializeIndex %s: %v\n", src.Name, sErr)
+			}
+		}
+		g.taskDone()
+		wg.Done()
+	}()
+
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
 	// make parent's dir if not exists
@@ -138,7 +180,8 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 		return
 	}
 
-	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	return
 }
 
 func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {

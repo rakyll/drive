@@ -68,7 +68,22 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
+	nonConflicts, conflicts := sift(cl)
+	resolved, unresolved := resolveConflicts(conflicts, true, g.deserializeIndex)
+	if len(unresolved) >= 1 {
+		if conflictsPersist(unresolved) {
+			return
+		}
+		for _, ch := range unresolved {
+			resolved = append(resolved, ch)
+		}
+	}
+
+	for _, ch := range resolved {
+		nonConflicts = append(nonConflicts, ch)
+	}
+
+	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
 	if ok {
 		pushSize := reduceToSize(cl, true)
 
@@ -90,9 +105,17 @@ func (g *Commands) Push() (err error) {
 				return
 			}
 		}
-		return g.playPushChangeList(cl)
+		return g.playPushChangeList(nonConflicts)
 	}
 	return
+}
+
+func (g *Commands) deserializeIndex(identifier string) *config.Index {
+	index, err := g.context.DeserializeIndex(g.context.AbsPathOf(""), identifier)
+	if err != nil {
+		return nil
+	}
+	return index
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
@@ -107,6 +130,8 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 	for _, c := range cl {
 		switch c.Op() {
 		case OpMod:
+			g.remoteMod(c)
+		case OpModConflict:
 			g.remoteMod(c)
 		case OpAdd:
 			g.remoteAdd(c)
@@ -135,6 +160,7 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
+
 	absPath := g.context.AbsPathOf(change.Path)
 	var parent *File
 	if change.Dest != nil {
@@ -164,11 +190,23 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
-	_, err = g.rem.UpsertByComparison(&args)
+
+	rem, err := g.rem.UpsertByComparison(&args)
 	if err != nil {
 		fmt.Printf("%s: %v\n", change.Path, err)
+		return
 	}
-	return err
+	if rem == nil {
+		return
+	}
+	index := rem.ToIndex()
+	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+	// TODO: Should indexing errors be reported?
+	if wErr != nil {
+		fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+	}
+	return
 }
 
 func (g *Commands) remoteAdd(change *Change) (err error) {
@@ -183,23 +221,6 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 func (g *Commands) remoteDelete(change *Change) (err error) {
 	defer g.taskDone()
 	return g.rem.Trash(change.Dest.Id)
-}
-
-func (f *File) ToIndexFile() *config.IndexFile {
-	index := config.Index{
-		FileId:      f.Id,
-		Etag:        f.Etag,
-		Md5Checksum: f.Md5Checksum,
-		MimeType:    f.MimeType,
-		ModTime:     f.ModTime.Unix(),
-		Version:     f.Version,
-		Remote:      f.Etag != "",
-	}
-
-	return &config.IndexFile{
-		Name:  f.Name,
-		Index: []config.Index{index},
-	}
 }
 
 func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {

@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/odeke-em/drive/config"
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
@@ -299,4 +300,15 @@ func (c *Change) Op() int {
 		return OpNone
 	}
 	return op
+}
+
+func (f *File) ToIndex() *config.Index {
+	return &config.Index{
+		FileId:      f.Id,
+		Etag:        f.Etag,
+		Md5Checksum: f.Md5Checksum,
+		MimeType:    f.MimeType,
+		ModTime:     f.ModTime.Unix(),
+		Version:     f.Version,
+	}
 }
