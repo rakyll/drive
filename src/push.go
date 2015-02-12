@@ -213,14 +213,29 @@ func (g *Commands) remoteAdd(change *Change) (err error) {
 	return g.remoteMod(change)
 }
 
+func (g *Commands) indexAbsPath(fileId string) string {
+	return config.IndicesAbsPath(g.context.AbsPathOf(""), fileId)
+}
+
 func (g *Commands) remoteUntrash(change *Change) (err error) {
 	defer g.taskDone()
+
 	return g.rem.Untrash(change.Src.Id)
 }
 
 func (g *Commands) remoteDelete(change *Change) (err error) {
 	defer g.taskDone()
-	return g.rem.Trash(change.Dest.Id)
+
+	err = g.rem.Trash(change.Dest.Id)
+	if err != nil {
+		return
+	}
+
+	indexPath := g.indexAbsPath(change.Dest.Id)
+	if rmErr := os.Remove(indexPath); rmErr != nil {
+		fmt.Printf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
+	}
+	return
 }
 
 func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {

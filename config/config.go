@@ -84,7 +84,7 @@ func (c *Context) Read() (err error) {
 	if err = json.Unmarshal(data, c); err != nil {
 		return
 	}
-	indicesPath := indicesAbsPath("", "")
+	indicesPath := IndicesAbsPath("", "")
 	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
@@ -92,7 +92,7 @@ func (c *Context) Read() (err error) {
 func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
 	var data []byte
 	var err error
-	if data, err = ioutil.ReadFile(indicesAbsPath(dir, path)); err != nil {
+	if data, err = ioutil.ReadFile(IndicesAbsPath(dir, path)); err != nil {
 		return nil, err
 	}
 
@@ -106,7 +106,7 @@ func (c *Context) SerializeIndex(index *Index, p string) (err error) {
 	if data, err = json.Marshal(index); err != nil {
 		return
 	}
-	return ioutil.WriteFile(indicesAbsPath(p, index.FileId), data, 0600)
+	return ioutil.WriteFile(IndicesAbsPath(p, index.FileId), data, 0600)
 }
 
 func (c *Context) Write() (err error) {
@@ -160,7 +160,7 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 	if err = os.MkdirAll(pathGD, 0755); err != nil {
 		return
 	}
-	indicesPath := indicesAbsPath("", "")
+	indicesPath := IndicesAbsPath("", "")
 	if err = os.MkdirAll(indicesPath, 0755); err != nil {
 		return
 	}
@@ -177,8 +177,8 @@ func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
 }
 
-func indicesAbsPath(absPath, aux string) string {
-	return path.Join(gdPath(absPath), "indices", aux)
+func IndicesAbsPath(dir, child string) string {
+	return path.Join(gdPath(dir), "indices", child)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {
