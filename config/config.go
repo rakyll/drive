@@ -37,6 +37,16 @@ type Context struct {
 	AbsPath      string `json:"-"`
 }
 
+type Index struct {
+	FileId      string `json:"file_id"`
+	Etag        string `json:"etag"`
+	Md5Checksum string `json:"md5_checksum"`
+	MimeType    string `json:"mime_type"`
+	ModTime     int64  `json:"mod_time"`
+	Version     int64  `json:"version"`
+	IndexTime   int64  `json:"index_time"`
+}
+
 type MountPoint struct {
 	CanClean  bool
 	Name      string
@@ -71,8 +81,32 @@ func (c *Context) Read() (err error) {
 	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {
 		return
 	}
-	err = json.Unmarshal(data, c)
+	if err = json.Unmarshal(data, c); err != nil {
+		return
+	}
+	indicesPath := IndicesAbsPath("", "")
+	err = os.MkdirAll(indicesPath, 0755)
 	return
+}
+
+func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
+	var data []byte
+	var err error
+	if data, err = ioutil.ReadFile(IndicesAbsPath(dir, path)); err != nil {
+		return nil, err
+	}
+
+	index := Index{}
+	err = json.Unmarshal(data, &index)
+	return &index, err
+}
+
+func (c *Context) SerializeIndex(index *Index, p string) (err error) {
+	var data []byte
+	if data, err = json.Marshal(index); err != nil {
+		return
+	}
+	return ioutil.WriteFile(IndicesAbsPath(p, index.FileId), data, 0600)
 }
 
 func (c *Context) Write() (err error) {
@@ -126,6 +160,10 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 	if err = os.MkdirAll(pathGD, 0755); err != nil {
 		return
 	}
+	indicesPath := IndicesAbsPath("", "")
+	if err = os.MkdirAll(indicesPath, 0755); err != nil {
+		return
+	}
 	c = &Context{AbsPath: absPath}
 	err = c.Write()
 	return
@@ -137,6 +175,10 @@ func gdPath(absPath string) string {
 
 func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
+}
+
+func IndicesAbsPath(dir, child string) string {
+	return path.Join(gdPath(dir), "indices", child)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {
