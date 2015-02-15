@@ -20,11 +20,12 @@ import (
 	"os"
 	"os/signal"
 	gopath "path"
+	"path/filepath"
 	"sort"
 	"strings"
 
-	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/dts/trie"
 )
 
 // Pushes to remote if local path exists and in a gd context. If path is a
@@ -127,20 +128,83 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 		sort.Sort(ByPrecedence(cl))
 	}
 
+	var adds, mods, dels []*Change
+
 	for _, c := range cl {
 		switch c.Op() {
 		case OpMod:
-			g.remoteMod(c)
+			mods = append(mods, c)
 		case OpModConflict:
-			g.remoteMod(c)
+			mods = append(mods, c)
 		case OpAdd:
-			g.remoteAdd(c)
+			adds = append(adds, c)
 		case OpDelete:
-			g.remoteDelete(c)
+			dels = append(dels, c)
 		}
 	}
+
+	g.scheduleAdds(adds)
+	g.scheduleMods(mods)
+	g.scheduleDels(dels)
+
+	// Time to organize them according branching
 	g.taskFinish()
 	return err
+}
+
+func (g *Commands) scheduleDels(cl []*Change) (err error) {
+	for _, c := range cl {
+		g.remoteDelete(c)
+	}
+	return
+}
+
+func (g *Commands) scheduleUpserts(cl []*Change, f func(*Change) error) (err error) {
+	tr := trie.New(trie.AsciiAlphabet)
+	for _, c := range cl {
+		tr.Set(c.Path, c.Path)
+	}
+
+	dir := "dir"
+
+	_ = tr.Tag(trie.PotentialDir, dir)
+	potentialDirs := tr.Match(trie.PotentialDir)
+
+	eos := func(tn *trie.TrieNode) bool {
+		return tn != nil && tn.Eos
+	}
+
+	for match := range potentialDirs {
+		endNodes := match.Match(eos)
+		prefixes := []string{}
+		for node := range endNodes {
+			prefixes = append(prefixes, node.Data.(string))
+		}
+		if len(prefixes) < 1 {
+			continue
+		}
+
+		prefix := commonPrefix(prefixes...)
+		prefix = strings.TrimRight(prefix, UnescapedPathSep)
+
+		_, pErr := g.mkdirAll(prefix)
+		if pErr != nil {
+			return pErr
+		}
+	}
+
+	for _, c := range cl {
+		f(c)
+	}
+	return
+}
+
+func (g *Commands) scheduleMods(cl []*Change) (err error) {
+	return g.scheduleUpserts(cl, g.remoteMod)
+}
+
+func (g *Commands) scheduleAdds(cl []*Change) (err error) {
+	return g.scheduleUpserts(cl, g.remoteAdd)
 }
 
 func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
@@ -158,6 +222,12 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
+func parentPath(p string) string {
+	d := strings.Split(p, "/")
+	d = append([]string{"/"}, d[:len(d)-1]...)
+	return gopath.Join(d...)
+}
+
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
 
@@ -167,19 +237,10 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
-	p := strings.Split(change.Path, "/")
-	p = append([]string{"/"}, p[:len(p)-1]...)
-	parentPath := gopath.Join(p...)
-	parent, err = g.rem.FindByPath(parentPath)
+	parPath := parentPath(change.Path)
+	parent, err = g.rem.FindByPath(parPath)
 	if err != nil {
-		spin := spinner.New(10)
-		spin.Start()
-		parent, err = g.rem.mkdirAll(parentPath)
-		spin.Stop()
-		if err != nil || parent == nil {
-			fmt.Printf("%s: %v", change.Path, err)
-			return
-		}
+		return err
 	}
 
 	args := upsertOpt{
@@ -236,6 +297,52 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 		fmt.Printf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
 	}
 	return
+}
+
+func (g *Commands) mkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := g.rem.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
+	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
+	if rest == "" || last == "" {
+		return nil, fmt.Errorf("cannot tamper with root")
+	}
+
+	parent, parentErr := g.rem.FindByPath(rest)
+	if parentErr != nil && parentErr != ErrPathNotExists {
+		return parent, parentErr
+	}
+
+	if parent == nil {
+		parent, parentErr = g.mkdirAll(rest)
+		if parentErr != nil || parent == nil {
+			return parent, parentErr
+		}
+	}
+
+	remoteFile := &File{
+		IsDir: true,
+		Name:  last,
+	}
+
+	args := upsertOpt{
+		parentId: parent.Id,
+		src:      remoteFile,
+	}
+	parent, parentErr = g.rem.UpsertByComparison(&args)
+	if parentErr == nil && parent != nil {
+		index := parent.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", parent.Name, wErr)
+		}
+	}
+	return parent, parentErr
 }
 
 func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {
