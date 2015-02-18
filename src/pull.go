@@ -70,6 +70,33 @@ func (g *Commands) Pull() (err error) {
 	return
 }
 
+func (g *Commands) PullPiped() (err error) {
+	// Cannot pull asynchronously because the pull order must be maintained
+	for _, relToRootPath := range g.opts.Sources {
+		rem, err := g.rem.FindByPath(relToRootPath)
+		if err != nil {
+			return fmt.Errorf("%s: %v", relToRootPath, err)
+		}
+		if rem == nil {
+			continue
+		}
+
+		if hasExportLinks(rem) {
+			continue
+		}
+		blobHandle, dlErr := g.rem.Download(rem.Id, "")
+		if dlErr != nil {
+			return dlErr
+		}
+		if blobHandle == nil {
+			continue
+		}
+		_, err = io.Copy(os.Stdout, blobHandle)
+		blobHandle.Close()
+	}
+	return
+}
+
 func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
 	var next []*Change
 	g.taskStart(len(cl))

@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	gopath "path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -110,6 +111,60 @@ func (g *Commands) Push() (err error) {
 	return
 }
 
+func (g *Commands) PushPiped() (err error) {
+	// Cannot push asynchronously because the pull order must be maintained
+	for _, relToRootPath := range g.opts.Sources {
+		rem, resErr := g.rem.FindByPath(relToRootPath)
+		if resErr != nil && resErr != ErrPathNotExists {
+			return resErr
+		}
+		base := filepath.Base(relToRootPath)
+		local := fauxLocalFile(base)
+		if rem == nil {
+			rem = local
+		}
+
+		parentPath := g.parentPather(relToRootPath)
+		parent, pErr := g.rem.FindByPath(parentPath)
+		if pErr != nil {
+			spin := spinner.New(10)
+			spin.Start()
+			parent, pErr = g.rem.mkdirAll(parentPath)
+			spin.Stop()
+			if pErr != nil || parent == nil {
+				fmt.Printf("%s: %v", relToRootPath, pErr)
+				return
+			}
+		}
+
+		args := upsertOpt{
+			parentId:       parent.Id,
+			fsAbsPath:      relToRootPath,
+			src:            rem,
+			dest:           rem,
+			mask:           g.opts.TypeMask,
+			ignoreChecksum: g.opts.IgnoreChecksum,
+		}
+
+		rem, rErr := g.rem.upsertByComparison(os.Stdin, &args)
+		if rErr != nil {
+			fmt.Printf("%s: %v\n", relToRootPath, rErr)
+			return rErr
+		}
+		if rem == nil {
+			continue
+		}
+		index := rem.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+		}
+	}
+	return
+}
+
 func (g *Commands) deserializeIndex(identifier string) *config.Index {
 	index, err := g.context.DeserializeIndex(g.context.AbsPathOf(""), identifier)
 	if err != nil {
@@ -158,6 +213,12 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
+func (g *Commands) parentPather(absPath string) string {
+	p := strings.Split(absPath, "/")
+	p = append([]string{"/"}, p[:len(p)-1]...)
+	return gopath.Join(p...)
+}
+
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
 
@@ -167,10 +228,9 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
-	p := strings.Split(change.Path, "/")
-	p = append([]string{"/"}, p[:len(p)-1]...)
-	parentPath := gopath.Join(p...)
+	parentPath := g.parentPather(change.Path)
 	parent, err = g.rem.FindByPath(parentPath)
+
 	if err != nil {
 		spin := spinner.New(10)
 		spin.Start()
