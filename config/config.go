@@ -38,13 +38,13 @@ type Context struct {
 }
 
 type Index struct {
-	FileId      string `json:"file_id"`
+	FileId      string `json:"id"`
 	Etag        string `json:"etag"`
-	Md5Checksum string `json:"md5_checksum"`
-	MimeType    string `json:"mime_type"`
-	ModTime     int64  `json:"mod_time"`
+	Md5Checksum string `json:"md5"`
+	MimeType    string `json:"mtype"`
+	ModTime     int64  `json:"mtime"`
 	Version     int64  `json:"version"`
-	IndexTime   int64  `json:"index_time"`
+	IndexTime   int64  `json:"itime"`
 }
 
 type MountPoint struct {
@@ -81,12 +81,7 @@ func (c *Context) Read() (err error) {
 	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {
 		return
 	}
-	if err = json.Unmarshal(data, c); err != nil {
-		return
-	}
-	indicesPath := IndicesAbsPath("", "")
-	err = os.MkdirAll(indicesPath, 0755)
-	return
+	return json.Unmarshal(data, c)
 }
 
 func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
@@ -139,7 +134,11 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 		return nil, errors.New("no gd context is found; use gd init")
 	}
 	context = &Context{AbsPath: p}
-	err = context.Read()
+	if err = context.Read(); err != nil {
+		return nil, err
+	}
+	indicesPath := IndicesAbsPath(context.AbsPath, "")
+	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
 
@@ -158,10 +157,6 @@ func Initialize(absPath string) (pathGD string, firstInit bool, c *Context, err 
 		return
 	}
 	if err = os.MkdirAll(pathGD, 0755); err != nil {
-		return
-	}
-	indicesPath := IndicesAbsPath("", "")
-	if err = os.MkdirAll(indicesPath, 0755); err != nil {
 		return
 	}
 	c = &Context{AbsPath: absPath}
