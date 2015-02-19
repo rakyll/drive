@@ -60,6 +60,8 @@ type Options struct {
 	// TypeMask contains the result of setting different type bits e.g
 	// Folder to search only for folders etc.
 	TypeMask int
+	// Piped when set means to infer content to or from stdin
+	Piped bool
 }
 
 type Commands struct {

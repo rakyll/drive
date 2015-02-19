@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 
+	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/dts/trie"
 )
@@ -107,6 +108,66 @@ func (g *Commands) Push() (err error) {
 			}
 		}
 		return g.playPushChangeList(nonConflicts)
+	}
+	return
+}
+
+func (g *Commands) PushPiped() (err error) {
+	// Cannot push asynchronously because the pull order must be maintained
+	for _, relToRootPath := range g.opts.Sources {
+		rem, resErr := g.rem.FindByPath(relToRootPath)
+		if resErr != nil && resErr != ErrPathNotExists {
+			return resErr
+		}
+
+		if hasExportLinks(rem) {
+			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
+			continue
+		}
+
+		base := filepath.Base(relToRootPath)
+		local := fauxLocalFile(base)
+		if rem == nil {
+			rem = local
+		}
+
+		parentPath := g.parentPather(relToRootPath)
+		parent, pErr := g.rem.FindByPath(parentPath)
+		if pErr != nil {
+			spin := spinner.New(10)
+			spin.Start()
+			parent, pErr = g.mkdirAll(parentPath)
+			spin.Stop()
+			if pErr != nil || parent == nil {
+				fmt.Printf("%s: %v", relToRootPath, pErr)
+				return
+			}
+		}
+
+		args := upsertOpt{
+			parentId:       parent.Id,
+			fsAbsPath:      relToRootPath,
+			src:            rem,
+			dest:           rem,
+			mask:           g.opts.TypeMask,
+			ignoreChecksum: g.opts.IgnoreChecksum,
+		}
+
+		rem, rErr := g.rem.upsertByComparison(os.Stdin, &args)
+		if rErr != nil {
+			fmt.Printf("%s: %v\n", relToRootPath, rErr)
+			return rErr
+		}
+		if rem == nil {
+			continue
+		}
+		index := rem.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+		}
 	}
 	return
 }
@@ -222,10 +283,10 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
-func parentPath(p string) string {
-	d := strings.Split(p, "/")
-	d = append([]string{"/"}, d[:len(d)-1]...)
-	return gopath.Join(d...)
+func (g *Commands) parentPather(absPath string) string {
+	p := strings.Split(absPath, "/")
+	p = append([]string{"/"}, p[:len(p)-1]...)
+	return gopath.Join(p...)
 }
 
 func (g *Commands) remoteMod(change *Change) (err error) {
@@ -237,8 +298,9 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
-	parPath := parentPath(change.Path)
-	parent, err = g.rem.FindByPath(parPath)
+	parentPath := g.parentPather(change.Path)
+	parent, err = g.rem.FindByPath(parentPath)
+
 	if err != nil {
 		return err
 	}
