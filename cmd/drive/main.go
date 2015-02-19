@@ -228,6 +228,7 @@ type pullCmd struct {
 	noClobber      *bool
 	recursive      *bool
 	ignoreChecksum *bool
+	piped          *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -240,6 +241,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
+	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 
 	return fs
 }
@@ -259,7 +261,7 @@ func (cmd *pullCmd) Run(args []string) {
 	// Filter out empty strings.
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
-	exitWithError(drive.New(context, &drive.Options{
+	options := &drive.Options{
 		Exports:        uniqOrderedStr(exports),
 		ExportsDir:     strings.Trim(*cmd.exportsDir, " "),
 		Force:          *cmd.force,
@@ -270,7 +272,14 @@ func (cmd *pullCmd) Run(args []string) {
 		Path:           path,
 		Recursive:      *cmd.recursive,
 		Sources:        sources,
-	}).Pull())
+		Piped:          *cmd.piped,
+	}
+
+	if *cmd.piped {
+		exitWithError(drive.New(context, options).PullPiped())
+	} else {
+		exitWithError(drive.New(context, options).Pull())
+	}
 }
 
 type pushCmd struct {
@@ -279,6 +288,7 @@ type pushCmd struct {
 	force       *bool
 	noPrompt    *bool
 	recursive   *bool
+	piped       *bool
 	mountedPush *bool
 	// convert when set tells Google drive to convert the document into
 	// its appropriate Google Docs format
@@ -299,6 +309,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
+	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 	return fs
 }
 
@@ -312,7 +323,11 @@ func (cmd *pushCmd) Run(args []string) {
 		options.Path = path
 		options.Sources = sources
 
-		exitWithError(drive.New(context, options).Push())
+		if *cmd.piped {
+			exitWithError(drive.New(context, options).PushPiped())
+		} else {
+			exitWithError(drive.New(context, options).Push())
+		}
 	}
 }
 
@@ -352,6 +367,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		NoClobber:      *cmd.noClobber,
 		NoPrompt:       *cmd.noPrompt,
 		TypeMask:       mask,
+		Piped:          *cmd.piped,
 		IgnoreChecksum: *cmd.ignoreChecksum,
 		Recursive:      *cmd.recursive,
 	}

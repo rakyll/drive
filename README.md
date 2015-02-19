@@ -112,6 +112,11 @@ Note: To ignore checksum verification during a pull:
 $ drive pull -ignore-checksum
 ```
 
+drive also supports piping pulled content to stdout which can be accomplished by:
+
+```shell
+$ drive pull -piped path1 path2
+```
 
 #### Exporting Docs
 
@@ -159,6 +164,13 @@ For safety with non clobberable changes i.e only additions:
 ```shell
 $ drive push -no-clobber
 ```
+
+drive also supports pushing content piped from stdin which can be accomplished by:
+
+```shell
+$ drive push -piped path
+```
+
 
 + Due to the reasons explained in the pull section, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-force` flag i.e:
 

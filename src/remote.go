@@ -409,13 +409,7 @@ type upsertOpt struct {
 	ignoreChecksum bool
 }
 
-func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
-	var body io.Reader
-	body, err = os.Open(args.fsAbsPath)
-	if err != nil && !args.src.IsDir {
-		return
-	}
-
+func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, err error) {
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
 		Title:   urlToPath(args.src.Name, false),
@@ -471,6 +465,15 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		return
 	}
 	return NewRemoteFile(uploaded), nil
+}
+
+func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
+	var body io.Reader
+	body, err = os.Open(args.fsAbsPath)
+	if err != nil && !args.src.IsDir {
+		return
+	}
+	return r.upsertByComparison(body, args)
 }
 
 func (r *Remote) findShared(p []string) (chan *File, error) {
