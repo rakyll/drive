@@ -14,6 +14,18 @@
 
 package drive
 
+import "strings"
+
+func remotePathSplit(p string) (dir, base string) {
+	// Avoiding use of filepath.Split because of bug with trailing "/" not being stripped
+	sp := strings.Split(p, "/")
+	spl := len(sp)
+	dirL, baseL := sp[:spl-1], sp[spl-1:]
+	dir = strings.Join(dirL, "/")
+	base = strings.Join(baseL, "/")
+	return
+}
+
 func commonPrefix(values ...string) string {
 	vLen := len(values)
 	if vLen < 1 {

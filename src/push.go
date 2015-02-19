@@ -23,10 +23,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
-	"github.com/odeke-em/dts/trie"
 )
 
 // Pushes to remote if local path exists and in a gd context. If path is a
@@ -136,7 +136,7 @@ func (g *Commands) PushPiped() (err error) {
 		if pErr != nil {
 			spin := spinner.New(10)
 			spin.Start()
-			parent, pErr = g.mkdirAll(parentPath)
+			parent, pErr = g.remoteMkdirAll(parentPath)
 			spin.Stop()
 			if pErr != nil || parent == nil {
 				fmt.Printf("%s: %v", relToRootPath, pErr)
@@ -189,83 +189,22 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 		sort.Sort(ByPrecedence(cl))
 	}
 
-	var adds, mods, dels []*Change
-
 	for _, c := range cl {
 		switch c.Op() {
 		case OpMod:
-			mods = append(mods, c)
+			g.remoteMod(c)
 		case OpModConflict:
-			mods = append(mods, c)
+			g.remoteMod(c)
 		case OpAdd:
-			adds = append(adds, c)
+			g.remoteAdd(c)
 		case OpDelete:
-			dels = append(dels, c)
+			g.remoteDelete(c)
 		}
 	}
-
-	g.scheduleAdds(adds)
-	g.scheduleMods(mods)
-	g.scheduleDels(dels)
 
 	// Time to organize them according branching
 	g.taskFinish()
 	return err
-}
-
-func (g *Commands) scheduleDels(cl []*Change) (err error) {
-	for _, c := range cl {
-		g.remoteDelete(c)
-	}
-	return
-}
-
-func (g *Commands) scheduleUpserts(cl []*Change, f func(*Change) error) (err error) {
-	tr := trie.New(trie.AsciiAlphabet)
-	for _, c := range cl {
-		tr.Set(c.Path, c.Path)
-	}
-
-	dir := "dir"
-
-	_ = tr.Tag(trie.PotentialDir, dir)
-	potentialDirs := tr.Match(trie.PotentialDir)
-
-	eos := func(tn *trie.TrieNode) bool {
-		return tn != nil && tn.Eos
-	}
-
-	for match := range potentialDirs {
-		endNodes := match.Match(eos)
-		prefixes := []string{}
-		for node := range endNodes {
-			prefixes = append(prefixes, node.Data.(string))
-		}
-		if len(prefixes) < 1 {
-			continue
-		}
-
-		prefix := commonPrefix(prefixes...)
-		prefix = strings.TrimRight(prefix, UnescapedPathSep)
-
-		_, pErr := g.mkdirAll(prefix)
-		if pErr != nil {
-			return pErr
-		}
-	}
-
-	for _, c := range cl {
-		f(c)
-	}
-	return
-}
-
-func (g *Commands) scheduleMods(cl []*Change) (err error) {
-	return g.scheduleUpserts(cl, g.remoteMod)
-}
-
-func (g *Commands) scheduleAdds(cl []*Change) (err error) {
-	return g.scheduleUpserts(cl, g.remoteAdd)
 }
 
 func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err error) {
@@ -361,17 +300,14 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 	return
 }
 
-func (g *Commands) mkdirAll(d string) (file *File, err error) {
+func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	// Try the lookup one last time in case a coroutine raced us to it.
 	retrFile, retryErr := g.rem.FindByPath(d)
 	if retryErr == nil && retrFile != nil {
 		return retrFile, nil
 	}
 
-	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
-	if rest == "" || last == "" {
-		return nil, fmt.Errorf("cannot tamper with root")
-	}
+	rest, last := remotePathSplit(d)
 
 	parent, parentErr := g.rem.FindByPath(rest)
 	if parentErr != nil && parentErr != ErrPathNotExists {
@@ -379,15 +315,16 @@ func (g *Commands) mkdirAll(d string) (file *File, err error) {
 	}
 
 	if parent == nil {
-		parent, parentErr = g.mkdirAll(rest)
+		parent, parentErr = g.remoteMkdirAll(rest)
 		if parentErr != nil || parent == nil {
 			return parent, parentErr
 		}
 	}
 
 	remoteFile := &File{
-		IsDir: true,
-		Name:  last,
+		IsDir:   true,
+		Name:    last,
+		ModTime: time.Now(),
 	}
 
 	args := upsertOpt{
