@@ -82,6 +82,7 @@ func (g *Commands) PullPiped() (err error) {
 		}
 
 		if hasExportLinks(rem) {
+            fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
 			continue
 		}
 		blobHandle, dlErr := g.rem.Download(rem.Id, "")

@@ -118,6 +118,12 @@ func (g *Commands) PushPiped() (err error) {
 		if resErr != nil && resErr != ErrPathNotExists {
 			return resErr
 		}
+
+		if hasExportLinks(rem) {
+            fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
+			continue
+		}
+
 		base := filepath.Base(relToRootPath)
 		local := fauxLocalFile(base)
 		if rem == nil {
