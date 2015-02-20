@@ -328,15 +328,14 @@ func sift(changes []*Change) (nonConflicts, conflicts []*Change) {
 }
 
 func conflictsPersist(conflicts []*Change) bool {
-	conflictCount := len(conflicts)
-	if conflictCount >= 1 {
-		fmt.Printf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", conflictCount, ForceKey)
-		for _, conflict := range conflicts {
-			fmt.Println(conflict.Path)
-		}
-		return true
+	return len(conflicts) >= 1
+}
+
+func warnConflictsPersist(conflicts []*Change) {
+	fmt.Printf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
+	for _, conflict := range conflicts {
+		fmt.Println(conflict.Path)
 	}
-	return false
 }
 
 func printChanges(changes []*Change, reduce bool) {

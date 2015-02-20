@@ -47,27 +47,19 @@ func (g *Commands) Pull() (err error) {
 		}
 	}
 
-	nonConflicts, conflicts := sift(cl)
-	resolved, unresolved := resolveConflicts(conflicts, false, g.deserializeIndex)
-	if len(unresolved) >= 1 {
-		if conflictsPersist(unresolved) {
-			return
-		}
-		for _, ch := range unresolved {
-			resolved = append(resolved, ch)
-		}
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	if conflictsPtr != nil {
+		warnConflictsPersist(*conflictsPtr)
+		return
 	}
 
-	for _, ch := range resolved {
-		nonConflicts = append(nonConflicts, ch)
-	}
-
+	nonConflicts := *nonConflictsPtr
 	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
-	if ok {
-		return g.playPullChangeList(nonConflicts, g.opts.Exports)
+	if !ok {
+		return
 	}
 
-	return
+	return g.playPullChangeList(nonConflicts, g.opts.Exports)
 }
 
 func (g *Commands) PullPiped() (err error) {
@@ -82,7 +74,7 @@ func (g *Commands) PullPiped() (err error) {
 		}
 
 		if hasExportLinks(rem) {
-            fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
+			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
 			continue
 		}
 		blobHandle, dlErr := g.rem.Download(rem.Id, "")

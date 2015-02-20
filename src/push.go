@@ -69,46 +69,60 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	nonConflicts, conflicts := sift(cl)
-	resolved, unresolved := resolveConflicts(conflicts, true, g.deserializeIndex)
-	if len(unresolved) >= 1 {
-		if conflictsPersist(unresolved) {
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	if conflictsPtr != nil {
+		warnConflictsPersist(*conflictsPtr)
+		return
+	}
+
+	nonConflicts := *nonConflictsPtr
+	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	if !ok {
+		return
+	}
+
+	pushSize := reduceToSize(cl, true)
+
+	quotaStatus, qErr := g.QuotaStatus(pushSize)
+	if qErr != nil {
+		return qErr
+	}
+	unSafe := false
+	switch quotaStatus {
+	case AlmostExceeded:
+		fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
+	case Exceeded:
+		fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
+		unSafe = true
+	}
+	if unSafe {
+		fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
+		if !promptForChanges() {
 			return
 		}
-		for _, ch := range unresolved {
-			resolved = append(resolved, ch)
-		}
+	}
+	return g.playPushChangeList(nonConflicts)
+}
+
+func (g *Commands) resolveConflicts(cl []*Change) (*[]*Change, *[]*Change) {
+	if g.opts.IgnoreConflict {
+		return &cl, nil
+	}
+
+	nonConflicts, conflicts := sift(cl)
+	resolved, unresolved := resolveConflicts(conflicts, true, g.deserializeIndex)
+	if conflictsPersist(unresolved) {
+		return &resolved, &unresolved
+	}
+
+	for _, ch := range unresolved {
+		resolved = append(resolved, ch)
 	}
 
 	for _, ch := range resolved {
 		nonConflicts = append(nonConflicts, ch)
 	}
-
-	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
-	if ok {
-		pushSize := reduceToSize(cl, true)
-
-		quotaStatus, qErr := g.QuotaStatus(pushSize)
-		if qErr != nil {
-			return qErr
-		}
-		unSafe := false
-		switch quotaStatus {
-		case AlmostExceeded:
-			fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
-		case Exceeded:
-			fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
-			unSafe = true
-		}
-		if unSafe {
-			fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
-			if !promptForChanges() {
-				return
-			}
-		}
-		return g.playPushChangeList(nonConflicts)
-	}
-	return
+	return &nonConflicts, nil
 }
 
 func (g *Commands) PushPiped() (err error) {
@@ -120,7 +134,7 @@ func (g *Commands) PushPiped() (err error) {
 		}
 
 		if hasExportLinks(rem) {
-            fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
+			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
 			continue
 		}
 

@@ -228,6 +228,7 @@ type pullCmd struct {
 	noClobber      *bool
 	recursive      *bool
 	ignoreChecksum *bool
+	ignoreConflict *bool
 	piped          *bool
 }
 
@@ -240,6 +241,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 
@@ -267,6 +269,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Force:          *cmd.force,
 		Hidden:         *cmd.hidden,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		IgnoreConflict: *cmd.ignoreConflict,
 		NoPrompt:       *cmd.noPrompt,
 		NoClobber:      *cmd.noClobber,
 		Path:           path,
@@ -297,6 +300,7 @@ type pushCmd struct {
 	// attempted on .[gif, jpg, pdf, png] uploads
 	ocr            *bool
 	ignoreChecksum *bool
+	ignoreConflict *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -307,9 +311,10 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	return fs
 }
 
@@ -369,6 +374,7 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		TypeMask:       mask,
 		Piped:          *cmd.piped,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		IgnoreConflict: *cmd.ignoreConflict,
 		Recursive:      *cmd.recursive,
 	}
 }

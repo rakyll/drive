@@ -87,10 +87,10 @@ $ drive pull -force
 
 + Note:
   In relation to [#57](https://github.com/odeke-em/drive/issues/57) and [@rakyll's #49](https://github.com/rakyll/drive/issues/49).
-   A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-force` e.g:
+   A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-ignore-conflict` e.g:
 
 ```shell
-$ drive pull -force collaboration_documents
+$ drive pull -ignore-conflict collaboration_documents
 ```
 
 Playing the safety card even more, if you want to get changes that are non clobberable ie only additions
@@ -172,7 +172,7 @@ $ drive push -piped path
 ```
 
 
-+ Due to the reasons explained in the pull section, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-force` flag i.e:
++ Due to the reasons explained in the pull section, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-ignore-conflict` flag i.e:
 
 ```shell
 $ drive push -force sure_of_content

@@ -42,6 +42,8 @@ type Options struct {
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
 	IgnoreChecksum bool
+	// IgnoreConflict when set turns off the conflict resolution safety.
+	IgnoreConflict bool
 	// Allows listing of content in trash
 	InTrash bool
 	Meta    *map[string][]string
