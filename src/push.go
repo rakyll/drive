@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
@@ -149,7 +150,7 @@ func (g *Commands) PushPiped() (err error) {
 		if pErr != nil {
 			spin := spinner.New(10)
 			spin.Start()
-			parent, pErr = g.rem.mkdirAll(parentPath)
+			parent, pErr = g.remoteMkdirAll(parentPath)
 			spin.Stop()
 			if pErr != nil || parent == nil {
 				fmt.Printf("%s: %v", relToRootPath, pErr)
@@ -214,6 +215,8 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 			g.remoteDelete(c)
 		}
 	}
+
+	// Time to organize them according branching
 	g.taskFinish()
 	return err
 }
@@ -252,14 +255,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	parent, err = g.rem.FindByPath(parentPath)
 
 	if err != nil {
-		spin := spinner.New(10)
-		spin.Start()
-		parent, err = g.rem.mkdirAll(parentPath)
-		spin.Stop()
-		if err != nil || parent == nil {
-			fmt.Printf("%s: %v", change.Path, err)
-			return
-		}
+		return err
 	}
 
 	args := upsertOpt{
@@ -316,6 +312,50 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 		fmt.Printf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
 	}
 	return
+}
+
+func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := g.rem.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
+	rest, last := remotePathSplit(d)
+
+	parent, parentErr := g.rem.FindByPath(rest)
+	if parentErr != nil && parentErr != ErrPathNotExists {
+		return parent, parentErr
+	}
+
+	if parent == nil {
+		parent, parentErr = g.remoteMkdirAll(rest)
+		if parentErr != nil || parent == nil {
+			return parent, parentErr
+		}
+	}
+
+	remoteFile := &File{
+		IsDir:   true,
+		Name:    last,
+		ModTime: time.Now(),
+	}
+
+	args := upsertOpt{
+		parentId: parent.Id,
+		src:      remoteFile,
+	}
+	parent, parentErr = g.rem.UpsertByComparison(&args)
+	if parentErr == nil && parent != nil {
+		index := parent.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", parent.Name, wErr)
+		}
+	}
+	return parent, parentErr
 }
 
 func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {
