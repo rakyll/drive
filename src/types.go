@@ -119,10 +119,11 @@ func NewLocalFile(absPath string, f os.FileInfo) *File {
 
 func fauxLocalFile(relToRootPath string) *File {
 	return &File{
-		Id:    "",
-		Name:  relToRootPath,
-		IsDir: false,
-		Size:  0,
+		Id:      "",
+		IsDir:   false,
+		ModTime: time.Now(),
+		Name:    relToRootPath,
+		Size:    0,
 	}
 }
 
