@@ -339,22 +339,34 @@ func (cmd *pushCmd) Run(args []string) {
 type touchCmd struct {
 	hidden    *bool
 	recursive *bool
+	matches   *bool
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
 	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and touch")
 	return fs
 }
 
 func (cmd *touchCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Hidden:    *cmd.hidden,
-		Path:      path,
-		Recursive: *cmd.recursive,
-		Sources:   sources,
-	}).Touch())
+	if *cmd.matches {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).TouchByMatch())
+	} else {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Hidden:    *cmd.hidden,
+			Path:      path,
+			Recursive: *cmd.recursive,
+			Sources:   sources,
+		}).Touch())
+	}
 }
 
 func (cmd *pushCmd) createPushOptions() *drive.Options {
@@ -518,7 +530,7 @@ type trashCmd struct {
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
-	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and trash")
 	return fs
 }
 
@@ -547,7 +559,7 @@ type untrashCmd struct {
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
-	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and untrash")
 	return fs
 }
 

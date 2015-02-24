@@ -58,6 +58,52 @@ func (g *Commands) Touch() (err error) {
 	return
 }
 
+func (g *Commands) TouchByMatch() (err error) {
+	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, false)
+	if err != nil {
+		return err
+	}
+
+	throttle := time.Tick(1e9 / 10)
+	chanMap := map[int]chan *keyValue{}
+
+	i := 0
+	for match := range matches {
+		if match == nil {
+			continue
+		}
+
+		chanMap[i] = g.touch(g.opts.Path+"/"+match.Name, match.Id)
+		<-throttle
+		i += 1
+	}
+
+	spin := spinner.New(10)
+	spin.Start()
+
+	for {
+		if len(chanMap) < 1 {
+			break
+		}
+		// Find the channel that has results
+		for key, kvChan := range chanMap {
+			select {
+			case kv := <-kvChan:
+				if kv == nil { // Sentinel emitted
+					delete(chanMap, key)
+					continue
+				}
+				if kv.value != nil {
+					fmt.Printf("touch: %s %v\n", kv.key, kv.value.(error))
+				}
+			default:
+			}
+		}
+	}
+	spin.Stop()
+	return
+}
+
 func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 	fileChan := make(chan *keyValue)
 	go func() {

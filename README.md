@@ -241,6 +241,12 @@ Files that exist remotely can be touched i.e their modification time updated to 
 $ drive touch Photos/img001.png logs/log9907.txt
 ```
 
+For example to touch all files that begin with digits 0  to 9:
+
+```shell
+$ drive touch -matches $(seq 0 9)
+```
+
 ### Trashing and Untrashing
 
 Files can be trashed using the `trash` command:
