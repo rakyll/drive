@@ -20,9 +20,10 @@ import (
 	"os"
 	"os/signal"
 	gopath "path"
+	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
@@ -37,6 +38,7 @@ func (g *Commands) Push() (err error) {
 	root := g.context.AbsPathOf("")
 	var cl []*Change
 
+	fmt.Println("Resolving...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
@@ -68,85 +70,128 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
-	if ok {
-		pushSize := reduceToSize(cl, true)
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	if conflictsPtr != nil {
+		warnConflictsPersist(*conflictsPtr)
+		return
+	}
 
-		quotaStatus, qErr := g.QuotaStatus(pushSize)
-		if qErr != nil {
-			return qErr
+	nonConflicts := *nonConflictsPtr
+	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	if !ok {
+		return
+	}
+
+	pushSize := reduceToSize(cl, true)
+
+	quotaStatus, qErr := g.QuotaStatus(pushSize)
+	if qErr != nil {
+		return qErr
+	}
+	unSafe := false
+	switch quotaStatus {
+	case AlmostExceeded:
+		fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
+	case Exceeded:
+		fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
+		unSafe = true
+	}
+	if unSafe {
+		fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
+		if !promptForChanges() {
+			return
 		}
-		unSafe := false
-		switch quotaStatus {
-		case AlmostExceeded:
-			fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
-		case Exceeded:
-			fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
-			unSafe = true
+	}
+	return g.playPushChangeList(nonConflicts)
+}
+
+func (g *Commands) resolveConflicts(cl []*Change) (*[]*Change, *[]*Change) {
+	if g.opts.IgnoreConflict {
+		return &cl, nil
+	}
+
+	nonConflicts, conflicts := sift(cl)
+	resolved, unresolved := resolveConflicts(conflicts, true, g.deserializeIndex)
+	if conflictsPersist(unresolved) {
+		return &resolved, &unresolved
+	}
+
+	for _, ch := range unresolved {
+		resolved = append(resolved, ch)
+	}
+
+	for _, ch := range resolved {
+		nonConflicts = append(nonConflicts, ch)
+	}
+	return &nonConflicts, nil
+}
+
+func (g *Commands) PushPiped() (err error) {
+	// Cannot push asynchronously because the pull order must be maintained
+	for _, relToRootPath := range g.opts.Sources {
+		rem, resErr := g.rem.FindByPath(relToRootPath)
+		if resErr != nil && resErr != ErrPathNotExists {
+			return resErr
 		}
-		if unSafe {
-			fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
-			if !promptForChanges() {
+
+		if hasExportLinks(rem) {
+			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
+			continue
+		}
+
+		base := filepath.Base(relToRootPath)
+		local := fauxLocalFile(base)
+		if rem == nil {
+			rem = local
+		}
+
+		parentPath := g.parentPather(relToRootPath)
+		parent, pErr := g.rem.FindByPath(parentPath)
+		if pErr != nil {
+			spin := spinner.New(10)
+			spin.Start()
+			parent, pErr = g.remoteMkdirAll(parentPath)
+			spin.Stop()
+			if pErr != nil || parent == nil {
+				fmt.Printf("%s: %v", relToRootPath, pErr)
 				return
 			}
 		}
-		return g.playPushChangeList(cl)
-	}
-	return
-}
 
-func (g *Commands) Touch() (err error) {
-	root := "/"
-	chunkSize := 4
-	srcLen := len(g.opts.Sources)
-	q, r := srcLen/chunkSize, srcLen%chunkSize
-	i, chunkCount := 0, q
-
-	if r != 0 {
-		chunkCount += 1
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(chunkCount)
-
-	for j := 0; j < chunkCount; j += 1 {
-		end := i + chunkSize
-		if end >= srcLen {
-			end = srcLen
+		args := upsertOpt{
+			parentId:       parent.Id,
+			fsAbsPath:      relToRootPath,
+			src:            rem,
+			dest:           rem,
+			mask:           g.opts.TypeMask,
+			ignoreChecksum: g.opts.IgnoreChecksum,
 		}
-		chunk := g.opts.Sources[i:end]
-		go func(wg *sync.WaitGroup, chunk []string) {
-			for _, relToRootPath := range chunk {
-				// Ignore the case in which root is to be touched.
-				if relToRootPath == root {
-					continue
-				}
-				file, tErr := g.touch(relToRootPath)
-				if tErr != nil {
-					fmt.Printf("touch: %s %v\n", relToRootPath, tErr)
-				} else if false { // TODO: Print this out if verbosity is set
-					fmt.Printf("%s: %v\n", relToRootPath, file.ModTime)
-				}
-			}
-			wg.Done()
-		}(&wg, chunk)
 
-		i += chunkSize
+		rem, rErr := g.rem.upsertByComparison(os.Stdin, &args)
+		if rErr != nil {
+			fmt.Printf("%s: %v\n", relToRootPath, rErr)
+			return rErr
+		}
+		if rem == nil {
+			continue
+		}
+		index := rem.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+		}
 	}
-
-	wg.Wait()
 	return
 }
 
-func (g *Commands) touch(relToRootPath string) (*File, error) {
-	file, err := g.rem.FindByPath(relToRootPath)
+func (g *Commands) deserializeIndex(identifier string) *config.Index {
+	index, err := g.context.DeserializeIndex(g.context.AbsPathOf(""), identifier)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	if file == nil {
-		return nil, ErrPathNotExists
-	}
-	return g.rem.Touch(file.Id)
+	return index
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
@@ -162,12 +207,16 @@ func (g *Commands) playPushChangeList(cl []*Change) (err error) {
 		switch c.Op() {
 		case OpMod:
 			g.remoteMod(c)
+		case OpModConflict:
+			g.remoteMod(c)
 		case OpAdd:
 			g.remoteAdd(c)
 		case OpDelete:
 			g.remoteDelete(c)
 		}
 	}
+
+	// Time to organize them according branching
 	g.taskFinish()
 	return err
 }
@@ -187,27 +236,26 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
+func (g *Commands) parentPather(absPath string) string {
+	p := strings.Split(absPath, "/")
+	p = append([]string{"/"}, p[:len(p)-1]...)
+	return gopath.Join(p...)
+}
+
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
+
 	absPath := g.context.AbsPathOf(change.Path)
 	var parent *File
 	if change.Dest != nil {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 
-	p := strings.Split(change.Path, "/")
-	p = append([]string{"/"}, p[:len(p)-1]...)
-	parentPath := gopath.Join(p...)
+	parentPath := g.parentPather(change.Path)
 	parent, err = g.rem.FindByPath(parentPath)
+
 	if err != nil {
-		spin := spinner.New(10)
-		spin.Start()
-		parent, err = g.rem.mkdirAll(parentPath)
-		spin.Stop()
-		if err != nil || parent == nil {
-			fmt.Printf("%s: %v", change.Path, err)
-			return
-		}
+		return err
 	}
 
 	args := upsertOpt{
@@ -218,25 +266,96 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 		mask:           g.opts.TypeMask,
 		ignoreChecksum: g.opts.IgnoreChecksum,
 	}
-	_, err = g.rem.UpsertByComparison(&args)
+
+	rem, err := g.rem.UpsertByComparison(&args)
 	if err != nil {
 		fmt.Printf("%s: %v\n", change.Path, err)
+		return
 	}
-	return err
+	if rem == nil {
+		return
+	}
+	index := rem.ToIndex()
+	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+	// TODO: Should indexing errors be reported?
+	if wErr != nil {
+		fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+	}
+	return
 }
 
 func (g *Commands) remoteAdd(change *Change) (err error) {
 	return g.remoteMod(change)
 }
 
+func (g *Commands) indexAbsPath(fileId string) string {
+	return config.IndicesAbsPath(g.context.AbsPathOf(""), fileId)
+}
+
 func (g *Commands) remoteUntrash(change *Change) (err error) {
 	defer g.taskDone()
+
 	return g.rem.Untrash(change.Src.Id)
 }
 
 func (g *Commands) remoteDelete(change *Change) (err error) {
 	defer g.taskDone()
-	return g.rem.Trash(change.Dest.Id)
+
+	err = g.rem.Trash(change.Dest.Id)
+	if err != nil {
+		return
+	}
+
+	indexPath := g.indexAbsPath(change.Dest.Id)
+	if rmErr := os.Remove(indexPath); rmErr != nil {
+		fmt.Printf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
+	}
+	return
+}
+
+func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
+	// Try the lookup one last time in case a coroutine raced us to it.
+	retrFile, retryErr := g.rem.FindByPath(d)
+	if retryErr == nil && retrFile != nil {
+		return retrFile, nil
+	}
+
+	rest, last := remotePathSplit(d)
+
+	parent, parentErr := g.rem.FindByPath(rest)
+	if parentErr != nil && parentErr != ErrPathNotExists {
+		return parent, parentErr
+	}
+
+	if parent == nil {
+		parent, parentErr = g.remoteMkdirAll(rest)
+		if parentErr != nil || parent == nil {
+			return parent, parentErr
+		}
+	}
+
+	remoteFile := &File{
+		IsDir:   true,
+		Name:    last,
+		ModTime: time.Now(),
+	}
+
+	args := upsertOpt{
+		parentId: parent.Id,
+		src:      remoteFile,
+	}
+	parent, parentErr = g.rem.UpsertByComparison(&args)
+	if parentErr == nil && parent != nil {
+		index := parent.ToIndex()
+		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+		// TODO: Should indexing errors be reported?
+		if wErr != nil {
+			fmt.Printf("serializeIndex %s: %v\n", parent.Name, wErr)
+		}
+	}
+	return parent, parentErr
 }
 
 func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {

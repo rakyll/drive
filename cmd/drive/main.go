@@ -205,7 +205,7 @@ type statCmd struct {
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
-	cmd.recursive = fs.Bool("recursive", false, "recursively discover folders")
+	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
 	return fs
 }
 
@@ -229,6 +229,8 @@ type pullCmd struct {
 	noClobber      *bool
 	recursive      *bool
 	ignoreChecksum *bool
+	ignoreConflict *bool
+	piped          *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -240,7 +242,9 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.force = fs.Bool("force", false, "forces a pull even if no changes present")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
+	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 
 	return fs
 }
@@ -260,18 +264,26 @@ func (cmd *pullCmd) Run(args []string) {
 	// Filter out empty strings.
 	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
 
-	exitWithError(drive.New(context, &drive.Options{
+	options := &drive.Options{
 		Exports:        uniqOrderedStr(exports),
 		ExportsDir:     strings.Trim(*cmd.exportsDir, " "),
 		Force:          *cmd.force,
 		Hidden:         *cmd.hidden,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		IgnoreConflict: *cmd.ignoreConflict,
 		NoPrompt:       *cmd.noPrompt,
 		NoClobber:      *cmd.noClobber,
 		Path:           path,
 		Recursive:      *cmd.recursive,
 		Sources:        sources,
-	}).Pull())
+		Piped:          *cmd.piped,
+	}
+
+	if *cmd.piped {
+		exitWithError(drive.New(context, options).PullPiped())
+	} else {
+		exitWithError(drive.New(context, options).Pull())
+	}
 }
 
 type pushCmd struct {
@@ -280,6 +292,7 @@ type pushCmd struct {
 	force       *bool
 	noPrompt    *bool
 	recursive   *bool
+	piped       *bool
 	mountedPush *bool
 	// convert when set tells Google drive to convert the document into
 	// its appropriate Google Docs format
@@ -288,6 +301,7 @@ type pushCmd struct {
 	// attempted on .[gif, jpg, pdf, png] uploads
 	ocr            *bool
 	ignoreChecksum *bool
+	ignoreConflict *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -298,8 +312,10 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "forces a push even if no changes present")
 	cmd.mountedPush = fs.Bool("m", false, "allows pushing of mounted paths")
 	cmd.convert = fs.Bool("convert", false, "toggles conversion of the file to its appropriate Google Doc format")
-	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ocr = fs.Bool("ocr", false, "if true, attempt OCR on gif, jpg, pdf and png uploads")
+	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
+	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	return fs
 }
 
@@ -313,32 +329,45 @@ func (cmd *pushCmd) Run(args []string) {
 		options.Path = path
 		options.Sources = sources
 
-		exitWithError(drive.New(context, options).Push())
+		if *cmd.piped {
+			exitWithError(drive.New(context, options).PushPiped())
+		} else {
+			exitWithError(drive.New(context, options).Push())
+		}
 	}
 }
 
 type touchCmd struct {
 	hidden    *bool
-	noPrompt  *bool
 	recursive *bool
+	matches   *bool
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
-	cmd.recursive = fs.Bool("r", true, "performs the push action recursively")
-	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before applying the push action")
+	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and touch")
 	return fs
 }
 
 func (cmd *touchCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
-	exitWithError(drive.New(context, &drive.Options{
-		Hidden:    *cmd.hidden,
-		NoPrompt:  *cmd.noPrompt,
-		Path:      path,
-		Recursive: *cmd.recursive,
-		Sources:   sources,
-	}).Touch())
+	if *cmd.matches {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		_, context, path := preprocessArgs([]string{cwd})
+		exitWithError(drive.New(context, &drive.Options{
+			Path:    path,
+			Sources: args,
+		}).TouchByMatch())
+	} else {
+		sources, context, path := preprocessArgs(args)
+		exitWithError(drive.New(context, &drive.Options{
+			Hidden:    *cmd.hidden,
+			Path:      path,
+			Recursive: *cmd.recursive,
+			Sources:   sources,
+		}).Touch())
+	}
 }
 
 func (cmd *pushCmd) createPushOptions() *drive.Options {
@@ -356,7 +385,9 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 		NoClobber:      *cmd.noClobber,
 		NoPrompt:       *cmd.noPrompt,
 		TypeMask:       mask,
+		Piped:          *cmd.piped,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		IgnoreConflict: *cmd.ignoreConflict,
 		Recursive:      *cmd.recursive,
 	}
 }
@@ -500,7 +531,7 @@ type trashCmd struct {
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
-	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and trash")
 	return fs
 }
 
@@ -550,7 +581,7 @@ type untrashCmd struct {
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
-	cmd.matches = fs.Bool("matches", false, "wild card search and trash")
+	cmd.matches = fs.Bool("matches", false, "search by prefix and untrash")
 	return fs
 }
 

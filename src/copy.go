@@ -72,7 +72,7 @@ func (g *Commands) Copy() error {
 	}
 
 	if dirDest {
-		destFile, err = g.rem.mkdirAll(dest)
+		destFile, err = g.remoteMkdirAll(dest)
 		if err != nil {
 			return fmt.Errorf("mkdirAll %s: %v", dest, err)
 		}

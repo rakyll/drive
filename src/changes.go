@@ -20,8 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	spinner "github.com/odeke-em/cli-spinner"
+	"github.com/odeke-em/drive/config"
 )
 
 type dirList struct {
@@ -96,7 +98,6 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 		l = NewLocalFile(fsPath, localinfo)
 	}
 
-	fmt.Println("Resolving...")
 	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
 }
 
@@ -276,28 +277,87 @@ func reduceToSize(changes []*Change, isPush bool) (totalSize int64) {
 	return totalSize
 }
 
-func summarizeChanges(changes []*Change, reduce bool) {
-	for _, c := range changes {
-		if c.Op() != OpNone {
-			fmt.Println(c.Symbol(), c.Path)
+func conflict(src *File, index *config.Index) bool {
+	// Never been indexed means no local record.
+	if index == nil {
+		return false
+	}
+
+	rounded := src.ModTime.UTC().Round(time.Second)
+	if rounded.Unix() != index.ModTime && src.Md5Checksum != index.Md5Checksum {
+		return true
+	}
+	return false
+}
+
+func resolveConflicts(conflicts []*Change, push bool, indexFiler func(string) *config.Index) (resolved, unresolved []*Change) {
+	if len(conflicts) < 1 {
+		return
+	}
+	for _, ch := range conflicts {
+		l, r := ch.Dest, ch.Src
+		if push {
+			l, r = ch.Src, ch.Dest
+		}
+		fileId := ""
+		if l != nil {
+			fileId = l.Id
+		}
+		if fileId == "" {
+			fileId = r.Id
+		}
+		if !conflict(l, indexFiler(fileId)) {
+			resolved = append(resolved, ch)
+		} else {
+			unresolved = append(unresolved, ch)
 		}
 	}
-	if reduce {
-		opMap := map[int]sizeCounter{}
+	return
+}
 
-		for _, c := range changes {
-			op := c.Op()
-			counter := opMap[op]
-			counter.count += 1
-			if c.Src != nil {
-				counter.src += c.Src.Size
-			}
-			if c.Dest != nil {
-				counter.dest += c.Dest.Size
-			}
-			opMap[op] = counter
+func sift(changes []*Change) (nonConflicts, conflicts []*Change) {
+	// Firstly detect the conflicting changes and if present return false
+	for _, c := range changes {
+		if c.Op() == OpModConflict {
+			conflicts = append(conflicts, c)
+		} else {
+			nonConflicts = append(nonConflicts, c)
 		}
+	}
+	return
+}
 
+func conflictsPersist(conflicts []*Change) bool {
+	return len(conflicts) >= 1
+}
+
+func warnConflictsPersist(conflicts []*Change) {
+	fmt.Printf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
+	for _, conflict := range conflicts {
+		fmt.Println(conflict.Path)
+	}
+}
+
+func printChanges(changes []*Change, reduce bool) {
+	opMap := map[int]sizeCounter{}
+
+	for _, c := range changes {
+		op := c.Op()
+		if op != OpNone {
+			fmt.Println(c.Symbol(), c.Path)
+		}
+		counter := opMap[op]
+		counter.count += 1
+		if c.Src != nil {
+			counter.src += c.Src.Size
+		}
+		if c.Dest != nil {
+			counter.dest += c.Dest.Size
+		}
+		opMap[op] = counter
+	}
+
+	if reduce {
 		for op, counter := range opMap {
 			if counter.count < 1 {
 				continue
@@ -320,10 +380,9 @@ func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
 		fmt.Println("Everything is up-to-date.")
 		return false
 	}
-	summarizeChanges(changes, !noPrompt)
-
 	if noPrompt {
 		return true
 	}
+	printChanges(changes, true)
 	return promptForChanges()
 }

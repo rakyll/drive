@@ -40,6 +40,8 @@ const (
 	UntrashKey    = "untrash"
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
+
+	ForceKey = "force"
 )
 
 const (
@@ -69,10 +71,12 @@ const (
 	DescIgnoreChecksum = "avoids computation of checksums as a final check." +
 		"\nUse cases may include:\n\t* when you are low on bandwidth e.g SSHFS." +
 		"\n\t* Are on a low power device"
+	DescIgnoreConflict = "turns off the conflict resolution safety"
 )
 
 const (
 	CLIOptionIgnoreChecksum = "ignore-checksum"
+	CLIOptionIgnoreConflict = "ignore-conflict"
 )
 
 var skipChecksumNote = fmt.Sprintf(

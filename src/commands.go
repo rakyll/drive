@@ -42,6 +42,8 @@ type Options struct {
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
 	IgnoreChecksum bool
+	// IgnoreConflict when set turns off the conflict resolution safety.
+	IgnoreConflict bool
 	// Allows listing of content in trash
 	InTrash bool
 	Meta    *map[string][]string
@@ -60,6 +62,8 @@ type Options struct {
 	// TypeMask contains the result of setting different type bits e.g
 	// Folder to search only for folders etc.
 	TypeMask int
+	// Piped when set means to infer content to or from stdin
+	Piped bool
 }
 
 type Commands struct {

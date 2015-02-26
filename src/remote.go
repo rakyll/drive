@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -158,6 +157,22 @@ func (r *Remote) changes(startChangeId int64) (chan *drive.Change, error) {
 	return changeChan, nil
 }
 
+func buildExpression(parentId string, typeMask int, inTrash bool) string {
+	var exprBuilder []string
+
+	if inTrash || (typeMask&InTrash) != 0 {
+		exprBuilder = append(exprBuilder, "trashed=true")
+	} else {
+		exprBuilder = append(exprBuilder, fmt.Sprintf("'%s' in parents", parentId), "trashed=false")
+	}
+
+	// Folder and NonFolder are mutually exclusive.
+	if (typeMask & Folder) != 0 {
+		exprBuilder = append(exprBuilder, fmt.Sprintf("mimeType = '%s'", DriveFolderMimeType))
+	}
+	return strings.Join(exprBuilder, " and ")
+}
+
 func (r *Remote) change(changeId string) (*drive.Change, error) {
 	return r.service.Changes.Get(changeId).Do()
 }
@@ -186,8 +201,12 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
+func rootLike(p string) bool {
+	return p == "/" || p == "" || p == "root"
+}
+
 func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
-	if p == "/" {
+	if rootLike(p) {
 		return r.FindById("root")
 	}
 	parts := strings.Split(p, "/")
@@ -206,7 +225,7 @@ func (r *Remote) FindByPathTrashed(p string) (file *File, err error) {
 	return r.findByPath(p, true)
 }
 
-func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
+func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) chan *File {
 	fileChan := make(chan *File)
 	go func() {
 		pageToken := ""
@@ -229,6 +248,11 @@ func reqDoPage(req *drive.FilesListCall, hidden bool) chan *File {
 			if pageToken == "" {
 				break
 			}
+
+			if promptOnPagination && !nextPage() {
+				fileChan <- nil
+				break
+			}
 		}
 		close(fileChan)
 	}()
@@ -239,7 +263,7 @@ func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileC
 	req := r.service.Files.List()
 	// TODO: use field selectors
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
-	return reqDoPage(req, hidden)
+	return reqDoPage(req, hidden, false)
 }
 
 func (r *Remote) FindByParentId(parentId string, hidden bool) chan *File {
@@ -384,13 +408,7 @@ type upsertOpt struct {
 	ignoreChecksum bool
 }
 
-func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
-	var body io.Reader
-	body, err = os.Open(args.fsAbsPath)
-	if err != nil && !args.src.IsDir {
-		return
-	}
-
+func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, err error) {
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
 		Title:   urlToPath(args.src.Name, false),
@@ -460,6 +478,15 @@ func (r *Remote) copy(name, fileId, parentId string) (*File, error) {
 	return NewRemoteFile(copied), nil
 }
 
+func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
+	var body io.Reader
+	body, err = os.Open(args.fsAbsPath)
+	if err != nil && !args.src.IsDir {
+		return
+	}
+	return r.upsertByComparison(body, args)
+}
+
 func (r *Remote) findShared(p []string) (chan *File, error) {
 	req := r.service.Files.List()
 	expr := "sharedWithMe=true"
@@ -468,7 +495,7 @@ func (r *Remote) findShared(p []string) (chan *File, error) {
 	}
 	req = req.Q(expr)
 
-	return reqDoPage(req, false), nil
+	return reqDoPage(req, false, false), nil
 }
 
 func (r *Remote) FindByPathShared(p string) (chan *File, error) {
@@ -508,13 +535,13 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	// And always make sure that we are searching from this parent
 	expr = fmt.Sprintf("%s in parents and (%s)", strconv.Quote(parent.Id), expr)
 	req.Q(expr)
-	return reqDoPage(req, true), nil
+	return reqDoPage(req, true, false), nil
 }
 
 func (r *Remote) findChildren(parentId string) chan *File {
 	req := r.service.Files.List()
 	req.Q(fmt.Sprintf("%s in parents", strconv.Quote(parentId)))
-	return reqDoPage(req, true)
+	return reqDoPage(req, true, false)
 }
 
 func (r *Remote) About() (about *drive.About, err error) {
@@ -557,42 +584,6 @@ func (r *Remote) findByPathRecv(parentId string, p []string) (file *File, err er
 
 func (r *Remote) findByPathTrashed(parentId string, p []string) (file *File, err error) {
 	return r.findByPathRecvRaw(parentId, p, true)
-}
-
-func (r *Remote) mkdirAll(d string) (file *File, err error) {
-	// Try the lookup one last time in case a coroutine raced us to it.
-	retrFile, retryErr := r.FindByPath(d)
-	if retryErr == nil && retrFile != nil {
-		return retrFile, nil
-	}
-
-	rest, last := filepath.Split(strings.TrimRight(d, UnescapedPathSep))
-	if rest == "" || last == "" {
-		return nil, fmt.Errorf("cannot tamper with root")
-	}
-
-	parent, parentErr := r.FindByPath(rest)
-	if parentErr != nil && parentErr != ErrPathNotExists {
-		return parent, parentErr
-	}
-
-	if parent == nil {
-		parent, parentErr = r.mkdirAll(rest)
-		if parentErr != nil || parent == nil {
-			return parent, parentErr
-		}
-	}
-
-	remoteFile := &File{
-		IsDir: true,
-		Name:  last,
-	}
-
-	args := upsertOpt{
-		parentId: parent.Id,
-		src:      remoteFile,
-	}
-	return r.UpsertByComparison(&args)
 }
 
 func newAuthConfig(context *config.Context) *oauth.Config {

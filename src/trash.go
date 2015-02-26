@@ -28,7 +28,11 @@ func (g *Commands) Untrash() (err error) {
 }
 
 func (g *Commands) EmptyTrash() error {
-	if !g.breadthFirst("", "", "", -1, 0, true) {
+	rootFile, err := g.rem.FindByPath("/")
+	if err != nil {
+		return err
+	}
+	if !g.breadthFirst(rootFile, "", "", -1, 0, true) {
 		return nil
 	}
 
@@ -45,7 +49,7 @@ func (g *Commands) EmptyTrash() error {
 		}
 	}
 
-	err := g.rem.EmptyTrash()
+	err = g.rem.EmptyTrash()
 	if err == nil {
 		fmt.Println("Successfully emptied trash")
 	}

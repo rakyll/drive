@@ -37,6 +37,16 @@ type Context struct {
 	AbsPath      string `json:"-"`
 }
 
+type Index struct {
+	FileId      string `json:"id"`
+	Etag        string `json:"etag"`
+	Md5Checksum string `json:"md5"`
+	MimeType    string `json:"mtype"`
+	ModTime     int64  `json:"mtime"`
+	Version     int64  `json:"version"`
+	IndexTime   int64  `json:"itime"`
+}
+
 type MountPoint struct {
 	CanClean  bool
 	Name      string
@@ -71,8 +81,27 @@ func (c *Context) Read() (err error) {
 	if data, err = ioutil.ReadFile(credentialsPath(c.AbsPath)); err != nil {
 		return
 	}
-	err = json.Unmarshal(data, c)
-	return
+	return json.Unmarshal(data, c)
+}
+
+func (c *Context) DeserializeIndex(dir, path string) (*Index, error) {
+	var data []byte
+	var err error
+	if data, err = ioutil.ReadFile(IndicesAbsPath(dir, path)); err != nil {
+		return nil, err
+	}
+
+	index := Index{}
+	err = json.Unmarshal(data, &index)
+	return &index, err
+}
+
+func (c *Context) SerializeIndex(index *Index, p string) (err error) {
+	var data []byte
+	if data, err = json.Marshal(index); err != nil {
+		return
+	}
+	return ioutil.WriteFile(IndicesAbsPath(p, index.FileId), data, 0600)
 }
 
 func (c *Context) Write() (err error) {
@@ -105,7 +134,11 @@ func Discover(currentAbsPath string) (context *Context, err error) {
 		return nil, errors.New("no gd context is found; use gd init")
 	}
 	context = &Context{AbsPath: p}
-	err = context.Read()
+	if err = context.Read(); err != nil {
+		return nil, err
+	}
+	indicesPath := IndicesAbsPath(context.AbsPath, "")
+	err = os.MkdirAll(indicesPath, 0755)
 	return
 }
 
@@ -137,6 +170,10 @@ func gdPath(absPath string) string {
 
 func credentialsPath(absPath string) string {
 	return path.Join(gdPath(absPath), "credentials.json")
+}
+
+func IndicesAbsPath(dir, child string) string {
+	return path.Join(gdPath(dir), "indices", child)
 }
 
 func LeastNonExistantRoot(contextAbsPath string) string {

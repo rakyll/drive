@@ -34,6 +34,8 @@ const (
 // It doesn't check if there are remote changes if isForce is set.
 func (g *Commands) Pull() (err error) {
 	var cl []*Change
+
+	fmt.Println("Resolving...")
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
@@ -45,11 +47,46 @@ func (g *Commands) Pull() (err error) {
 		}
 	}
 
-	ok := printChangeList(cl, g.opts.NoPrompt, g.opts.NoClobber)
-	if ok {
-		return g.playPullChangeList(cl, g.opts.Exports)
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	if conflictsPtr != nil {
+		warnConflictsPersist(*conflictsPtr)
+		return
 	}
 
+	nonConflicts := *nonConflictsPtr
+	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	if !ok {
+		return
+	}
+
+	return g.playPullChangeList(nonConflicts, g.opts.Exports)
+}
+
+func (g *Commands) PullPiped() (err error) {
+	// Cannot pull asynchronously because the pull order must be maintained
+	for _, relToRootPath := range g.opts.Sources {
+		rem, err := g.rem.FindByPath(relToRootPath)
+		if err != nil {
+			return fmt.Errorf("%s: %v", relToRootPath, err)
+		}
+		if rem == nil {
+			continue
+		}
+
+		if hasExportLinks(rem) {
+			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
+			continue
+		}
+		blobHandle, dlErr := g.rem.Download(rem.Id, "")
+		if dlErr != nil {
+			return dlErr
+		}
+		if blobHandle == nil {
+			continue
+		}
+		_, err = io.Copy(os.Stdout, blobHandle)
+		blobHandle.Close()
+	}
 	return
 }
 
@@ -80,6 +117,8 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 			switch c.Op() {
 			case OpMod:
 				go g.localMod(&wg, c, exports)
+			case OpModConflict:
+				go g.localMod(&wg, c, exports)
 			case OpAdd:
 				go g.localAdd(&wg, c, exports)
 			case OpDelete:
@@ -94,8 +133,20 @@ func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error
 }
 
 func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
-	defer g.taskDone()
-	defer wg.Done()
+	defer func() {
+		if err == nil {
+			src := change.Src
+			index := src.ToIndex()
+			wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+			// TODO: Should indexing errors be reported?
+			if wErr != nil {
+				fmt.Printf("serializeIndex %s: %v\n", src.Name, wErr)
+			}
+		}
+		g.taskDone()
+		wg.Done()
+	}()
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
@@ -108,13 +159,26 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 			return
 		}
 	}
-	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	return
 }
 
 func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string) (err error) {
+	defer func() {
+		if err == nil {
+			src := change.Src
+			index := src.ToIndex()
+			sErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
-	defer g.taskDone()
-	defer wg.Done()
+			// TODO: Should indexing errors be reported?
+			if sErr != nil {
+				fmt.Printf("serializeIndex %s: %v\n", src.Name, sErr)
+			}
+		}
+		g.taskDone()
+		wg.Done()
+	}()
+
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
 	// make parent's dir if not exists
@@ -136,7 +200,8 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 		return
 	}
 
-	return os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+	return
 }
 
 func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
