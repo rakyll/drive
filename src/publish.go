@@ -33,11 +33,13 @@ func (c *Commands) pub(relToRoot string) (err error) {
 	if err != nil {
 		return err
 	}
-
 	var link string
 	link, err = c.rem.Publish(file.Id)
 	if err != nil {
 		return
+	}
+	if hasExportLinks(file) {
+		link = file.AlternateLink
 	}
 	fmt.Printf("%s Published on %s\n", relToRoot, link)
 	return

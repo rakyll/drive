@@ -57,17 +57,19 @@ var opPrecedence = map[int]int{
 }
 
 type File struct {
-	BlobAt      string
-	ExportLinks map[string]string
-	Id          string
-	IsDir       bool
-	Md5Checksum string
-	MimeType    string
-	ModTime     time.Time
-	Name        string
-	Size        int64
-	Etag        string
-	Shared      bool
+	// AlternateLink opens the file in a relevant Google editor or viewer
+	AlternateLink string
+	BlobAt        string
+	ExportLinks   map[string]string
+	Id            string
+	IsDir         bool
+	Md5Checksum   string
+	MimeType      string
+	ModTime       time.Time
+	Name          string
+	Size          int64
+	Etag          string
+	Shared        bool
 	// UserPermission contains the permissions for the authenticated user on this file
 	UserPermission *drive.Permission
 	// CacheChecksum when set avoids recomputation of checksums
@@ -84,14 +86,15 @@ func NewRemoteFile(f *drive.File) *File {
 	mtime, _ := time.Parse("2006-01-02T15:04:05.000Z", f.ModifiedDate)
 	mtime = mtime.Round(time.Second)
 	return &File{
-		BlobAt:      f.DownloadUrl,
-		Etag:        f.Etag,
-		ExportLinks: f.ExportLinks,
-		Id:          f.Id,
-		IsDir:       f.MimeType == DriveFolderMimeType,
-		Md5Checksum: f.Md5Checksum,
-		MimeType:    f.MimeType,
-		ModTime:     mtime,
+		AlternateLink: f.AlternateLink,
+		BlobAt:        f.DownloadUrl,
+		Etag:          f.Etag,
+		ExportLinks:   f.ExportLinks,
+		Id:            f.Id,
+		IsDir:         f.MimeType == DriveFolderMimeType,
+		Md5Checksum:   f.Md5Checksum,
+		MimeType:      f.MimeType,
+		ModTime:       mtime,
 		// We must convert each title to match that on the FS.
 		Name:           urlToPath(f.Title, true),
 		Size:           f.FileSize,
