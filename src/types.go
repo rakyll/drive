@@ -243,7 +243,6 @@ func md5Checksum(f *File) string {
 	}
 	checksum := fmt.Sprintf("%x", h.Sum(nil))
 	if f.CacheChecksum {
-		// fmt.Println("CACHING CHECKSUM", checksum, f.Name)
 		f.Md5Checksum = checksum
 	}
 	return checksum

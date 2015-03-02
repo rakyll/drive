@@ -21,89 +21,94 @@ import (
 
 var ErrPathNotDir = errors.New("not a directory")
 
+type copyArgs struct {
+	destPath string
+	src      *File
+	dest     *File
+}
+
 func (g *Commands) Copy() error {
 	argc := len(g.opts.Sources)
 	if argc < 2 {
 		return fmt.Errorf("expecting src [src1....] dest got: %v", g.opts.Sources)
 	}
 
-	sources, dest := g.opts.Sources[:argc-1], g.opts.Sources[argc-1]
+	end := argc - 1
+	sources, dest := g.opts.Sources[:end], g.opts.Sources[end]
+
 	destFile, err := g.rem.FindByPath(dest)
 	if err != nil && err != ErrPathNotExists {
 		return fmt.Errorf("destination: %s err: %v", dest, err)
 	}
 
-	if destFile != nil && !destFile.IsDir && len(sources) > 1 {
-		return fmt.Errorf("%s: ", dest, ErrPathNotDir)
-	}
-
-	dirCount := 0
-	regCount := 0
-	destId := ""
-	dirDest := false
-	if destFile != nil {
-		destId = destFile.Id
-		dirDest = destFile.IsDir
-	}
-
-	files := make([]*File, len(sources))
-	for i, relToRootPath := range sources {
-		file, err := g.rem.FindByPath(relToRootPath)
+	multiPaths := len(sources) > 1
+	if multiPaths {
+		if destFile != nil && !destFile.IsDir {
+			return fmt.Errorf("%s: %v", dest, ErrPathNotDir)
+		}
+		_, err := g.remoteMkdirAll(dest)
 		if err != nil {
 			return err
 		}
-		if !file.IsDir {
-			regCount += 1
-		} else if file.IsDir {
-			if !dirDest {
-				return fmt.Errorf("%s: %v yet %s is a directory",
-					dest, ErrPathNotDir, relToRootPath)
-			}
-			if !g.opts.Recursive {
-				return fmt.Errorf("%s is a folder yet `recursive` is not defined", relToRootPath)
-			}
-			dirCount += 1
-		}
-		if file.Id == destId {
-			return fmt.Errorf("%s and %s are the same file", relToRootPath, dest)
-		}
-
-		files[i] = file
 	}
 
-	if dirDest {
-		destFile, err = g.remoteMkdirAll(dest)
-		if err != nil {
-			return fmt.Errorf("mkdirAll %s: %v", dest, err)
+	for _, srcPath := range sources {
+		srcFile, srcErr := g.rem.FindByPath(srcPath)
+		if srcErr != nil {
+			fmt.Printf("%s: %v\n", srcPath, srcErr)
+			continue
 		}
-	}
 
-	for _, f := range files {
-		copied, err := g.copy(f.Name, f, destFile)
-		fmt.Println(copied, err)
+		_, copyErr := g.copy(srcFile, dest)
+		if copyErr != nil {
+			fmt.Printf("%s: %v\n", srcPath, copyErr)
+		}
 	}
 
 	return nil
 }
 
-func (g *Commands) copy(destTitle string, src, dest *File) (*File, error) {
+func (g *Commands) copy(src *File, destPath string) (*File, error) {
+	if src == nil {
+		return nil, fmt.Errorf("non existant src")
+	}
+
 	if !src.IsDir {
-		parentId := ""
-		if destTitle == "" {
-			destTitle = src.Name
-		}
-		if dest != nil && dest.IsDir {
-			parentId = dest.Id
-		}
 		if !src.Copyable {
-			return nil, fmt.Errorf("%s (%s) is not copyable", src.Name, src.Id)
+			return nil, fmt.Errorf("%s is non-copyable", src.Name)
 		}
-		return g.rem.copy(destTitle, src.Id, parentId)
-	} else {
-		content := g.rem.findChildren(src.Id)
-		for file := range content {
-			fmt.Println("Patch me!", file.Name)
+
+		destDir, destBase := g.pathSplitter(destPath)
+		destParent, destParErr := g.remoteMkdirAll(destDir)
+
+		if destParErr != nil {
+			return nil, destParErr
+		}
+
+		parentId := destParent.Id
+		destFile, destErr := g.rem.FindByPath(destPath)
+		if destErr != nil && destErr != ErrPathNotExists {
+			return nil, destErr
+		}
+		if destFile != nil && destFile.IsDir {
+			parentId = destFile.Id
+			destBase = src.Name
+		}
+		return g.rem.copy(destBase, parentId, src)
+	}
+
+	destFile, destErr := g.remoteMkdirAll(destPath)
+	if destErr != nil {
+		return nil, destErr
+	}
+
+	children := g.rem.findChildren(src.Id, false)
+	for child := range children {
+		_, childErr := g.copy(child, destPath+"/"+child.Name)
+		if childErr != nil {
+			return nil, childErr
 		}
 	}
-	return nil, nil
+
+	return destFile, nil
 }

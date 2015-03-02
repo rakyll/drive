@@ -376,6 +376,18 @@ To get help for all the commands
 $ drive help all
 ```
 
+### Copying
+
+drive allows you to copy content remotely without having to explicitly download and then reupload.
+
+```shell
+$ drive copy -r blobStore.py mnt flagging
+```
+
+```shell
+$ drive copy blobStore.py blobStoreDuplicated.py
+```
+
 ## Why another Google Drive client?
 
 Background sync is not just hard, it is stupid. My technical and philosophical rants about why it is not worth to implement:
@@ -426,5 +438,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-

@@ -261,7 +261,6 @@ func reqDoPage(req *drive.FilesListCall, hidden bool, promptOnPagination bool) c
 
 func (r *Remote) findByParentIdRaw(parentId string, trashed, hidden bool) (fileChan chan *File) {
 	req := r.service.Files.List()
-	// TODO: use field selectors
 	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
 	return reqDoPage(req, hidden, false)
 }
@@ -466,12 +465,15 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, e
 	return NewRemoteFile(uploaded), nil
 }
 
-func (r *Remote) copy(name, fileId, parentId string) (*File, error) {
-	f := &drive.File{Title: name}
+func (r *Remote) copy(newName, parentId string, srcFile *File) (*File, error) {
+	f := &drive.File{
+		Title:        urlToPath(newName, false),
+		ModifiedDate: toUTCString(srcFile.ModTime),
+	}
 	if parentId != "" {
 		f.Parents = []*drive.ParentReference{&drive.ParentReference{Id: parentId}}
 	}
-	copied, err := r.service.Files.Copy(fileId, f).Do()
+	copied, err := r.service.Files.Copy(srcFile.Id, f).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -538,9 +540,9 @@ func (r *Remote) FindMatches(dirPath string, keywords []string, inTrash bool) (c
 	return reqDoPage(req, true, false), nil
 }
 
-func (r *Remote) findChildren(parentId string) chan *File {
+func (r *Remote) findChildren(parentId string, trashed bool) chan *File {
 	req := r.service.Files.List()
-	req.Q(fmt.Sprintf("%s in parents", strconv.Quote(parentId)))
+	req.Q(fmt.Sprintf("%s in parents and trashed=%v", strconv.Quote(parentId), trashed))
 	return reqDoPage(req, true, false)
 }
 

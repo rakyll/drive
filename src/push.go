@@ -236,10 +236,18 @@ func lonePush(g *Commands, parent, absPath, path string) (cl []*Change, err erro
 	return g.resolveChangeListRecv(true, parent, absPath, r, l)
 }
 
-func (g *Commands) parentPather(absPath string) string {
+func (g *Commands) pathSplitter(absPath string) (dir, base string) {
 	p := strings.Split(absPath, "/")
-	p = append([]string{"/"}, p[:len(p)-1]...)
-	return gopath.Join(p...)
+	pLen := len(p)
+	base = p[pLen-1]
+	p = append([]string{"/"}, p[:pLen-1]...)
+	dir = gopath.Join(p...)
+	return
+}
+
+func (g *Commands) parentPather(absPath string) string {
+	dir, _ := g.pathSplitter(absPath)
+	return dir
 }
 
 func (g *Commands) remoteMod(change *Change) (err error) {
