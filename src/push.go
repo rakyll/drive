@@ -42,9 +42,13 @@ func (g *Commands) Push() (err error) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
+	spin := spinner.New(10)
+	spin.Start()
+
 	// To Ensure mount points are cleared in the event of external exceptios
 	go func() {
 		_ = <-c
+		spin.Stop()
 		g.clearMountPoints()
 		os.Exit(1)
 	}()
@@ -53,6 +57,7 @@ func (g *Commands) Push() (err error) {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		if cErr != nil {
+			spin.Stop()
 			return cErr
 		}
 		if len(ccl) > 0 {
@@ -70,6 +75,8 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
+	spin.Stop()
+
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
 		warnConflictsPersist(*conflictsPtr)
@@ -77,6 +84,7 @@ func (g *Commands) Push() (err error) {
 	}
 
 	nonConflicts := *nonConflictsPtr
+
 	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
 	if !ok {
 		return
@@ -255,7 +263,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	absPath := g.context.AbsPathOf(change.Path)
 	var parent *File
-	if change.Dest != nil {
+	if change.Dest != nil && change.Src != nil {
 		change.Src.Id = change.Dest.Id // TODO: bad hack
 	}
 

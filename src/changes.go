@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 )
 
@@ -96,6 +95,12 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	localinfo, _ := os.Stat(fsPath)
 	if localinfo != nil {
 		l = NewLocalFile(fsPath, localinfo)
+	}
+
+	if l == nil && r == nil {
+		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
+			relToRoot, fsPath)
+		return
 	}
 
 	return g.resolveChangeListRecv(isPush, relToRoot, relToRoot, r, l)
@@ -200,8 +205,6 @@ func (g *Commands) resolveChangeListRecv(
 
 	var wg sync.WaitGroup
 	wg.Add(chunkCount)
-	spin := spinner.New(10)
-	spin.Start()
 
 	for j := 0; j < chunkCount; j += 1 {
 		end := i + chunkSize
@@ -227,14 +230,10 @@ func (g *Commands) resolveChangeListRecv(
 		i += chunkSize
 	}
 	wg.Wait()
-	spin.Stop()
 	return cl, nil
 }
 
 func merge(remotes, locals chan *File) (merged []*dirList) {
-	spin := spinner.New(1)
-	spin.Start()
-
 	localMap := map[string]*File{}
 
 	// TODO: Add support for FileSystems that allow same names but different files.
@@ -257,7 +256,6 @@ func merge(remotes, locals chan *File) (merged []*dirList) {
 	for _, l := range localMap {
 		merged = append(merged, &dirList{local: l})
 	}
-	spin.Stop()
 	return
 }
 

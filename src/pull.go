@@ -23,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 const (
@@ -36,6 +38,10 @@ func (g *Commands) Pull() (err error) {
 	var cl []*Change
 
 	fmt.Println("Resolving...")
+
+	spin := spinner.New(10)
+	spin.Start()
+
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, false)
@@ -46,6 +52,8 @@ func (g *Commands) Pull() (err error) {
 			cl = append(cl, ccl...)
 		}
 	}
+
+	spin.Stop()
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
