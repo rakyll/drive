@@ -483,6 +483,10 @@ func (r *Remote) copy(newName, parentId string, srcFile *File) (*File, error) {
 func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	var body io.Reader
 	body, err = os.Open(args.fsAbsPath)
+	if args.src == nil {
+		err = fmt.Errorf("bug on: src cannot be nil")
+		return
+	}
 	if err != nil && !args.src.IsDir {
 		return
 	}

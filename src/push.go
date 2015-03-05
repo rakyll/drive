@@ -261,6 +261,12 @@ func (g *Commands) parentPather(absPath string) string {
 func (g *Commands) remoteMod(change *Change) (err error) {
 	defer g.taskDone()
 
+	if change.Dest == nil && change.Src == nil {
+		err = fmt.Errorf("bug on: both dest and src cannot be nil")
+		fmt.Println(err)
+		return err
+	}
+
 	absPath := g.context.AbsPathOf(change.Path)
 	var parent *File
 	if change.Dest != nil && change.Src != nil {
