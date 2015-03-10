@@ -400,10 +400,12 @@ For example:
 $ cat << $ >> .driveignore
 > # My drive ignore file
 > .gd
-> *.so
-> *.swp
+> .so
+> .swp
 > $
 ```
+
+Note: Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
 
 
 ## Why another Google Drive client?

@@ -92,6 +92,11 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 		}
 	}
 
+	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
+		fmt.Printf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
+		return cl, nil
+	}
+
 	localinfo, _ := os.Stat(fsPath)
 	if localinfo != nil {
 		l = NewLocalFile(fsPath, localinfo)
@@ -134,6 +139,7 @@ func (g *Commands) differ(a, b *File) bool {
 func (g *Commands) resolveChangeListRecv(
 	isPush bool, d, p string, r *File, l *File) (cl []*Change, err error) {
 	var change *Change
+
 	if isPush {
 		// Handle the case of doc files for which we don't have a direct download
 		// url but have exportable links. These files should not be clobbered on push

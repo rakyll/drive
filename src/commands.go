@@ -91,14 +91,9 @@ func New(context *config.Context, opts *Options) *Commands {
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
 
-		ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
-		clauses, err := readCommentedFile(ignoresPath, "#")
-
-		if err == nil {
-			regExComp, regErr := regexp.Compile(strings.Join(clauses, "|"))
-			if regErr == nil {
-				opts.IgnoreRegexp = regExComp
-			}
+		if !opts.Force {
+			ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
+			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
 	}
 	return &Commands{
@@ -106,6 +101,18 @@ func New(context *config.Context, opts *Options) *Commands {
 		rem:     r,
 		opts:    opts,
 	}
+}
+
+func readCommentedFileCompileRegexp(p string) *regexp.Regexp {
+	clauses, err := readCommentedFile(p, "#")
+	if err != nil {
+		return nil
+	}
+	regExComp, regErr := regexp.Compile(strings.Join(clauses, "|"))
+	if regErr != nil {
+		return nil
+	}
+	return regExComp
 }
 
 func (g *Commands) taskStart(numOfTasks int) {
