@@ -17,6 +17,9 @@ package drive
 import (
 	"errors"
 	"path"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/cheggaaa/pb"
 	"github.com/odeke-em/drive/config"
@@ -24,6 +27,10 @@ import (
 
 var (
 	ErrNoContext = errors.New("not in a drive context")
+)
+
+const (
+	DriveIgnoreSuffix = ".driveignore"
 )
 
 type Options struct {
@@ -38,7 +45,8 @@ type Options struct {
 	// Force once set always converts NoChange into an Addition
 	Force bool
 	// Hidden discovers hidden paths if set
-	Hidden bool
+	Hidden       bool
+	IgnoreRegexp *regexp.Regexp
 	// IgnoreChecksum when set avoids the step
 	// of comparing checksums as a final check.
 	IgnoreChecksum bool
@@ -82,6 +90,16 @@ func New(context *config.Context, opts *Options) *Commands {
 	if opts != nil {
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
+
+		ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
+		clauses, err := readCommentedFile(ignoresPath, "#")
+
+		if err == nil {
+			regExComp, regErr := regexp.Compile(strings.Join(clauses, "|"))
+			if regErr == nil {
+				opts.IgnoreRegexp = regExComp
+			}
+		}
 	}
 	return &Commands{
 		context: context,

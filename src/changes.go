@@ -178,7 +178,7 @@ func (g *Commands) resolveChangeListRecv(
 		localChildren = make(chan *File)
 		close(localChildren)
 	} else {
-		localChildren, err = list(g.context, p, g.opts.Hidden)
+		localChildren, err = list(g.context, p, g.opts.Hidden, g.opts.IgnoreRegexp)
 		if err != nil {
 			return
 		}

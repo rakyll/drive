@@ -30,6 +30,7 @@
   - [Features](#features)
   - [About](#about)
   - [Help](#help)
+  - [DriveIgnore](#driveignore)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
 - [LICENSE](#license)
@@ -387,6 +388,23 @@ $ drive copy -r blobStore.py mnt flagging
 ```shell
 $ drive copy blobStore.py blobStoreDuplicated.py
 ```
+
+### DriveIgnore
+
+drive allows you to specify a '.driveignore' file similar to your .gitignore, in the root
+directory of the mounted drive. Blank lines and those prefixed by '#' are considered as comments and skipped.
+
+For example:
+
+```shell
+$ cat << $ >> .driveignore
+> # My drive ignore file
+> .gd
+> *.so
+> *.swp
+> $
+```
+
 
 ## Why another Google Drive client?
 

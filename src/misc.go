@@ -14,7 +14,11 @@
 
 package drive
 
-import "strings"
+import (
+	"bufio"
+	"os"
+	"strings"
+)
 
 func remotePathSplit(p string) (dir, base string) {
 	// Avoiding use of filepath.Split because of bug with trailing "/" not being stripped
@@ -66,4 +70,29 @@ func commonPrefix(values ...string) string {
 		prefix[i] = min[i]
 	}
 	return string(prefix)
+}
+
+func readCommentedFile(p, comment string) (clauses []string, err error) {
+	f, fErr := os.Open(p)
+	if fErr != nil || f == nil {
+		err = fErr
+		return
+	}
+
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+
+	for {
+		if !scanner.Scan() {
+			break
+		}
+		line := scanner.Text()
+		line = strings.Trim(line, " ")
+		line = strings.Trim(line, "\n")
+		if strings.HasPrefix(line, comment) || len(line) < 1 {
+			continue
+		}
+		clauses = append(clauses, line)
+	}
+	return
 }

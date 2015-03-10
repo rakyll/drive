@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	gopath "path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -380,7 +381,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 	return parent, parentErr
 }
 
-func list(context *config.Context, p string, hidden bool) (fileChan chan *File, err error) {
+func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp) (fileChan chan *File, err error) {
 	absPath := context.AbsPathOf(p)
 	var f []os.FileInfo
 	f, err = ioutil.ReadDir(absPath)
@@ -393,6 +394,9 @@ func list(context *config.Context, p string, hidden bool) (fileChan chan *File, 
 	go func() {
 		for _, file := range f {
 			if file.Name() == config.GDDirSuffix {
+				continue
+			}
+			if ignore != nil && ignore.Match([]byte(file.Name())) {
 				continue
 			}
 			if !isHidden(file.Name(), hidden) {
