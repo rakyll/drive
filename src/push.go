@@ -136,11 +136,15 @@ func (g *Commands) resolveConflicts(cl []*Change) (*[]*Change, *[]*Change) {
 }
 
 func (g *Commands) PushPiped() (err error) {
-	// Cannot push asynchronously because the pull order must be maintained
+	// Cannot push asynchronously because the push order must be maintained
 	for _, relToRootPath := range g.opts.Sources {
 		rem, resErr := g.rem.FindByPath(relToRootPath)
 		if resErr != nil && resErr != ErrPathNotExists {
 			return resErr
+		}
+		if rem != nil && !g.opts.Force {
+			fmt.Printf("%s already exists remotely, use `%s` to override this behaviour.\n", relToRootPath, ForceKey)
+			continue
 		}
 
 		if hasExportLinks(rem) {
