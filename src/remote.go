@@ -405,6 +405,7 @@ type upsertOpt struct {
 	dest           *File
 	mask           int
 	ignoreChecksum bool
+	nonStatable    bool
 }
 
 func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, err error) {
@@ -453,7 +454,7 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, e
 	}
 
 	if !args.src.IsDir {
-		if args.dest == nil {
+		if args.dest == nil || args.nonStatable {
 			req = req.Media(body)
 		} else if mask := fileDifferences(args.src, args.dest, args.ignoreChecksum); checksumDiffers(mask) {
 			req = req.Media(body)

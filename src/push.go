@@ -177,6 +177,7 @@ func (g *Commands) PushPiped() (err error) {
 			src:            rem,
 			dest:           rem,
 			mask:           g.opts.TypeMask,
+			nonStatable:    true,
 			ignoreChecksum: g.opts.IgnoreChecksum,
 		}
 
@@ -185,9 +186,11 @@ func (g *Commands) PushPiped() (err error) {
 			fmt.Printf("%s: %v\n", relToRootPath, rErr)
 			return rErr
 		}
+
 		if rem == nil {
 			continue
 		}
+
 		index := rem.ToIndex()
 		wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
 
