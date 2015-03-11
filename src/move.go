@@ -57,15 +57,11 @@ func (g *Commands) move(srcPath string, newParent *File) (err error) {
 		return fmt.Errorf("move: cannot move to self")
 	}
 
-	// To avoid any orphaning, firstly insert the new parent
-	if err = g.rem.insertParent(remSrc.Id, newParent.Id); err != nil {
+	if err = g.removeParent(remSrc.Id, srcPath); err != nil {
 		return err
 	}
 
-	// TODO: Rollback in case popping the old parent fails? Leave in orphaned state?
-
-	// Next let's pop the old parent
-	return g.removeParent(remSrc.Id, srcPath)
+	return g.rem.insertParent(remSrc.Id, newParent.Id)
 }
 
 func (g *Commands) removeParent(fileId, relToRootPath string) error {
