@@ -25,12 +25,14 @@ const (
 	DiffKey       = "diff"
 	EmptyTrashKey = "emptytrash"
 	FeaturesKey   = "features"
+	HelpKey       = "help"
 	InitKey       = "init"
 	ListKey       = "list"
+	MoveKey       = "move"
 	PullKey       = "pull"
 	PushKey       = "push"
 	PubKey        = "pub"
-	HelpKey       = "help"
+	RenameKey     = "rename"
 	QuotaKey      = "quota"
 	ShareKey      = "share"
 	StatKey       = "stat"
@@ -54,8 +56,10 @@ const (
 	DescHelp           = "Get help for a topic"
 	DescInit           = "initializes a directory and authenticates user"
 	DescList           = "lists the contents of remote path"
+	DescMove           = "move files/folders"
 	DescQuota          = "prints out information related to your quota space"
 	DescPublish        = "publishes a file and prints its publicly available url"
+	DescRename         = "renames a file/folder"
 	DescPull           = "pulls remote changes from Google Drive"
 	DescPush           = "push local changes to Google Drive"
 	DescShare          = "share files with specific emails giving the specified users specifies roles and permissions"
@@ -121,8 +125,15 @@ var docMap = map[string][]string{
 		"List the information of a remote path not necessarily present locally",
 		"Allows printing of long options and by default does minimal printing",
 	},
+	MoveKey: []string{
+		DescMove,
+		"Moves files/folders between folders",
+	},
 	PubKey: []string{
 		DescPublish, "Accepts multiple paths",
+	},
+	RenameKey: []string{
+		DescRename, "Accepts <src> <newName>",
 	},
 	QuotaKey: []string{DescQuota},
 	ShareKey: []string{
