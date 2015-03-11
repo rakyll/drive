@@ -143,13 +143,11 @@ func (g *Commands) PushPiped() (err error) {
 			return resErr
 		}
 		if rem != nil && !g.opts.Force {
-			fmt.Printf("%s already exists remotely, use `%s` to override this behaviour.\n", relToRootPath, ForceKey)
-			continue
+			return fmt.Errorf("%s already exists remotely, use `%s` to override this behaviour.\n", relToRootPath, ForceKey)
 		}
 
 		if hasExportLinks(rem) {
-			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
-			continue
+			return fmt.Errorf("'%s' is a GoogleDoc/Sheet document cannot be pushed to raw.\n", relToRootPath)
 		}
 
 		base := filepath.Base(relToRootPath)
