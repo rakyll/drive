@@ -407,6 +407,17 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 			if !isHidden(file.Name(), hidden) {
 				fileChan <- NewLocalFile(gopath.Join(absPath, file.Name()), file)
 			}
+
+			symlink := (file.Mode() & os.ModeSymlink) != 0
+			if symlink {
+				fChan, cErr := list(context, gopath.Join(p, file.Name()), hidden, ignore)
+				if cErr != nil {
+					continue
+				}
+				for child := range fChan {
+					fileChan <- child
+				}
+			}
 		}
 		close(fileChan)
 	}()

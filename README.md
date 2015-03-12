@@ -86,21 +86,6 @@ To force download from paths that otherwise would be marked with no-changes
 $ drive pull -force
 ```
 
-+ Note:
-  In relation to [#57](https://github.com/odeke-em/drive/issues/57) and [@rakyll's #49](https://github.com/rakyll/drive/issues/49).
-   A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-ignore-conflict` e.g:
-
-```shell
-$ drive pull -ignore-conflict collaboration_documents
-```
-
-Playing the safety card even more, if you want to get changes that are non clobberable ie only additions
-run drive with flag `-no-clobber` e.g:
-
-```shell
-$ drive pull -no-clobber Makefile
-```
-
 To pull specific files or directories, pass in one or more paths:
 
 ```shell
@@ -160,20 +145,44 @@ Note: To ignore checksum verification during a push:
 $ drive push -ignore-checksum
 ```
 
-For safety with non clobberable changes i.e only additions:
-
-```shell
-$ drive push -no-clobber
-```
-
 drive also supports pushing content piped from stdin which can be accomplished by:
 
 ```shell
 $ drive push -piped path
 ```
 
++ Note:
+  * In relation to [#57](https://github.com/odeke-em/drive/issues/57) and [@rakyll's #49](https://github.com/rakyll/drive/issues/49).
+   A couple of scenarios in which data was getting totally clobbered and unrecoverable, drive now tries to play it safe and warn you if your data could potentially be lost e.g during a to-disk clobber for which you have no backup. At least with a push you have the luxury of untrashing content. To disable this safety, run drive with flag `-ignore-conflict` e.g:
 
-+ Due to the reasons explained in the pull section, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-ignore-conflict` flag i.e:
+    ```shell
+    $ drive pull -ignore-conflict collaboration_documents
+    ```
+
+    Playing the safety card even more, if you want to get changes that are non clobberable ie only additions
+    run drive with flag `-no-clobber` e.g:
+
+    ```shell
+    $ drive pull -no-clobber Makefile
+    ```
+
+  * Ordinarily your system will not traverse nested symlinks e.g:
+  ```shell
+    $ mkdir -p a/b
+    $ mkdir -p ~/Desktop/z1/z2 && ls ~ > ~/Desktop/z1/z2/listing.txt
+    $ ln -s ~/Desktop/z1/z2 a/b
+    $ ls -R a # Should print only z2 and nothing inside it. 
+  ```
+
+    However in relation to [#80](https://github.com/odeke-em/drive/issues/80), for purposes of consistency with your Drive, traversing symlinks has been added.
+
+For safety with non clobberable changes i.e only additions:
+
+```shell
+$ drive push -no-clobber
+```
+
++ Due to the reasons above, drive should be able to warn you in case of total clobbers on data. To turn off this behaviour/safety, pass in the `-ignore-conflict` flag i.e:
 
 ```shell
 $ drive push -force sure_of_content
