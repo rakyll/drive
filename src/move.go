@@ -37,7 +37,11 @@ func (g *Commands) Move() (err error) {
 	}
 
 	for _, src := range rest {
-		g.move(src, newParent)
+		err = g.move(src, newParent)
+		if err != nil {
+			// TODO: Actually throw the error? Impact on UX if thrown?
+			fmt.Printf("%s: %v\n", src, err)
+		}
 	}
 
 	return nil
