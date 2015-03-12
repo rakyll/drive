@@ -410,13 +410,12 @@ func list(context *config.Context, p string, hidden bool, ignore *regexp.Regexp)
 
 			symlink := (file.Mode() & os.ModeSymlink) != 0
 			if symlink {
-				fChan, cErr := list(context, gopath.Join(p, file.Name()), hidden, ignore)
-				if cErr != nil {
-					continue
-				}
-				for child := range fChan {
-					fileChan <- child
-				}
+				symAbsPath := gopath.Join(absPath, file.Name())
+				var symInfo string
+				symInfo, err = filepath.EvalSymlinks(symAbsPath)
+				var symFile os.FileInfo
+				symFile, err = os.Stat(symInfo)
+				fileChan <- NewLocalFile(symAbsPath, symFile)
 			}
 		}
 		close(fileChan)
