@@ -30,6 +30,8 @@
   - [Features](#features)
   - [About](#about)
   - [Help](#help)
+  - [Move](#move)
+  - [Rename](#rename)
   - [DriveIgnore](#driveignore)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
@@ -397,6 +399,24 @@ $ drive copy -r blobStore.py mnt flagging
 ```shell
 $ drive copy blobStore.py blobStoreDuplicated.py
 ```
+
+### Rename
+
+drive allows you to rename a file/folder remotely. To do so:
+
+```shell
+$ drive rename url_test url_test_results
+$ drive rename openSrc/2015 2015-Contributions
+```
+
+### Move
+
+drive allows you to move content remotely between folders. To do so:
+
+```shell
+$ drive move photos/2015 angles library archives/storage
+```
+
 
 ### DriveIgnore
 

@@ -48,9 +48,11 @@ func main() {
 	command.On(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
 	command.On(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
 	command.On(drive.ListKey, drive.DescList, &listCmd{}, []string{})
+	command.On(drive.MoveKey, drive.DescMove, &moveCmd{}, []string{})
 	command.On(drive.PullKey, drive.DescPull, &pullCmd{}, []string{})
 	command.On(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
 	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
+	command.On(drive.RenameKey, drive.DescRename, &renameCmd{}, []string{})
 	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
 	command.On(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
 	command.On(drive.StatKey, drive.DescStat, &statCmd{}, []string{})
@@ -637,6 +639,46 @@ func (cmd *unshareCmd) Run(args []string) {
 		Path:    path,
 		Sources: sources,
 	}).Unshare())
+}
+
+type moveCmd struct {
+}
+
+func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	return fs
+}
+
+func (cmd *moveCmd) Run(args []string) {
+	sources, context, path := preprocessArgs(args)
+	exitWithError(drive.New(context, &drive.Options{
+		Path:    path,
+		Sources: sources,
+	}).Move())
+}
+
+type renameCmd struct {
+	force *bool
+}
+
+func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.force = fs.Bool("force", false, "coerce rename even if remote already exists")
+	return fs
+}
+
+func (cmd *renameCmd) Run(args []string) {
+	argc := len(args)
+	if argc < 2 {
+		exitWithError(fmt.Errorf("move: expecting <src> <dest>"))
+	}
+	rest, last := args[:argc-1], args[argc-1]
+	sources, context, path := preprocessArgs(rest)
+
+	sources = append(sources, last)
+	exitWithError(drive.New(context, &drive.Options{
+		Path:    path,
+		Sources: sources,
+		Force:   *cmd.force,
+	}).Rename())
 }
 
 type shareCmd struct {
