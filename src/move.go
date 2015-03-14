@@ -25,19 +25,17 @@ func (g *Commands) Move() (err error) {
 		return fmt.Errorf("move: expected <src> [src...] <dest>, instead got: %v", g.opts.Sources)
 	}
 
-	var newParent *File
 	rest, dest := g.opts.Sources[:argc-1], g.opts.Sources[argc-1]
 
-	if newParent, err = g.rem.FindByPath(dest); err != nil {
-		return fmt.Errorf("dest: '%s' %v", dest, err)
-	}
-
-	if newParent == nil || !newParent.IsDir {
-		return fmt.Errorf("dest: '%s' must be an existant folder", dest)
-	}
-
 	for _, src := range rest {
-		err = g.move(src, newParent)
+		prefix := commonPrefix(src, dest)
+
+		// Trying to nest a parent into its child
+		if prefix == src {
+			return fmt.Errorf("%s cannot be nested into %s", src, dest)
+		}
+
+		err = g.move(src, dest)
 		if err != nil {
 			// TODO: Actually throw the error? Impact on UX if thrown?
 			fmt.Printf("%s: %v\n", src, err)
@@ -47,21 +45,45 @@ func (g *Commands) Move() (err error) {
 	return nil
 }
 
-func (g *Commands) move(srcPath string, newParent *File) (err error) {
-	var remSrc *File
-	if remSrc, err = g.rem.FindByPath(srcPath); err != nil {
-		return fmt.Errorf("src('%s') %v", srcPath, err)
+func (g *Commands) move(src, dest string) (err error) {
+	var newParent, remSrc *File
+
+	if remSrc, err = g.rem.FindByPath(src); err != nil {
+		return fmt.Errorf("src('%s') %v", src, err)
 	}
 
 	if remSrc == nil {
-		return fmt.Errorf("src: '%s' doesn't exist", srcPath)
+		return fmt.Errorf("src: '%s' could not be found", src)
 	}
+
+	if newParent, err = g.rem.FindByPath(dest); err != nil {
+		return fmt.Errorf("dest: '%s' %v", dest, err)
+	}
+
+	if newParent == nil || !newParent.IsDir {
+		return fmt.Errorf("dest: '%s' must be an existant folder", dest)
+	}
+
+	newFullPath := filepath.Join(dest, remSrc.Name)
+
+	// Check for a duplicate
+	var dupCheck *File
+	dupCheck, err = g.rem.FindByPath(newFullPath)
+	if err == nil && dupCheck != nil {
+		if dupCheck.Id == remSrc.Id { // Trying to move to self
+			return nil
+		}
+		if !g.opts.Force {
+			return fmt.Errorf("%s already exists. Use `%s` flag to override this behaviour", newFullPath, ForceKey)
+		}
+	}
+
 	// Avoid self-nesting
 	if remSrc.Id == newParent.Id {
 		return fmt.Errorf("move: cannot move to self")
 	}
 
-	if err = g.removeParent(remSrc.Id, srcPath); err != nil {
+	if err = g.removeParent(remSrc.Id, src); err != nil {
 		return err
 	}
 
@@ -96,8 +118,10 @@ func (g *Commands) Rename() error {
 
 	parentPath := g.parentPather(src)
 	newFullPath := filepath.Join(parentPath, newName)
+
 	var dupCheck *File
 	dupCheck, err = g.rem.FindByPath(newFullPath)
+
 	if err == nil && dupCheck != nil {
 		if dupCheck.Id == remSrc.Id { // Trying to rename self
 			return nil
