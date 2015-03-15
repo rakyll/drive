@@ -64,6 +64,17 @@ func (g *Commands) move(src, dest string) (err error) {
 		return fmt.Errorf("dest: '%s' must be an existant folder", dest)
 	}
 
+	parentPath := g.parentPather(src)
+	oldParent, parErr := g.rem.FindByPath(parentPath)
+	if parErr != nil && parErr != ErrPathNotExists {
+		return parErr
+	}
+
+	// TODO: If oldParent is not found, retry since it may have been moved temporarily at least
+	if oldParent != nil && oldParent.Id == newParent.Id {
+		return nil
+	}
+
 	newFullPath := filepath.Join(dest, remSrc.Name)
 
 	// Check for a duplicate
@@ -84,14 +95,14 @@ func (g *Commands) move(src, dest string) (err error) {
 
 	// Avoid self-nesting
 	if remSrc.Id == newParent.Id {
-		return fmt.Errorf("move: cannot move to self")
+		return fmt.Errorf("move: cannot move '%s' to itself", src)
 	}
 
-	if err = g.removeParent(remSrc.Id, src); err != nil {
+	if err = g.rem.insertParent(remSrc.Id, newParent.Id); err != nil {
 		return err
 	}
 
-	return g.rem.insertParent(remSrc.Id, newParent.Id)
+	return g.removeParent(remSrc.Id, src)
 }
 
 func (g *Commands) removeParent(fileId, relToRootPath string) error {
