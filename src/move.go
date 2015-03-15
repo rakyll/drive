@@ -69,7 +69,11 @@ func (g *Commands) move(src, dest string) (err error) {
 	// Check for a duplicate
 	var dupCheck *File
 	dupCheck, err = g.rem.FindByPath(newFullPath)
-	if err == nil && dupCheck != nil {
+	if err != nil && err != ErrPathNotExists {
+		return err
+	}
+
+	if dupCheck != nil {
 		if dupCheck.Id == remSrc.Id { // Trying to move to self
 			return nil
 		}
@@ -107,7 +111,7 @@ func (g *Commands) Rename() error {
 		return fmt.Errorf("rename: expecting <src> <newname>")
 	}
 
-	src, newName := g.opts.Sources[0], g.opts.Sources[1]
+	src := g.opts.Sources[0]
 	remSrc, err := g.rem.FindByPath(src)
 	if err != nil {
 		return fmt.Errorf("%s: %v", src, err)
@@ -117,7 +121,10 @@ func (g *Commands) Rename() error {
 	}
 
 	parentPath := g.parentPather(src)
-	newFullPath := filepath.Join(parentPath, newName)
+
+	newName := g.opts.Sources[1]
+	urlBoundName := urlToPath(newName, true)
+	newFullPath := filepath.Join(parentPath, urlBoundName)
 
 	var dupCheck *File
 	dupCheck, err = g.rem.FindByPath(newFullPath)
