@@ -428,9 +428,9 @@ For example:
 ```shell
 $ cat << $ >> .driveignore
 > # My drive ignore file
-> .gd
-> .so
-> .swp
+> \.gd$
+> \.so$
+> \.swp$
 > $
 ```
 
