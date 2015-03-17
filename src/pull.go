@@ -20,8 +20,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
-	"strings"
 	"sync"
 
 	spinner "github.com/odeke-em/cli-spinner"
@@ -30,6 +30,12 @@ import (
 const (
 	maxNumOfConcPullTasks = 4
 )
+
+type urlMimeTypeExt struct {
+	ext      string
+	mimeType string
+	url      string
+}
 
 // Pull from remote if remote path exists and in a god context. If path is a
 // directory, it recursively pulls from the remote if there are remote changes.
@@ -234,7 +240,7 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 		return
 	}
 
-	dirPath := strings.Join([]string{destAbsPath, "exports"}, "_")
+	dirPath := sepJoin("_", destAbsPath, "exports")
 	if err = os.MkdirAll(dirPath, os.ModeDir|0755); err != nil {
 		return
 	}
@@ -242,33 +248,52 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 	var ok bool
 	var mimeType, exportURL string
 
-	waitables := map[string]string{}
+	waitables := []*urlMimeTypeExt{}
+
 	for _, ext := range exports {
 		mimeType = mimeTypeFromExt(ext)
 		exportURL, ok = f.ExportLinks[mimeType]
 		if !ok {
 			continue
 		}
-		exportPath := strings.Join([]string{filepath.Base(f.Name), ext}, ".")
-		pathName := path.Join(dirPath, exportPath)
-		waitables[pathName] = exportURL
+
+		waitables = append(waitables, &urlMimeTypeExt{
+			mimeType: mimeType,
+			url:      exportURL,
+			ext:      ext,
+		})
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(len(waitables))
 
-	for pathName, exportURL := range waitables {
-		go func(wg *sync.WaitGroup, dest, id, url string) error {
+	basePath := filepath.Base(f.Name)
+	baseDir := path.Join(dirPath, basePath)
+
+	for _, exportee := range waitables {
+		go func(wg *sync.WaitGroup, baseDirPath, id string, urlMExt *urlMimeTypeExt) error {
 			defer func() {
 				wg.Done()
 			}()
 
-			err := g.singleDownload(dest, id, url)
+			exportPath := sepJoin(".", baseDirPath, urlMExt.ext)
+
+			// TODO: Decide if users should get to make *.desktop users even for exports
+			if runtime.GOOS == OSLinuxKey && false {
+				desktopEntryPath := sepJoin(".", exportPath, "desktop")
+
+				_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, urlMExt)
+				if dentErr != nil {
+					fmt.Fprintf(os.Stderr, "desktopEntry: %s %v\n", desktopEntryPath, dentErr)
+				}
+			}
+
+			err := g.singleDownload(exportPath, id, urlMExt.url)
 			if err == nil {
-				manifest = append(manifest, dest)
+				manifest = append(manifest, exportPath)
 			}
 			return err
-		}(&wg, pathName, f.Id, exportURL)
+		}(&wg, baseDir, f.Id, exportee)
 	}
 	wg.Wait()
 	return
@@ -291,8 +316,33 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 	// We need to touch the empty file to
 	// ensure consistency during a push.
-	if err = touchFile(destAbsPath); err != nil {
-		return err
+	if runtime.GOOS != OSLinuxKey {
+		err = touchFile(destAbsPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// For those our Linux kin that need .desktop files
+		dirPath := g.opts.ExportsDir
+		if dirPath == "" {
+			dirPath = filepath.Dir(destAbsPath)
+		}
+
+		f := change.Src
+
+		urlMExt := urlMimeTypeExt{
+			url:      f.AlternateLink,
+			ext:      "",
+			mimeType: f.MimeType,
+		}
+
+		dirPath = filepath.Join(dirPath, f.Name)
+		desktopEntryPath := sepJoin(".", dirPath)
+
+		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
+		if dentErr != nil {
+			fmt.Fprintf(os.Stderr, "desktopEntry: %s %v\n", desktopEntryPath, dentErr)
+		}
 	}
 
 	if len(exports) >= 1 && hasExportLinks(change.Src) {
@@ -316,7 +366,7 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 	var fo *os.File
 	fo, err = os.Create(p)
 	if err != nil {
-		fmt.Println("create", err)
+		fmt.Fprintf(os.Stderr, "create: %s %v\n", p, err)
 		return
 	}
 

@@ -33,6 +33,7 @@
   - [Move](#move)
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
+  - [DesktopEntry](#desktopentry)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
 - [LICENSE](#license)
@@ -436,6 +437,10 @@ $ cat << $ >> .driveignore
 
 Note: Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
 
+## DesktopEntry
+As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
+with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
+desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener. Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
 
 ## Why another Google Drive client?
 
