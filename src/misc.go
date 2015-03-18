@@ -16,9 +16,44 @@ package drive
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 )
+
+type desktopEntry struct {
+	name string
+	url  string
+	icon string
+}
+
+func sepJoin(sep string, args ...string) string {
+	return strings.Join(args, sep)
+}
+
+func (f *File) toDesktopEntry(urlMExt *urlMimeTypeExt) *desktopEntry {
+	name := f.Name
+	if urlMExt.ext != "" {
+		name = sepJoin("-", f.Name, urlMExt.ext)
+	}
+	return &desktopEntry{
+		name: name,
+		url:  urlMExt.url,
+		icon: urlMExt.mimeType,
+	}
+}
+
+func (f *File) serializeAsDesktopEntry(destPath string, urlMExt *urlMimeTypeExt) (int, error) {
+	deskEnt := f.toDesktopEntry(urlMExt)
+	handle, err := os.Create(destPath)
+	if err != nil {
+		return 0, err
+	}
+	defer handle.Close()
+
+	return fmt.Fprintf(handle, "[Desktop Entry]\nIcon=%s\nName=%s\nType=%s\nURL=%s\n",
+		deskEnt.icon, deskEnt.name, LinkKey, deskEnt.url)
+}
 
 func remotePathSplit(p string) (dir, base string) {
 	// Avoiding use of filepath.Split because of bug with trailing "/" not being stripped
