@@ -21,6 +21,10 @@ import (
 	"strings"
 )
 
+const (
+	MimeTypeJoiner = "-"
+)
+
 type desktopEntry struct {
 	name string
 	url  string
@@ -50,9 +54,10 @@ func (f *File) serializeAsDesktopEntry(destPath string, urlMExt *urlMimeTypeExt)
 		return 0, err
 	}
 	defer handle.Close()
+	icon := strings.Replace(deskEnt.icon, UnescapedPathSep, MimeTypeJoiner, -1)
 
 	return fmt.Fprintf(handle, "[Desktop Entry]\nIcon=%s\nName=%s\nType=%s\nURL=%s\n",
-		deskEnt.icon, deskEnt.name, LinkKey, deskEnt.url)
+		icon, deskEnt.name, LinkKey, deskEnt.url)
 }
 
 func remotePathSplit(p string) (dir, base string) {
