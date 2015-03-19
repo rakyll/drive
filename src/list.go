@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	spinner "github.com/odeke-em/cli-spinner"
+	"github.com/odeke-em/log"
 )
 
 var BytesPerKB = float64(1024)
@@ -97,7 +98,7 @@ func (g *Commands) List() (err error) {
 		relPath = "/" + relPath
 		r, rErr := resolver(relPath)
 		if rErr != nil {
-			fmt.Printf("%v: '%s'\n", rErr, relPath)
+			g.log.LogErrf("%v: '%s'\n", rErr, relPath)
 			return
 		}
 		kvList = append(kvList, &keyValue{key: relPath, value: r})
@@ -127,7 +128,7 @@ func (g *Commands) List() (err error) {
 				mask:    g.opts.TypeMask,
 			}
 			for sFile := range sharedRemotes {
-				sFile.pretty(opt)
+				sFile.pretty(g.log, opt)
 			}
 		}
 	}
@@ -135,37 +136,37 @@ func (g *Commands) List() (err error) {
 	return
 }
 
-func (f *File) pretty(opt attribute) {
+func (f *File) pretty(logy *log.Logger, opt attribute) {
 	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, urlToPath(f.Name, false))
 
 	if opt.minimal {
-		fmt.Println(fmtdPath)
+		logy.Logln(fmtdPath)
 		if owners(opt.mask) && len(f.OwnerNames) >= 1 {
-			fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+			logy.Logf(" %s ", strings.Join(f.OwnerNames, " & "))
 		}
 		return
 	}
 
 	if f.IsDir {
-		fmt.Printf("d")
+		logy.Logf("d")
 	} else {
-		fmt.Printf("-")
+		logy.Logf("-")
 	}
 	if f.Shared {
-		fmt.Printf("s")
+		logy.Logf("s")
 	} else {
-		fmt.Printf("-")
+		logy.Logf("-")
 	}
 
 	if f.UserPermission != nil {
-		fmt.Printf(" %-10s ", f.UserPermission.Role)
+		logy.Logf(" %-10s ", f.UserPermission.Role)
 	}
 
 	if owners(opt.mask) && len(f.OwnerNames) >= 1 {
-		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+		logy.Logf(" %s ", strings.Join(f.OwnerNames, " & "))
 	}
 
-	fmt.Printf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
+	logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
 func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool) bool {
@@ -187,7 +188,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 	}
 	if !f.IsDir {
 		if walkTrail == "" {
-			f.pretty(opt)
+			f.pretty(g.log, opt)
 		}
 		return true
 	}
@@ -231,7 +232,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 		if onlyFiles && file.IsDir {
 			continue
 		}
-		file.pretty(opt)
+		file.pretty(g.log, opt)
 	}
 
 	if !inTrash && !g.opts.InTrash {

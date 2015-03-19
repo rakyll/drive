@@ -39,7 +39,7 @@ func (g *Commands) Push() (err error) {
 	root := g.context.AbsPathOf("")
 	var cl []*Change
 
-	fmt.Println("Resolving...")
+	g.log.Logln("Resolving...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
@@ -80,13 +80,13 @@ func (g *Commands) Push() (err error) {
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
-		warnConflictsPersist(*conflictsPtr)
+		warnConflictsPersist(g.log, *conflictsPtr)
 		return
 	}
 
 	nonConflicts := *nonConflictsPtr
 
-	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	ok := printChangeList(g.log, nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
 	if !ok {
 		return
 	}
@@ -100,13 +100,13 @@ func (g *Commands) Push() (err error) {
 	unSafe := false
 	switch quotaStatus {
 	case AlmostExceeded:
-		fmt.Println("\033[92mAlmost exceeding your drive quota\033[00m")
+		g.log.LogErrln("\033[92mAlmost exceeding your drive quota\033[00m")
 	case Exceeded:
-		fmt.Println("\033[91mThis change will exceed your drive quota\033[00m")
+		g.log.LogErrln("\033[91mThis change will exceed your drive quota\033[00m")
 		unSafe = true
 	}
 	if unSafe {
-		fmt.Printf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
+		g.log.LogErrf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
 		if !promptForChanges() {
 			return
 		}
@@ -164,7 +164,7 @@ func (g *Commands) PushPiped() (err error) {
 			parent, pErr = g.remoteMkdirAll(parentPath)
 			spin.Stop()
 			if pErr != nil || parent == nil {
-				fmt.Printf("%s: %v", relToRootPath, pErr)
+				g.log.LogErrf("%s: %v", relToRootPath, pErr)
 				return
 			}
 		}
@@ -181,7 +181,7 @@ func (g *Commands) PushPiped() (err error) {
 
 		rem, rErr := g.rem.upsertByComparison(os.Stdin, &args)
 		if rErr != nil {
-			fmt.Printf("%s: %v\n", relToRootPath, rErr)
+			g.log.LogErrf("%s: %v\n", relToRootPath, rErr)
 			return rErr
 		}
 
@@ -194,7 +194,7 @@ func (g *Commands) PushPiped() (err error) {
 
 		// TODO: Should indexing errors be reported?
 		if wErr != nil {
-			fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+			g.log.LogErrf("serializeIndex %s: %v\n", rem.Name, wErr)
 		}
 	}
 	return
@@ -269,7 +269,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	if change.Dest == nil && change.Src == nil {
 		err = fmt.Errorf("bug on: both dest and src cannot be nil")
-		fmt.Println(err)
+		g.log.LogErrln(err)
 		return err
 	}
 
@@ -297,7 +297,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	rem, err := g.rem.UpsertByComparison(&args)
 	if err != nil {
-		fmt.Printf("%s: %v\n", change.Path, err)
+		g.log.LogErrf("%s: %v\n", change.Path, err)
 		return
 	}
 	if rem == nil {
@@ -308,7 +308,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 
 	// TODO: Should indexing errors be reported?
 	if wErr != nil {
-		fmt.Printf("serializeIndex %s: %v\n", rem.Name, wErr)
+		g.log.LogErrf("serializeIndex %s: %v\n", rem.Name, wErr)
 	}
 	return
 }
@@ -337,7 +337,7 @@ func (g *Commands) remoteDelete(change *Change) (err error) {
 
 	indexPath := g.indexAbsPath(change.Dest.Id)
 	if rmErr := os.Remove(indexPath); rmErr != nil {
-		fmt.Printf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
+		g.log.LogErrf("%s \"%s\": remove indexfile %v\n", change.Path, change.Dest.Id, rmErr)
 	}
 	return
 }
@@ -380,7 +380,7 @@ func (g *Commands) remoteMkdirAll(d string) (file *File, err error) {
 
 		// TODO: Should indexing errors be reported?
 		if wErr != nil {
-			fmt.Printf("serializeIndex %s: %v\n", parent.Name, wErr)
+			g.log.LogErrf("serializeIndex %s: %v\n", parent.Name, wErr)
 		}
 	}
 	return parent, parentErr

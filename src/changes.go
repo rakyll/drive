@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/log"
 )
 
 type dirList struct {
@@ -93,7 +94,7 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 	}
 
 	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
-		fmt.Printf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
+		g.log.LogErrf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
 		return cl, nil
 	}
 
@@ -122,12 +123,12 @@ func (g *Commands) clearMountPoints() {
 
 	if mount.CreatedMountDir != "" {
 		if rmErr := os.RemoveAll(mount.CreatedMountDir); rmErr != nil {
-			fmt.Printf("clearMountPoints removing %s: %v\n", mount.CreatedMountDir, rmErr)
+			g.log.LogErrf("clearMountPoints removing %s: %v\n", mount.CreatedMountDir, rmErr)
 		}
 	}
 	if mount.ShortestMountRoot != "" {
 		if rmErr := os.RemoveAll(mount.ShortestMountRoot); rmErr != nil {
-			fmt.Printf("clearMountPoints: shortestMountRoot: %v\n", mount.ShortestMountRoot, rmErr)
+			g.log.LogErrf("clearMountPoints: shortestMountRoot: %v\n", mount.ShortestMountRoot, rmErr)
 		}
 	}
 }
@@ -335,20 +336,20 @@ func conflictsPersist(conflicts []*Change) bool {
 	return len(conflicts) >= 1
 }
 
-func warnConflictsPersist(conflicts []*Change) {
-	fmt.Printf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
+func warnConflictsPersist(logy *log.Logger, conflicts []*Change) {
+	logy.LogErrf("These %d file(s) would be overwritten. Use -%s to override this behaviour\n", len(conflicts), CLIOptionIgnoreConflict)
 	for _, conflict := range conflicts {
-		fmt.Println(conflict.Path)
+		logy.LogErrln(conflict.Path)
 	}
 }
 
-func printChanges(changes []*Change, reduce bool) {
+func printChanges(logy *log.Logger, changes []*Change, reduce bool) {
 	opMap := map[int]sizeCounter{}
 
 	for _, c := range changes {
 		op := c.Op()
 		if op != OpNone {
-			fmt.Println(c.Symbol(), c.Path)
+			logy.Logln(c.Symbol(), c.Path)
 		}
 		counter := opMap[op]
 		counter.count += 1
@@ -367,7 +368,7 @@ func printChanges(changes []*Change, reduce bool) {
 				continue
 			}
 			_, name := opToString(op)
-			fmt.Printf("%s %s\n", name, counter.String())
+			logy.Logf("%s %s\n", name, counter.String())
 		}
 	}
 }
@@ -379,14 +380,14 @@ func promptForChanges() bool {
 	return strings.ToUpper(input) == "Y"
 }
 
-func printChangeList(changes []*Change, noPrompt bool, noClobber bool) bool {
+func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) bool {
 	if len(changes) == 0 {
-		fmt.Println("Everything is up-to-date.")
+		logy.Logln("Everything is up-to-date.")
 		return false
 	}
 	if noPrompt {
 		return true
 	}
-	printChanges(changes, true)
+	printChanges(logy, changes, true)
 	return promptForChanges()
 }

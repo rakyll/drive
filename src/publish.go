@@ -14,14 +14,10 @@
 
 package drive
 
-import (
-	"fmt"
-)
-
 func (c *Commands) Publish() (err error) {
 	for _, relToRoot := range c.opts.Sources {
 		if pubErr := c.pub(relToRoot); pubErr != nil {
-			fmt.Printf("\033[91mPub\033[00m %s:  %v\n", relToRoot, pubErr)
+			c.log.LogErrf("\033[91mPub\033[00m %s:  %v\n", relToRoot, pubErr)
 		}
 	}
 	return
@@ -41,14 +37,14 @@ func (c *Commands) pub(relToRoot string) (err error) {
 	if hasExportLinks(file) {
 		link = file.AlternateLink
 	}
-	fmt.Printf("%s Published on %s\n", relToRoot, link)
+	c.log.Logf("%s Published on %s\n", relToRoot, link)
 	return
 }
 
 func (c *Commands) Unpublish() error {
 	for _, relToRoot := range c.opts.Sources {
 		if unpubErr := c.unpub(relToRoot); unpubErr != nil {
-			fmt.Printf("\033[91mUnpub\033[00m %s:  %v\n", relToRoot, unpubErr)
+			c.log.LogErrf("\033[91mUnpub\033[00m %s:  %v\n", relToRoot, unpubErr)
 		}
 	}
 	return nil

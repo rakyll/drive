@@ -20,6 +20,7 @@ import (
 	"time"
 
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
+	"github.com/odeke-em/log"
 )
 
 type keyValue struct {
@@ -42,7 +43,7 @@ func (g *Commands) Stat() error {
 				return
 			}
 
-			fmt.Printf("%s: %v\n", p, err)
+			g.log.LogErrf("%s: %v\n", p, err)
 			childChan := make(chan *keyValue)
 			close(childChan)
 			chMap[id] = childChan
@@ -66,7 +67,7 @@ func (g *Commands) Stat() error {
 				} else if v.value != nil {
 					err := v.value.(error)
 					if err != nil {
-						fmt.Printf("v: %s err: %v\n", v.key, err)
+						g.log.LogErrf("v: %s err: %v\n", v.key, err)
 					}
 				}
 			default:
@@ -79,25 +80,25 @@ func (g *Commands) Stat() error {
 	return nil
 }
 
-func prettyPermission(perm *drive.Permission) {
-	fmt.Printf("\n*\nName: %v <%s>\n", perm.Name, perm.EmailAddress)
+func prettyPermission(logf log.Loggerf, perm *drive.Permission) {
+	logf("\n*\nName: %v <%s>\n", perm.Name, perm.EmailAddress)
 	kvList := []*keyValue{
 		&keyValue{"Role", perm.Role},
 		&keyValue{"AccountType", perm.Type},
 	}
 	for _, kv := range kvList {
-		fmt.Printf("%-20s %-30v\n", kv.key, kv.value.(string))
+		logf("%-20s %-30v\n", kv.key, kv.value.(string))
 	}
-	fmt.Printf("*\n")
+	logf("*\n")
 }
 
-func prettyFileStat(relToRootPath string, file *File) {
+func prettyFileStat(logf log.Loggerf, relToRootPath string, file *File) {
 	dirType := "file"
 	if file.IsDir {
 		dirType = "folder"
 	}
 
-	fmt.Printf("\n\033[92m%s\033[00m\n", relToRootPath)
+	logf("\n\033[92m%s\033[00m\n", relToRootPath)
 	kvList := []*keyValue{
 		&keyValue{"FileId", file.Id},
 		&keyValue{"Bytes", fmt.Sprintf("%v", file.Size)},
@@ -111,7 +112,7 @@ func prettyFileStat(relToRootPath string, file *File) {
 		kvList = append(kvList, &keyValue{"Md5Checksum", file.Md5Checksum})
 	}
 	for _, kv := range kvList {
-		fmt.Printf("%-20s %-30v\n", kv.key, kv.value.(string))
+		logf("%-20s %-30v\n", kv.key, kv.value.(string))
 	}
 }
 
@@ -131,7 +132,7 @@ func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
 			close(statChan)
 		}()
 
-		prettyFileStat(relToRootPath, file)
+		prettyFileStat(g.log.Logf, relToRootPath, file)
 		perms, permErr := g.rem.listPermissions(file.Id)
 		if permErr != nil {
 			kv.value = permErr
@@ -139,7 +140,7 @@ func (g *Commands) stat(relToRootPath string, file *File) chan *keyValue {
 		}
 
 		for _, perm := range perms {
-			prettyPermission(perm)
+			prettyPermission(g.log.Logf, perm)
 		}
 		if !file.IsDir || !g.opts.Recursive {
 			return

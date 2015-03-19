@@ -806,7 +806,7 @@ func relativePathsOpt(root string, args []string, leastNonExistant bool) ([]stri
 	for _, p := range args {
 		p, err = filepath.Abs(p)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, "%s %v", p, err)
 			continue
 		}
 

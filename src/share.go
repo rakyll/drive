@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/odeke-em/log"
 )
 
 type AccountType int
@@ -168,17 +170,17 @@ func (c *Commands) Share() (err error) {
 	return c.share(false)
 }
 
-func showPromptShareChanges(change *shareChange) bool {
+func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
 	if len(change.files) < 1 {
 		return false
 	}
 	if change.revoke {
-		fmt.Printf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n",
+		logy.Logf("Revoke access for accountType: \033[92m%s\033[00m for file(s):\n",
 			change.accountType.String())
 		for _, file := range change.files {
-			fmt.Println("+ ", file.Name)
+			logy.Logln("+ ", file.Name)
 		}
-		fmt.Println()
+		logy.Logln()
 		return promptForChanges()
 	}
 
@@ -187,26 +189,26 @@ func showPromptShareChanges(change *shareChange) bool {
 	}
 
 	if change.notify {
-		fmt.Println("Message:\n\t", change.emailMessage)
+		logy.Logln("Message:\n\t", change.emailMessage)
 	}
 
-	fmt.Println("Receipients:")
+	logy.Logln("Receipients:")
 	for _, email := range change.emails {
-		fmt.Printf("\t\033[92m+\033[00m %s\n", email)
+		logy.Logf("\t\033[92m+\033[00m %s\n", email)
 	}
 
-	fmt.Println("\nFile(s) to share:")
+	logy.Logln("\nFile(s) to share:")
 	for _, file := range change.files {
 		if file == nil {
 			continue
 		}
-		fmt.Printf("\t\033[92m+\033[00m %s\n", file.Name)
+		logy.Logf("\t\033[92m+\033[00m %s\n", file.Name)
 	}
 	return promptForChanges()
 }
 
 func (c *Commands) playShareChanges(change *shareChange) error {
-	if !showPromptShareChanges(change) {
+	if !showPromptShareChanges(c.log, change) {
 		return nil
 	}
 
@@ -254,7 +256,7 @@ func (c *Commands) share(revoke bool) (err error) {
 			emails = emailList
 			if false {
 				emailIdMap := emailsToIds(c, emailList)
-				fmt.Println(emailIdMap)
+				c.log.Logln(emailIdMap)
 			}
 		}
 

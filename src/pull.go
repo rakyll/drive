@@ -43,7 +43,7 @@ type urlMimeTypeExt struct {
 func (g *Commands) Pull() (err error) {
 	var cl []*Change
 
-	fmt.Println("Resolving...")
+	g.log.Logln("Resolving...")
 
 	spin := spinner.New(10)
 	spin.Start()
@@ -63,12 +63,12 @@ func (g *Commands) Pull() (err error) {
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
-		warnConflictsPersist(*conflictsPtr)
+		warnConflictsPersist(g.log, *conflictsPtr)
 		return
 	}
 
 	nonConflicts := *nonConflictsPtr
-	ok := printChangeList(nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	ok := printChangeList(g.log, nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
 	if !ok {
 		return
 	}
@@ -88,7 +88,7 @@ func (g *Commands) PullPiped() (err error) {
 		}
 
 		if hasExportLinks(rem) {
-			fmt.Printf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
+			g.log.LogErrf("'%s' is a GoogleDoc/Sheet document cannot be pulled from raw, only exported.\n", relToRootPath)
 			continue
 		}
 		blobHandle, dlErr := g.rem.Download(rem.Id, "")
@@ -155,7 +155,7 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 			// TODO: Should indexing errors be reported?
 			if wErr != nil {
-				fmt.Printf("serializeIndex %s: %v\n", src.Name, wErr)
+				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, wErr)
 			}
 		}
 		g.taskDone()
@@ -186,7 +186,7 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 
 			// TODO: Should indexing errors be reported?
 			if sErr != nil {
-				fmt.Printf("serializeIndex %s: %v\n", src.Name, sErr)
+				g.log.LogErrf("serializeIndex %s: %v\n", src.Name, sErr)
 			}
 		}
 		g.taskDone()
@@ -284,7 +284,7 @@ func (g *Commands) export(f *File, destAbsPath string, exports []string) (manife
 
 				_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, urlMExt)
 				if dentErr != nil {
-					fmt.Fprintf(os.Stderr, "desktopEntry: %s %v\n", desktopEntryPath, dentErr)
+					g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
 				}
 			}
 
@@ -341,7 +341,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 
 		_, dentErr := f.serializeAsDesktopEntry(desktopEntryPath, &urlMExt)
 		if dentErr != nil {
-			fmt.Fprintf(os.Stderr, "desktopEntry: %s %v\n", desktopEntryPath, dentErr)
+			g.log.LogErrf("desktopEntry: %s %v\n", desktopEntryPath, dentErr)
 		}
 	}
 
@@ -354,7 +354,7 @@ func (g *Commands) download(change *Change, exports []string) (err error) {
 		manifest, exportErr := g.export(change.Src, exportDirPath, exports)
 		if exportErr == nil {
 			for _, exportPath := range manifest {
-				fmt.Printf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
+				g.log.Logf("Exported '%s' to '%s'\n", destAbsPath, exportPath)
 			}
 		}
 		return exportErr
@@ -366,7 +366,7 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 	var fo *os.File
 	fo, err = os.Create(p)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "create: %s %v\n", p, err)
+		g.log.LogErrf("create: %s %v\n", p, err)
 		return
 	}
 
@@ -374,7 +374,7 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 	defer func() {
 		fErr := fo.Close()
 		if fErr != nil {
-			fmt.Println("fErr", fErr)
+			g.log.LogErrf("fErr", fErr)
 			err = fErr
 		}
 	}()
