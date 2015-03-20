@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	spinner "github.com/odeke-em/cli-spinner"
 	"github.com/odeke-em/drive/config"
 )
 
@@ -43,13 +42,13 @@ func (g *Commands) Push() (err error) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
-	spin := spinner.New(10)
-	spin.Start()
+	spin := newPlayable(10)
+	spin.play()
 
 	// To Ensure mount points are cleared in the event of external exceptios
 	go func() {
 		_ = <-c
-		spin.Stop()
+		spin.stop()
 		g.clearMountPoints()
 		os.Exit(1)
 	}()
@@ -58,7 +57,7 @@ func (g *Commands) Push() (err error) {
 		fsPath := g.context.AbsPathOf(relToRootPath)
 		ccl, cErr := g.changeListResolve(relToRootPath, fsPath, true)
 		if cErr != nil {
-			spin.Stop()
+			spin.stop()
 			return cErr
 		}
 		if len(ccl) > 0 {
@@ -76,12 +75,12 @@ func (g *Commands) Push() (err error) {
 		}
 	}
 
-	spin.Stop()
+	spin.stop()
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
 		warnConflictsPersist(*conflictsPtr)
-		return
+		return fmt.Errorf("conflicts have prevented a push")
 	}
 
 	nonConflicts := *nonConflictsPtr
@@ -159,10 +158,10 @@ func (g *Commands) PushPiped() (err error) {
 		parentPath := g.parentPather(relToRootPath)
 		parent, pErr := g.rem.FindByPath(parentPath)
 		if pErr != nil {
-			spin := spinner.New(10)
-			spin.Start()
+			spin := newPlayable(10)
+			spin.play()
 			parent, pErr = g.remoteMkdirAll(parentPath)
-			spin.Stop()
+			spin.stop()
 			if pErr != nil || parent == nil {
 				fmt.Printf("%s: %v", relToRootPath, pErr)
 				return

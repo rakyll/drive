@@ -17,8 +17,6 @@ package drive
 import (
 	"fmt"
 	"time"
-
-	spinner "github.com/odeke-em/cli-spinner"
 )
 
 func (g *Commands) Touch() (err error) {
@@ -32,8 +30,8 @@ func (g *Commands) Touch() (err error) {
 		<-throttle
 	}
 
-	spin := spinner.New(10)
-	spin.Start()
+	spin := newPlayable(10)
+	spin.play()
 
 	for {
 		if len(chanMap) < 1 {
@@ -54,7 +52,7 @@ func (g *Commands) Touch() (err error) {
 			}
 		}
 	}
-	spin.Stop()
+	spin.stop()
 	return
 }
 
@@ -78,8 +76,8 @@ func (g *Commands) TouchByMatch() (err error) {
 		i += 1
 	}
 
-	spin := spinner.New(10)
-	spin.Start()
+	spin := newPlayable(10)
+	spin.play()
 
 	for {
 		if len(chanMap) < 1 {
@@ -100,7 +98,7 @@ func (g *Commands) TouchByMatch() (err error) {
 			}
 		}
 	}
-	spin.Stop()
+	spin.stop()
 	return
 }
 

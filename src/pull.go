@@ -23,8 +23,6 @@ import (
 	"runtime"
 	"sort"
 	"sync"
-
-	spinner "github.com/odeke-em/cli-spinner"
 )
 
 const (
@@ -45,8 +43,8 @@ func (g *Commands) Pull() (err error) {
 
 	fmt.Println("Resolving...")
 
-	spin := spinner.New(10)
-	spin.Start()
+	spin := newPlayable(10)
+	spin.play()
 
 	for _, relToRootPath := range g.opts.Sources {
 		fsPath := g.context.AbsPathOf(relToRootPath)
@@ -59,11 +57,12 @@ func (g *Commands) Pull() (err error) {
 		}
 	}
 
-	spin.Stop()
+	spin.stop()
 
 	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
 	if conflictsPtr != nil {
 		warnConflictsPersist(*conflictsPtr)
+		return fmt.Errorf("conflicts have prevented a pull")
 		return
 	}
 

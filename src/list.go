@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	spinner "github.com/odeke-em/cli-spinner"
 )
 
 var BytesPerKB = float64(1024)
@@ -103,17 +101,17 @@ func (g *Commands) List() (err error) {
 		kvList = append(kvList, &keyValue{key: relPath, value: r})
 	}
 
-	spin := spinner.New(10)
-	spin.Start()
+	spin := newPlayable(10)
+	spin.play()
 	for _, kv := range kvList {
 		if kv == nil || kv.value == nil {
 			continue
 		}
-		if !g.breadthFirst(kv.value.(*File), "", kv.key, g.opts.Depth, g.opts.TypeMask, false) {
+		if !g.breadthFirst(kv.value.(*File), "", kv.key, g.opts.Depth, g.opts.TypeMask, false, spin) {
 			break
 		}
 	}
-	spin.Stop()
+	spin.stop()
 
 	// No-op for now for explicitly traversing shared content
 	if false {
@@ -168,9 +166,9 @@ func (f *File) pretty(opt attribute) {
 	fmt.Printf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
-func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool) bool {
+func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool, spin *playable) bool {
 	headPath := ""
-	if !rootLike(prefixPath) {
+	if !rootLike(prefixPath) && f.IsDir {
 		headPath = prefixPath
 	}
 
@@ -186,9 +184,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 		}
 	}
 	if !f.IsDir {
-		if walkTrail == "" {
-			f.pretty(opt)
-		}
+		f.pretty(opt)
 		return true
 	}
 
@@ -196,8 +192,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 	if depth == 0 {
 		// At the end of the line, this was successful.
 		return true
-	}
-	if depth > 0 {
+	} else if depth > 0 {
 		depth -= 1
 	}
 
@@ -207,7 +202,11 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 	req.Q(expr)
 	req.MaxResults(g.opts.PageSize)
 
+	spin.pause()
+
 	fileChan := reqDoPage(req, g.opts.Hidden, !g.opts.NoPrompt)
+
+	spin.play()
 
 	var children []*File
 	onlyFiles := (g.opts.TypeMask & NonFolder) != 0
@@ -222,7 +221,9 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 			continue
 		}
 
-		children = append(children, file)
+		if file.IsDir {
+			children = append(children, file)
+		}
 
 		// The case in which only directories wanted is covered by the buildExpression clause
 		// reason being that only folder are allowed to be roots, including the only files clause
@@ -236,7 +237,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file, "bread-crumbs", headPath, depth, g.opts.TypeMask, inTrash) {
+			if !g.breadthFirst(file, "bread-crumbs", headPath, depth, g.opts.TypeMask, inTrash, spin) {
 				return false
 			}
 		}

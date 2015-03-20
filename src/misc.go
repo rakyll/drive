@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	spinner "github.com/odeke-em/cli-spinner"
 )
 
 const (
@@ -29,6 +31,28 @@ type desktopEntry struct {
 	name string
 	url  string
 	icon string
+}
+
+type playable struct {
+	play  func()
+	pause func()
+	reset func()
+	stop  func()
+}
+
+func newPlayable(freq int64) *playable {
+	spin := spinner.New(freq)
+
+	play := func() {
+		spin.Start()
+	}
+
+	return &playable{
+		play:  play,
+		stop:  spin.Stop,
+		reset: spin.Reset,
+		pause: spin.Stop,
+	}
 }
 
 func sepJoin(sep string, args ...string) string {

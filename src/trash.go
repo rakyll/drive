@@ -32,7 +32,12 @@ func (g *Commands) EmptyTrash() error {
 	if err != nil {
 		return err
 	}
-	if !g.breadthFirst(rootFile, "", "", -1, 0, true) {
+
+	spin := newPlayable(10)
+	spin.play()
+	defer spin.stop()
+
+	if !g.breadthFirst(rootFile, "", "", -1, 0, true, spin) {
 		return nil
 	}
 
