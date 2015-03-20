@@ -53,7 +53,7 @@ func (g *Commands) Diff() (err error) {
 	for _, c := range cl {
 		dErr := g.perDiff(c, diffUtilPath, ".")
 		if dErr != nil {
-			fmt.Println(dErr)
+			g.log.LogErrln(dErr)
 		}
 	}
 	return
@@ -61,7 +61,7 @@ func (g *Commands) Diff() (err error) {
 
 func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error) {
 	defer func() {
-		fmt.Println(Ruler)
+		g.log.Logln(Ruler)
 	}()
 
 	l, r := change.Src, change.Dest
@@ -101,7 +101,7 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 
 	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
 	if modTimeDiffers(mask) {
-		fmt.Printf("* %-15s %-40s\n* %-15s %-40s\n",
+		g.log.Logf("* %-15s %-40s\n* %-15s %-40s\n",
 			"remote:", toUTCString(r.ModTime), "local:", toUTCString(l.ModTime))
 	} else if mask == DifferNone {
 		// No output when "no changes found"
@@ -144,7 +144,7 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 		return
 	}
 
-	fmt.Printf("%s\n%s %s\n", Ruler, l.Name, r.Name)
+	g.log.Logf("%s\n%s %s\n", Ruler, l.Name, r.Name)
 
 	diffCmd := exec.Cmd{
 		Args:   []string{diffProgPath, l.BlobAt, frTmp.Name()},

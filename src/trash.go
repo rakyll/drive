@@ -42,21 +42,21 @@ func (g *Commands) EmptyTrash() error {
 	}
 
 	if !g.opts.NoPrompt {
-		fmt.Println("Empty trash: (Yn)? ")
+		g.log.Logln("Empty trash: (Yn)? ")
 
 		input := "Y"
 		fmt.Print("Proceed with the changes? [Y/n]: ")
 		fmt.Scanln(&input)
 
 		if strings.ToUpper(input) != "Y" {
-			fmt.Println("Aborted emptying trash")
+			g.log.Logln("Aborted emptying trash")
 			return nil
 		}
 	}
 
 	err = g.rem.EmptyTrash()
 	if err == nil {
-		fmt.Println("Successfully emptied trash")
+		g.log.Logln("Successfully emptied trash")
 	}
 	return err
 }
@@ -113,7 +113,7 @@ func (g *Commands) trashByMatch(inTrash bool) error {
 	}
 
 	toTrash := !inTrash
-	ok := printChangeList(cl, g.opts.NoPrompt, false)
+	ok := printChangeList(g.log, cl, g.opts.NoPrompt, false)
 	if ok {
 		return g.playTrashChangeList(cl, toTrash)
 	}
@@ -133,13 +133,13 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 	for _, relToRoot := range args {
 		c, cErr := g.trasher(relToRoot, toTrash)
 		if cErr != nil {
-			fmt.Printf("\033[91m'%s': %v\033[00m\n", relToRoot, cErr)
+			g.log.LogErrf("\033[91m'%s': %v\033[00m\n", relToRoot, cErr)
 		} else if c != nil {
 			cl = append(cl, c)
 		}
 	}
 
-	ok := printChangeList(cl, g.opts.NoPrompt, false)
+	ok := printChangeList(g.log, cl, g.opts.NoPrompt, false)
 	if ok {
 		return g.playTrashChangeList(cl, toTrash)
 	}
@@ -161,7 +161,7 @@ func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
 
 		cErr := f(c)
 		if cErr != nil {
-			fmt.Println(cErr)
+			g.log.LogErrln(cErr)
 		}
 	}
 

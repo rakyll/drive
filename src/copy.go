@@ -55,13 +55,13 @@ func (g *Commands) Copy() error {
 	for _, srcPath := range sources {
 		srcFile, srcErr := g.rem.FindByPath(srcPath)
 		if srcErr != nil {
-			fmt.Printf("%s: %v\n", srcPath, srcErr)
+			g.log.LogErrf("%s: %v\n", srcPath, srcErr)
 			continue
 		}
 
 		_, copyErr := g.copy(srcFile, dest)
 		if copyErr != nil {
-			fmt.Printf("%s: %v\n", srcPath, copyErr)
+			g.log.LogErrf("%s: %v\n", srcPath, copyErr)
 		}
 	}
 

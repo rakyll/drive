@@ -16,7 +16,9 @@ package drive
 
 import (
 	"fmt"
+
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
+	"github.com/odeke-em/log"
 )
 
 const Version = "0.1.4"
@@ -46,7 +48,7 @@ func (g *Commands) About(mask int) (err error) {
 	if err != nil {
 		return err
 	}
-	printSummary(about, mask)
+	printSummary(g.log, about, mask)
 
 	return nil
 }
@@ -63,48 +65,48 @@ func featuresRequested(mask int) bool {
 	return (mask & AboutFeatures) != 0
 }
 
-func printSummary(about *drive.About, mask int) {
+func printSummary(logy *log.Logger, about *drive.About, mask int) {
 	if quotaRequested(mask) {
-		quotaInformation(about)
+		quotaInformation(logy, about)
 	}
 	if fileSizesRequested(mask) {
-		fileSizesInfo(about)
+		fileSizesInfo(logy, about)
 	}
 
 	if featuresRequested(mask) {
-		featuresInformation(about)
+		featuresInformation(logy, about)
 	}
 }
 
-func fileSizesInfo(about *drive.About) {
+func fileSizesInfo(logy *log.Logger, about *drive.About) {
 	if len(about.MaxUploadSizes) >= 1 {
-		fmt.Println("\n* Maximum upload sizes per file type *")
-		fmt.Printf("%-36s %-36s\n", "FileType", "Size")
+		logy.Logln("\n* Maximum upload sizes per file type *")
+		logy.Logf("%-36s %-36s\n", "FileType", "Size")
 		for _, uploadInfo := range about.MaxUploadSizes {
-			fmt.Printf("%-36s %-36s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
+			logy.Logf("%-36s %-36s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
 		}
-		fmt.Println()
+		logy.Logln()
 	}
 	return
 }
 
-func featuresInformation(about *drive.About) {
+func featuresInformation(logy *log.Logger, about *drive.About) {
 	if len(about.Features) >= 1 {
-		fmt.Printf("%-30s %-30s\n", "Feature", "Request limit (queries/second)")
+		logy.Logf("%-30s %-30s\n", "Feature", "Request limit (queries/second)")
 		for _, feature := range about.Features {
 			if feature.FeatureName == "" {
 				continue
 			}
-			fmt.Printf("%-30s %-30f\n", feature.FeatureName, feature.FeatureRate)
+			logy.Logf("%-30s %-30f\n", feature.FeatureName, feature.FeatureRate)
 		}
-		fmt.Println()
+		logy.Logln()
 	}
 }
 
-func quotaInformation(about *drive.About) {
+func quotaInformation(logy *log.Logger, about *drive.About) {
 	freeBytes := about.QuotaBytesTotal - about.QuotaBytesUsed
 
-	fmt.Printf(
+	logy.Logf(
 		"Name: %s\nAccount type:\t%s\nBytes Used:\t%-20d (%s)\n"+
 			"Bytes Free:\t%-20d (%s)\nBytes InTrash:\t%-20d (%s)\n"+
 			"Total Bytes:\t%-20d (%s)\n",
@@ -115,15 +117,15 @@ func quotaInformation(about *drive.About) {
 		about.QuotaBytesTotal, prettyBytes(about.QuotaBytesTotal))
 
 	if len(about.QuotaBytesByService) >= 1 {
-		fmt.Println("\n* Space used by Google Services *")
-		fmt.Printf("%-36s %-36s\n", "Service", "Bytes")
+		logy.Logln("\n* Space used by Google Services *")
+		logy.Logf("%-36s %-36s\n", "Service", "Bytes")
 		for _, quotaService := range about.QuotaBytesByService {
-			fmt.Printf("%-36s %-36s\n", quotaService.ServiceName, prettyBytes(quotaService.BytesUsed))
+			logy.Logf("%-36s %-36s\n", quotaService.ServiceName, prettyBytes(quotaService.BytesUsed))
 		}
-		fmt.Printf("%-36s %-36s\n", "Space used by all Google Apps",
+		logy.Logf("%-36s %-36s\n", "Space used by all Google Apps",
 			prettyBytes(about.QuotaBytesUsedAggregate))
 	}
-	fmt.Println()
+	logy.Logln()
 }
 
 func (g *Commands) QuotaStatus(query int64) (status int, err error) {

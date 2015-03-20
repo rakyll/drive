@@ -16,6 +16,7 @@ package drive
 
 import (
 	"errors"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/cheggaaa/pb"
 	"github.com/odeke-em/drive/config"
+	"github.com/odeke-em/log"
 )
 
 var (
@@ -78,6 +80,7 @@ type Commands struct {
 	context *config.Context
 	rem     *Remote
 	opts    *Options
+	log     *log.Logger
 
 	progress *pb.ProgressBar
 }
@@ -100,6 +103,7 @@ func New(context *config.Context, opts *Options) *Commands {
 		context: context,
 		rem:     r,
 		opts:    opts,
+		log:     log.New(os.Stdin, os.Stdout, os.Stderr),
 	}
 }
 

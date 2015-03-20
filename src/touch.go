@@ -15,7 +15,6 @@
 package drive
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -46,7 +45,7 @@ func (g *Commands) Touch() (err error) {
 					continue
 				}
 				if kv.value != nil {
-					fmt.Printf("touch: %s %v\n", kv.key, kv.value.(error))
+					g.log.LogErrf("touch: %s %v\n", kv.key, kv.value.(error))
 				}
 			default:
 			}
@@ -92,7 +91,7 @@ func (g *Commands) TouchByMatch() (err error) {
 					continue
 				}
 				if kv.value != nil {
-					fmt.Printf("touch: %s %v\n", kv.key, kv.value.(error))
+					g.log.LogErrf("touch: %s %v\n", kv.key, kv.value.(error))
 				}
 			default:
 			}
@@ -127,7 +126,7 @@ func (g *Commands) touch(relToRootPath, fileId string) chan *keyValue {
 		}
 
 		if true { // TODO: Print this out if verbosity is set
-			fmt.Printf("%s: %v\n", relToRootPath, file.ModTime)
+			g.log.Logf("%s: %v\n", relToRootPath, file.ModTime)
 		}
 		if g.opts.Recursive && file.IsDir {
 			childResults := make(chan chan *keyValue)

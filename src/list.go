@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-)
 
-var BytesPerKB = float64(1024)
+	"github.com/odeke-em/log"
+)
 
 const RemoteDriveRootPath = "My Drive"
 
@@ -39,37 +39,6 @@ type attribute struct {
 	mask    int
 	parent  string
 }
-
-type byteDescription func(b int64) string
-
-func memoizeBytes() byteDescription {
-	cache := map[int64]string{}
-	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
-	maxLen := len(suffixes) - 1
-
-	return func(b int64) string {
-		description, ok := cache[b]
-		if ok {
-			return description
-		}
-
-		bf := float64(b)
-		i := 0
-		description = ""
-		for {
-			if bf/BytesPerKB < 1 || i >= maxLen {
-				description = fmt.Sprintf("%.2f%s", bf, suffixes[i])
-				break
-			}
-			bf /= BytesPerKB
-			i += 1
-		}
-		cache[b] = description
-		return description
-	}
-}
-
-var prettyBytes = memoizeBytes()
 
 func (g *Commands) List() (err error) {
 	root := g.context.AbsPathOf("")
@@ -95,7 +64,7 @@ func (g *Commands) List() (err error) {
 		relPath = "/" + relPath
 		r, rErr := resolver(relPath)
 		if rErr != nil {
-			fmt.Printf("%v: '%s'\n", rErr, relPath)
+			g.log.LogErrf("%v: '%s'\n", rErr, relPath)
 			return
 		}
 		kvList = append(kvList, &keyValue{key: relPath, value: r})
@@ -125,7 +94,7 @@ func (g *Commands) List() (err error) {
 				mask:    g.opts.TypeMask,
 			}
 			for sFile := range sharedRemotes {
-				sFile.pretty(opt)
+				sFile.pretty(g.log, opt)
 			}
 		}
 	}
@@ -133,37 +102,37 @@ func (g *Commands) List() (err error) {
 	return
 }
 
-func (f *File) pretty(opt attribute) {
+func (f *File) pretty(logy *log.Logger, opt attribute) {
 	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, urlToPath(f.Name, false))
 
 	if opt.minimal {
-		fmt.Println(fmtdPath)
+		logy.Logln(fmtdPath)
 		if owners(opt.mask) && len(f.OwnerNames) >= 1 {
-			fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+			logy.Logf(" %s ", strings.Join(f.OwnerNames, " & "))
 		}
 		return
 	}
 
 	if f.IsDir {
-		fmt.Printf("d")
+		logy.Logf("d")
 	} else {
-		fmt.Printf("-")
+		logy.Logf("-")
 	}
 	if f.Shared {
-		fmt.Printf("s")
+		logy.Logf("s")
 	} else {
-		fmt.Printf("-")
+		logy.Logf("-")
 	}
 
 	if f.UserPermission != nil {
-		fmt.Printf(" %-10s ", f.UserPermission.Role)
+		logy.Logf(" %-10s ", f.UserPermission.Role)
 	}
 
 	if owners(opt.mask) && len(f.OwnerNames) >= 1 {
-		fmt.Printf(" %s ", strings.Join(f.OwnerNames, " & "))
+		logy.Logf(" %s ", strings.Join(f.OwnerNames, " & "))
 	}
 
-	fmt.Printf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
+	logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
 func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool, spin *playable) bool {
@@ -184,7 +153,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 		}
 	}
 	if !f.IsDir {
-		f.pretty(opt)
+		f.pretty(g.log, opt)
 		return true
 	}
 
@@ -232,7 +201,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 		if onlyFiles && file.IsDir {
 			continue
 		}
-		file.pretty(opt)
+		file.pretty(g.log, opt)
 	}
 
 	if !inTrash && !g.opts.InTrash {
@@ -246,13 +215,6 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 	return len(children) >= 1
 }
 
-func isHidden(p string, ignore bool) bool {
-	if strings.HasPrefix(p, ".") {
-		return !ignore
-	}
-	return false
-}
-
 func isMinimal(mask int) bool {
 	return (mask & Minimal) != 0
 }
@@ -263,14 +225,4 @@ func owners(mask int) bool {
 
 func version(mask int) bool {
 	return (mask & CurrentVersion) != 0
-}
-
-func nextPage() bool {
-	var input string
-	fmt.Printf("---More---")
-	fmt.Scanln(&input)
-	if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
-		return false
-	}
-	return true
 }

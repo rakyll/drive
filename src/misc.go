@@ -27,6 +27,8 @@ const (
 	MimeTypeJoiner = "-"
 )
 
+var BytesPerKB = float64(1024)
+
 type desktopEntry struct {
 	name string
 	url  string
@@ -55,8 +57,63 @@ func newPlayable(freq int64) *playable {
 	}
 }
 
+type byteDescription func(b int64) string
+
+func memoizeBytes() byteDescription {
+	cache := map[int64]string{}
+	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	maxLen := len(suffixes) - 1
+
+	return func(b int64) string {
+		description, ok := cache[b]
+		if ok {
+			return description
+		}
+
+		bf := float64(b)
+		i := 0
+		description = ""
+		for {
+			if bf/BytesPerKB < 1 || i >= maxLen {
+				description = fmt.Sprintf("%.2f%s", bf, suffixes[i])
+				break
+			}
+			bf /= BytesPerKB
+			i += 1
+		}
+		cache[b] = description
+		return description
+	}
+}
+
+var prettyBytes = memoizeBytes()
+
 func sepJoin(sep string, args ...string) string {
 	return strings.Join(args, sep)
+}
+
+func isHidden(p string, ignore bool) bool {
+	if strings.HasPrefix(p, ".") {
+		return !ignore
+	}
+	return false
+}
+
+func nextPage() bool {
+	var input string
+	fmt.Printf("---More---")
+	fmt.Scanln(&input)
+	if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
+		return false
+	}
+	return true
+}
+
+func promptForChanges() bool {
+	input := "Y"
+	fmt.Print("Proceed with the changes? [Y/n]: ")
+	fmt.Scanln(&input)
+	return strings.ToUpper(input) == "Y"
 }
 
 func (f *File) toDesktopEntry(urlMExt *urlMimeTypeExt) *desktopEntry {

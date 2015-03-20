@@ -209,7 +209,7 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 
 		mkErr := os.MkdirAll(contextAbsPath, os.ModeDir|0755)
 		if mkErr != nil {
-			fmt.Printf("mountpoint: %v\n", mkErr)
+			fmt.Fprintf(os.Stderr, "mountpoint: %v\n", mkErr)
 			return
 		}
 
