@@ -23,8 +23,6 @@ import (
 	"github.com/odeke-em/log"
 )
 
-var BytesPerKB = float64(1024)
-
 const RemoteDriveRootPath = "My Drive"
 
 const (
@@ -42,37 +40,6 @@ type attribute struct {
 	mask    int
 	parent  string
 }
-
-type byteDescription func(b int64) string
-
-func memoizeBytes() byteDescription {
-	cache := map[int64]string{}
-	suffixes := []string{"B", "KB", "MB", "GB", "TB", "PB"}
-	maxLen := len(suffixes) - 1
-
-	return func(b int64) string {
-		description, ok := cache[b]
-		if ok {
-			return description
-		}
-
-		bf := float64(b)
-		i := 0
-		description = ""
-		for {
-			if bf/BytesPerKB < 1 || i >= maxLen {
-				description = fmt.Sprintf("%.2f%s", bf, suffixes[i])
-				break
-			}
-			bf /= BytesPerKB
-			i += 1
-		}
-		cache[b] = description
-		return description
-	}
-}
-
-var prettyBytes = memoizeBytes()
 
 func (g *Commands) List() (err error) {
 	root := g.context.AbsPathOf("")
@@ -246,13 +213,6 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 	return len(children) >= 1
 }
 
-func isHidden(p string, ignore bool) bool {
-	if strings.HasPrefix(p, ".") {
-		return !ignore
-	}
-	return false
-}
-
 func isMinimal(mask int) bool {
 	return (mask & Minimal) != 0
 }
@@ -263,14 +223,4 @@ func owners(mask int) bool {
 
 func version(mask int) bool {
 	return (mask & CurrentVersion) != 0
-}
-
-func nextPage() bool {
-	var input string
-	fmt.Printf("---More---")
-	fmt.Scanln(&input)
-	if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
-		return false
-	}
-	return true
 }
