@@ -59,7 +59,7 @@ func (g *Commands) Pull() (err error) {
 
 	spin.stop()
 
-	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
 	if conflictsPtr != nil {
 		warnConflictsPersist(g.log, *conflictsPtr)
 		return fmt.Errorf("conflicts have prevented a pull operation")

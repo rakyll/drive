@@ -77,7 +77,7 @@ func (g *Commands) Push() (err error) {
 
 	spin.stop()
 
-	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl)
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, true)
 	if conflictsPtr != nil {
 		warnConflictsPersist(g.log, *conflictsPtr)
 		return fmt.Errorf("conflicts have prevented a push operation")
@@ -113,13 +113,13 @@ func (g *Commands) Push() (err error) {
 	return g.playPushChangeList(nonConflicts)
 }
 
-func (g *Commands) resolveConflicts(cl []*Change) (*[]*Change, *[]*Change) {
+func (g *Commands) resolveConflicts(cl []*Change, push bool) (*[]*Change, *[]*Change) {
 	if g.opts.IgnoreConflict {
 		return &cl, nil
 	}
 
 	nonConflicts, conflicts := sift(cl)
-	resolved, unresolved := resolveConflicts(conflicts, true, g.deserializeIndex)
+	resolved, unresolved := resolveConflicts(conflicts, push, g.deserializeIndex)
 	if conflictsPersist(unresolved) {
 		return &resolved, &unresolved
 	}
