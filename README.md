@@ -34,6 +34,7 @@
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
   - [DesktopEntry](#desktopentry)
+- [Applying patches](#apply-patches)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
 - [LICENSE](#license)
@@ -438,9 +439,24 @@ $ cat << $ >> .driveignore
 Note: Pattern matching and suffixes are done by regular expression matching so make sure to use a valid regular expression suffix.
 
 ## DesktopEntry
+
 As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
 with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
 desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener. Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+
+## Applying patches 
+To  apply patches of code e.g in the midst of bug fixes, you'll just need a little bit of git fiddling.
+
+For example to patch your code with that on remote branch patch-1, you'll need to go into the source
+code directory, fetch all content from the git remote, checkout the patch branch then run the go installation: something like this.
+
+```shell
+$ cd $GOPATH/src/github.com/odeke-em/drive
+$ git fetch --all
+$ git checkout patch-1
+$ git pull origin patch-1
+$ go get github.com/odeke-em/drive/cmd/drive
+```
 
 ## Why another Google Drive client?
 
