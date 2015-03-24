@@ -28,7 +28,7 @@ import (
 // can accept for diffing (Arbitrary value)
 const MaxFileSize = 50 * 1024 * 1024
 
-var Ruler = strings.Repeat("*", 4)
+var Ruler = strings.Repeat("*", 80)
 
 func (g *Commands) Diff() (err error) {
 	var cl []*Change
@@ -55,12 +55,15 @@ func (g *Commands) Diff() (err error) {
 		if dErr != nil {
 			g.log.LogErrln(dErr)
 		}
-		g.log.Logf("\n%s\n", Ruler)
 	}
 	return
 }
 
 func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error) {
+	defer func() {
+		g.log.Logln(Ruler)
+	}()
+
 	l, r := change.Src, change.Dest
 	if l == nil && r == nil {
 		return fmt.Errorf("Neither remote nor local exists")
@@ -96,15 +99,10 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 			change.Path, l.Size)
 	}
 
-	typeName := "File"
-	if l.IsDir {
-		typeName = "Directory"
-	}
-	g.log.Logf("%s: %s\n", typeName, change.Path)
 	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
 	if modTimeDiffers(mask) {
 		g.log.Logf("* %-15s %-40s\n* %-15s %-40s\n",
-			"local:", toUTCString(l.ModTime), "remote:", toUTCString(r.ModTime))
+			"remote:", toUTCString(r.ModTime), "local:", toUTCString(l.ModTime))
 	} else if mask == DifferNone {
 		// No output when "no changes found"
 		return nil
@@ -146,11 +144,7 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 		return
 	}
 
-	if l.Name != r.Name {
-		g.log.Logf("%s %s\n%s\n\n", l.Name, r.Name, Ruler)
-	} else {
-		g.log.Logf("%s\n%s\n\n", l.Name, Ruler)
-	}
+	g.log.Logf("%s\n%s %s\n", Ruler, l.Name, r.Name)
 
 	diffCmd := exec.Cmd{
 		Args:   []string{diffProgPath, l.BlobAt, frTmp.Name()},

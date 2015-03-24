@@ -43,7 +43,7 @@ func (g *Commands) Pull() (err error) {
 
 	g.log.Logln("Resolving...")
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 
 	for _, relToRootPath := range g.opts.Sources {

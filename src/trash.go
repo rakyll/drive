@@ -33,7 +33,7 @@ func (g *Commands) EmptyTrash() error {
 		return err
 	}
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 	defer spin.stop()
 

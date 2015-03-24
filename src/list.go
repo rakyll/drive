@@ -70,7 +70,7 @@ func (g *Commands) List() (err error) {
 		kvList = append(kvList, &keyValue{key: relPath, value: r})
 	}
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 	for _, kv := range kvList {
 		if kv == nil || kv.value == nil {

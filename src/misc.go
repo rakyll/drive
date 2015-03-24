@@ -42,6 +42,18 @@ type playable struct {
 	stop  func()
 }
 
+func noop() {
+}
+
+func noopPlayable() *playable {
+	return &playable{
+		play:  noop,
+		pause: noop,
+		reset: noop,
+		stop:  noop,
+	}
+}
+
 func newPlayable(freq int64) *playable {
 	spin := spinner.New(freq)
 
@@ -55,6 +67,13 @@ func newPlayable(freq int64) *playable {
 		reset: spin.Reset,
 		pause: spin.Stop,
 	}
+}
+
+func (g *Commands) playabler() *playable {
+	if g.opts.Quiet {
+		return noopPlayable()
+	}
+	return newPlayable(10)
 }
 
 type byteDescription func(b int64) string
