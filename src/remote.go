@@ -635,7 +635,8 @@ func newTransport(context *config.Context) *oauth.Transport {
 		Transport: http.DefaultTransport,
 		Token: &oauth.Token{
 			RefreshToken: context.RefreshToken,
-			Expiry:       time.Now(),
+			// TODO: Fix this temporary bad hack with periodic refresh
+			Expiry: time.Now().Add(time.Hour * 10),
 		},
 	}
 }

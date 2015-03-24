@@ -34,7 +34,7 @@
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
   - [DesktopEntry](#desktopentry)
-- [Applying patches](#apply-patches)
+- [Applying patches](#applying-patches)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
 - [LICENSE](#license)
