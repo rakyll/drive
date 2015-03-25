@@ -37,7 +37,7 @@ func (g *Commands) EmptyTrash() error {
 	spin.play()
 	defer spin.stop()
 
-	if !g.breadthFirst(rootFile, "", "", -1, 0, true, spin) {
+	if !g.breadthFirst(rootFile, "/", -1, 0, true, spin) {
 		return nil
 	}
 

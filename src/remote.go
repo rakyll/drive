@@ -201,10 +201,6 @@ func (r *Remote) FindById(id string) (file *File, err error) {
 	return NewRemoteFile(f), nil
 }
 
-func rootLike(p string) bool {
-	return p == "/" || p == "" || p == "root"
-}
-
 func (r *Remote) findByPath(p string, trashed bool) (*File, error) {
 	if rootLike(p) {
 		return r.FindById("root")

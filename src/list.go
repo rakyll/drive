@@ -15,14 +15,11 @@
 package drive
 
 import (
-	"fmt"
-	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/odeke-em/log"
 )
-
-const RemoteDriveRootPath = "My Drive"
 
 const (
 	InTrash = 1 << iota
@@ -41,8 +38,6 @@ type attribute struct {
 }
 
 func (g *Commands) List() (err error) {
-	root := g.context.AbsPathOf("")
-	var relPath string
 
 	resolver := g.rem.FindByPath
 	if g.opts.InTrash {
@@ -51,23 +46,29 @@ func (g *Commands) List() (err error) {
 
 	var kvList []*keyValue
 
-	for _, p := range g.opts.Sources {
-		relP := g.context.AbsPathOf(p)
-		relPath, err = filepath.Rel(root, relP)
-		if err != nil {
-			return
-		}
-
-		if relPath == "." {
-			relPath = ""
-		}
-		relPath = "/" + relPath
+	for _, relPath := range g.opts.Sources {
 		r, rErr := resolver(relPath)
 		if rErr != nil {
 			g.log.LogErrf("%v: '%s'\n", rErr, relPath)
 			return
 		}
-		kvList = append(kvList, &keyValue{key: relPath, value: r})
+
+		if r == nil {
+			g.log.LogErrf("remote: %s is nil\n", strconv.Quote(relPath))
+			continue
+		}
+
+		parentPath := g.parentPather(relPath)
+		if remoteRootLike(r.Name) {
+			r.Name = ""
+		}
+
+		if rootLike(parentPath) {
+			parentPath = "/"
+		}
+		g.log.Logf("'%s' '%s' '%s'\n", relPath, parentPath, r.Name)
+
+		kvList = append(kvList, &keyValue{key: parentPath, value: r})
 	}
 
 	spin := newPlayable(10)
@@ -76,7 +77,7 @@ func (g *Commands) List() (err error) {
 		if kv == nil || kv.value == nil {
 			continue
 		}
-		if !g.breadthFirst(kv.value.(*File), "", kv.key, g.opts.Depth, g.opts.TypeMask, false, spin) {
+		if !g.breadthFirst(kv.value.(*File), kv.key, g.opts.Depth, g.opts.TypeMask, false, spin) {
 			break
 		}
 	}
@@ -103,7 +104,7 @@ func (g *Commands) List() (err error) {
 }
 
 func (f *File) pretty(logy *log.Logger, opt attribute) {
-	fmtdPath := fmt.Sprintf("%s/%s", opt.parent, urlToPath(f.Name, false))
+	fmtdPath := sepJoinNonEmpty("/", opt.parent, f.Name)
 
 	if opt.minimal {
 		logy.Logln(fmtdPath)
@@ -135,11 +136,7 @@ func (f *File) pretty(logy *log.Logger, opt attribute) {
 	logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
-func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int, mask int, inTrash bool, spin *playable) bool {
-	headPath := ""
-	if !rootLike(prefixPath) && f.IsDir {
-		headPath = prefixPath
-	}
+func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, inTrash bool, spin *playable) bool {
 
 	opt := attribute{
 		minimal: isMinimal(g.opts.TypeMask),
@@ -147,15 +144,14 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 		parent:  headPath,
 	}
 
-	if f.Name != RemoteDriveRootPath {
-		if f.Name != "" && walkTrail != "" {
-			headPath = headPath + "/" + f.Name
-		}
-	}
 	if !f.IsDir {
 		f.pretty(g.log, opt)
 		return true
 	}
+
+	// New head path
+	headPath = sepJoinNonEmpty("/", headPath, f.Name)
+	opt.parent = headPath
 
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
@@ -179,8 +175,6 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 
 	var children []*File
 	onlyFiles := (g.opts.TypeMask & NonFolder) != 0
-
-	opt.parent = headPath
 
 	for file := range fileChan {
 		if file == nil {
@@ -206,7 +200,7 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file, "bread-crumbs", headPath, depth, g.opts.TypeMask, inTrash, spin) {
+			if !g.breadthFirst(file, headPath, depth, g.opts.TypeMask, inTrash, spin) {
 				return false
 			}
 		}

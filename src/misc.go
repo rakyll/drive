@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	MimeTypeJoiner = "-"
+	MimeTypeJoiner      = "-"
+	RemoteDriveRootPath = "My Drive"
 )
 
 var BytesPerKB = float64(1024)
@@ -55,6 +56,14 @@ func newPlayable(freq int64) *playable {
 		reset: spin.Reset,
 		pause: spin.Stop,
 	}
+}
+
+func rootLike(p string) bool {
+	return p == "/" || p == "" || p == "root"
+}
+
+func remoteRootLike(p string) bool {
+	return p == RemoteDriveRootPath
 }
 
 type byteDescription func(b int64) string
@@ -92,6 +101,11 @@ func sepJoin(sep string, args ...string) string {
 	return strings.Join(args, sep)
 }
 
+func sepJoinNonEmpty(sep string, args ...string) string {
+	nonEmpties := NonEmptyStrings(args)
+	return sepJoin(sep, nonEmpties...)
+}
+
 func isHidden(p string, ignore bool) bool {
 	if strings.HasPrefix(p, ".") {
 		return !ignore
@@ -103,7 +117,7 @@ func nextPage() bool {
 	var input string
 	fmt.Printf("---More---")
 	fmt.Scanln(&input)
-	if len(input) >= 1 && strings.ToLower(input[:1]) == "q" {
+	if len(input) >= 1 && strings.ToLower(input[:1]) == QuitShortKey {
 		return false
 	}
 	return true
@@ -214,6 +228,15 @@ func readCommentedFile(p, comment string) (clauses []string, err error) {
 			continue
 		}
 		clauses = append(clauses, line)
+	}
+	return
+}
+
+func NonEmptyStrings(v []string) (splits []string) {
+	for _, elem := range v {
+		if elem != "" {
+			splits = append(splits, elem)
+		}
 	}
 	return
 }

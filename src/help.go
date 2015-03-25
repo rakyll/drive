@@ -45,7 +45,9 @@ const (
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 
-	ForceKey = "force"
+	ForceKey     = "force"
+	QuitShortKey = "q"
+	QuitLongKey  = "quit"
 )
 
 const (
