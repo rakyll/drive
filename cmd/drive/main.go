@@ -619,11 +619,13 @@ func (cmd *publishCmd) Run(args []string) {
 }
 
 type unshareCmd struct {
+	noPrompt    *bool
 	accountType *string
 }
 
 func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.accountType = fs.String("type", "", "scope of account to revoke access to")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "disables the prompt")
 	return fs
 }
 
@@ -635,9 +637,10 @@ func (cmd *unshareCmd) Run(args []string) {
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
-		Meta:    &meta,
-		Path:    path,
-		Sources: sources,
+		Meta:     &meta,
+		Path:     path,
+		Sources:  sources,
+		NoPrompt: *cmd.noPrompt,
 	}).Unshare())
 }
 
@@ -686,6 +689,7 @@ type shareCmd struct {
 	message     *string
 	role        *string
 	accountType *string
+	noPrompt    *bool
 	notify      *bool
 }
 
@@ -695,6 +699,7 @@ func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.role = fs.String("role", "", "role to set to receipients of share. Possible values: "+drive.DescRoles)
 	cmd.accountType = fs.String("type", "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
 	cmd.notify = fs.Bool("notify", true, "toggle whether to notify receipients about share")
+	cmd.noPrompt = fs.Bool("no-prompt", false, "disables the prompt")
 	return fs
 }
 
@@ -718,6 +723,7 @@ func (cmd *shareCmd) Run(args []string) {
 		Path:     path,
 		Sources:  sources,
 		TypeMask: mask,
+		NoPrompt: *cmd.noPrompt,
 	}).Share())
 }
 

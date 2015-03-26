@@ -208,7 +208,7 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
 }
 
 func (c *Commands) playShareChanges(change *shareChange) error {
-	if !showPromptShareChanges(c.log, change) {
+	if !c.opts.NoPrompt && !showPromptShareChanges(c.log, change) {
 		return nil
 	}
 
@@ -217,6 +217,7 @@ func (c *Commands) playShareChanges(change *shareChange) error {
 			if err := c.rem.deletePermissions(file.Id, change.accountType); err != nil {
 				return fmt.Errorf("%s: %v", file.Name, err)
 			}
+			continue
 		}
 
 		for _, email := range change.emails {
