@@ -282,9 +282,14 @@ func reduceToSize(changes []*Change, isPush bool) (totalSize int64) {
 	return totalSize
 }
 
-func conflict(src *File, index *config.Index) bool {
+func conflict(src, dest *File, index *config.Index, push bool) bool {
 	// Never been indexed means no local record.
 	if index == nil {
+		return false
+	}
+
+	// Check if this was only a one sided edit for a push
+	if push && dest != nil && dest.ModTime.Unix() == index.ModTime {
 		return false
 	}
 
@@ -308,10 +313,14 @@ func resolveConflicts(conflicts []*Change, push bool, indexFiler func(string) *c
 		if l != nil {
 			fileId = l.Id
 		}
-		if fileId == "" {
+		if fileId == "" && r != nil {
 			fileId = r.Id
 		}
-		if !conflict(l, indexFiler(fileId)) {
+		if !conflict(l, r, indexFiler(fileId), push) {
+			// Time to disregard this conflict if any
+			if ch.Op() == OpModConflict {
+				ch.IgnoreConflict = true
+			}
 			resolved = append(resolved, ch)
 		} else {
 			unresolved = append(unresolved, ch)
