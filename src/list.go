@@ -59,14 +59,16 @@ func (g *Commands) List() (err error) {
 		}
 
 		parentPath := g.parentPather(relPath)
+
+		if remoteRootLike(parentPath) {
+			parentPath = ""
+		}
 		if remoteRootLike(r.Name) {
 			r.Name = ""
 		}
-
 		if rootLike(parentPath) {
-			parentPath = "/"
+			parentPath = ""
 		}
-		g.log.Logf("'%s' '%s' '%s'\n", relPath, parentPath, r.Name)
 
 		kvList = append(kvList, &keyValue{key: parentPath, value: r})
 	}
@@ -104,7 +106,7 @@ func (g *Commands) List() (err error) {
 }
 
 func (f *File) pretty(logy *log.Logger, opt attribute) {
-	fmtdPath := sepJoinNonEmpty("/", opt.parent, f.Name)
+	fmtdPath := sepJoin("/", opt.parent, f.Name)
 
 	if opt.minimal {
 		logy.Logln(fmtdPath)
@@ -141,7 +143,11 @@ func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, i
 	opt := attribute{
 		minimal: isMinimal(g.opts.TypeMask),
 		mask:    mask,
-		parent:  headPath,
+	}
+
+	opt.parent = ""
+	if headPath != "/" {
+		opt.parent = headPath
 	}
 
 	if !f.IsDir {
@@ -150,8 +156,9 @@ func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, i
 	}
 
 	// New head path
-	headPath = sepJoinNonEmpty("/", headPath, f.Name)
-	opt.parent = headPath
+	if !(rootLike(opt.parent) && rootLike(f.Name)) {
+		opt.parent = sepJoin("/", opt.parent, f.Name)
+	}
 
 	// A depth of < 0 means traverse as deep as you can
 	if depth == 0 {
@@ -200,7 +207,7 @@ func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, i
 
 	if !inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file, headPath, depth, g.opts.TypeMask, inTrash, spin) {
+			if !g.breadthFirst(file, opt.parent, depth, g.opts.TypeMask, inTrash, spin) {
 				return false
 			}
 		}
