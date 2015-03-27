@@ -208,7 +208,8 @@ func showPromptShareChanges(logy *log.Logger, change *shareChange) bool {
 }
 
 func (c *Commands) playShareChanges(change *shareChange) error {
-	if !c.opts.NoPrompt && !showPromptShareChanges(c.log, change) {
+	canPrompt := !(c.opts.NoPrompt || c.opts.Quiet)
+	if canPrompt && !showPromptShareChanges(c.log, change) {
 		return nil
 	}
 

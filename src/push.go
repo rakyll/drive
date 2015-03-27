@@ -85,7 +85,8 @@ func (g *Commands) Push() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok := printChangeList(g.log, nonConflicts, g.opts.NoPrompt, g.opts.NoClobber)
+	noPrompt := g.opts.NoPrompt || g.opts.Quiet
+	ok := printChangeList(g.log, nonConflicts, noPrompt, g.opts.NoClobber)
 	if !ok {
 		return
 	}

@@ -173,7 +173,8 @@ func (g *Commands) breadthFirst(f *File, walkTrail, prefixPath string, depth int
 
 	spin.pause()
 
-	fileChan := reqDoPage(req, g.opts.Hidden, !g.opts.NoPrompt)
+	canPrompt := !(g.opts.Quiet || g.opts.NoPrompt)
+	fileChan := reqDoPage(req, g.opts.Hidden, canPrompt)
 
 	spin.play()
 

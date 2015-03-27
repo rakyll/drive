@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/cheggaaa/pb"
+	"github.com/mattn/go-isatty"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/log"
 )
@@ -104,9 +105,22 @@ func New(context *config.Context, opts *Options) *Commands {
 	}
 
 	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
+
+	canQuiet := false
+	if !isatty.IsTerminal(stdout.Fd()) {
+		canQuiet = true
+	}
+
 	if opts.Quiet {
 		stdout = nil
 	}
+
+	// Now set opts.Quiet if toggled by !isatty because
+	// quiet could have explicitly been set
+	if canQuiet {
+		opts.Quiet = true
+	}
+
 	return &Commands{
 		context: context,
 		rem:     r,
