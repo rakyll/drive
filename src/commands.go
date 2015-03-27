@@ -93,6 +93,9 @@ func New(context *config.Context, opts *Options) *Commands {
 	if context != nil {
 		r = NewRemoteContext(context)
 	}
+
+	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
+
 	if opts != nil {
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
@@ -101,12 +104,12 @@ func New(context *config.Context, opts *Options) *Commands {
 			ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
 			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
+
+                if opts.Quiet {
+                        stdout = nil
+                }
 	}
 
-	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
-	if opts.Quiet {
-		stdout = nil
-	}
 	return &Commands{
 		context: context,
 		rem:     r,
