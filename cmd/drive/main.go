@@ -142,6 +142,7 @@ type listCmd struct {
 	inTrash     *bool
 	version     *bool
 	owners      *bool
+	quiet       *bool
 }
 
 func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -157,6 +158,7 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
 	cmd.owners = fs.Bool("owners", false, "shows the owner names per file")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 
 	return fs
 }
@@ -197,17 +199,20 @@ func (cmd *listCmd) Run(args []string) {
 		Recursive: *cmd.recursive,
 		Sources:   sources,
 		TypeMask:  typeMask,
+		Quiet:     *cmd.quiet,
 	}).List())
 }
 
 type statCmd struct {
 	hidden    *bool
 	recursive *bool
+	quiet     *bool
 }
 
 func (cmd *statCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "discover hidden paths")
 	cmd.recursive = fs.Bool("r", false, "recursively discover folders")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -219,6 +224,7 @@ func (cmd *statCmd) Run(args []string) {
 		Path:      path,
 		Recursive: *cmd.recursive,
 		Sources:   sources,
+		Quiet:     *cmd.quiet,
 	}).Stat())
 }
 
@@ -233,6 +239,7 @@ type pullCmd struct {
 	ignoreChecksum *bool
 	ignoreConflict *bool
 	piped          *bool
+	quiet          *bool
 }
 
 func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -247,6 +254,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 
 	return fs
 }
@@ -279,6 +287,7 @@ func (cmd *pullCmd) Run(args []string) {
 		Recursive:      *cmd.recursive,
 		Sources:        sources,
 		Piped:          *cmd.piped,
+		Quiet:          *cmd.quiet,
 	}
 
 	if *cmd.piped {
@@ -304,6 +313,7 @@ type pushCmd struct {
 	ocr            *bool
 	ignoreChecksum *bool
 	ignoreConflict *bool
+	quiet          *bool
 }
 
 func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -318,6 +328,7 @@ func (cmd *pushCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -343,12 +354,14 @@ type touchCmd struct {
 	hidden    *bool
 	recursive *bool
 	matches   *bool
+	quiet     *bool
 }
 
 func (cmd *touchCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pushing of hidden paths")
 	cmd.recursive = fs.Bool("r", false, "toggles recursive touching")
 	cmd.matches = fs.Bool("matches", false, "search by prefix and touch")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -360,6 +373,7 @@ func (cmd *touchCmd) Run(args []string) {
 		exitWithError(drive.New(context, &drive.Options{
 			Path:    path,
 			Sources: args,
+			Quiet:   *cmd.quiet,
 		}).TouchByMatch())
 	} else {
 		sources, context, path := preprocessArgs(args)
@@ -368,6 +382,7 @@ func (cmd *touchCmd) Run(args []string) {
 			Path:      path,
 			Recursive: *cmd.recursive,
 			Sources:   sources,
+			Quiet:     *cmd.quiet,
 		}).Touch())
 	}
 }
@@ -384,13 +399,14 @@ func (cmd *pushCmd) createPushOptions() *drive.Options {
 	return &drive.Options{
 		Force:          *cmd.force,
 		Hidden:         *cmd.hidden,
-		NoClobber:      *cmd.noClobber,
-		NoPrompt:       *cmd.noPrompt,
-		TypeMask:       mask,
-		Piped:          *cmd.piped,
 		IgnoreChecksum: *cmd.ignoreChecksum,
 		IgnoreConflict: *cmd.ignoreConflict,
+		NoClobber:      *cmd.noClobber,
+		NoPrompt:       *cmd.noPrompt,
 		Recursive:      *cmd.recursive,
+		Piped:          *cmd.piped,
+		Quiet:          *cmd.quiet,
+		TypeMask:       mask,
 	}
 }
 
@@ -442,12 +458,14 @@ type aboutCmd struct {
 	features *bool
 	quota    *bool
 	filesize *bool
+	quiet    *bool
 }
 
 func (cmd *aboutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.features = fs.Bool("features", false, "gives information on features present on this drive")
 	cmd.quota = fs.Bool("quota", false, "prints out quota information for this drive")
 	cmd.filesize = fs.Bool("filesize", false, "prints out information about file sizes e.g the max upload size for a specific file size")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -464,17 +482,21 @@ func (cmd *aboutCmd) Run(args []string) {
 	if *cmd.filesize {
 		mask |= drive.AboutFileSizes
 	}
-	exitWithError(drive.New(context, &drive.Options{}).About(mask))
+	exitWithError(drive.New(context, &drive.Options{
+		Quiet: *cmd.quiet,
+	}).About(mask))
 }
 
 type diffCmd struct {
 	hidden         *bool
 	ignoreChecksum *bool
+	quiet          *bool
 }
 
 func (cmd *diffCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -486,19 +508,23 @@ func (cmd *diffCmd) Run(args []string) {
 		Hidden:         *cmd.hidden,
 		Sources:        sources,
 		IgnoreChecksum: *cmd.ignoreChecksum,
+		Quiet:          *cmd.quiet,
 	}).Diff())
 }
 
 type publishCmd struct {
 	hidden *bool
+	quiet  *bool
 }
 
 type unpublishCmd struct {
 	hidden *bool
+	quiet  *bool
 }
 
 func (cmd *unpublishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows pulling of hidden paths")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -507,15 +533,18 @@ func (cmd *unpublishCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
 		Sources: sources,
+		Quiet:   *cmd.quiet,
 	}).Unpublish())
 }
 
 type emptyTrashCmd struct {
 	noPrompt *bool
+	quiet    *bool
 }
 
 func (cmd *emptyTrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before emptying the trash")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -523,17 +552,20 @@ func (cmd *emptyTrashCmd) Run(args []string) {
 	_, context, _ := preprocessArgs(args)
 	exitWithError(drive.New(context, &drive.Options{
 		NoPrompt: *cmd.noPrompt,
+		Quiet:    *cmd.quiet,
 	}).EmptyTrash())
 }
 
 type trashCmd struct {
 	hidden  *bool
 	matches *bool
+	quiet   *bool
 }
 
 func (cmd *trashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows trashing hidden paths")
 	cmd.matches = fs.Bool("matches", false, "search by prefix and trash")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -543,6 +575,7 @@ func (cmd *trashCmd) Run(args []string) {
 		exitWithError(drive.New(context, &drive.Options{
 			Path:    path,
 			Sources: sources,
+			Quiet:   *cmd.quiet,
 		}).Trash())
 	} else {
 		cwd, err := os.Getwd()
@@ -551,16 +584,19 @@ func (cmd *trashCmd) Run(args []string) {
 		exitWithError(drive.New(context, &drive.Options{
 			Path:    path,
 			Sources: args,
+			Quiet:   *cmd.quiet,
 		}).TrashByMatch())
 	}
 }
 
 type copyCmd struct {
+	quiet     *bool
 	recursive *bool
 }
 
 func (cmd *copyCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.recursive = fs.Bool("r", false, "recursive copying")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -573,17 +609,20 @@ func (cmd *copyCmd) Run(args []string) {
 		Path:      path,
 		Sources:   sources,
 		Recursive: *cmd.recursive,
+		Quiet:     *cmd.quiet,
 	}).Copy())
 }
 
 type untrashCmd struct {
 	hidden  *bool
 	matches *bool
+	quiet   *bool
 }
 
 func (cmd *untrashCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows untrashing hidden paths")
 	cmd.matches = fs.Bool("matches", false, "search by prefix and untrash")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -593,6 +632,7 @@ func (cmd *untrashCmd) Run(args []string) {
 		exitWithError(drive.New(context, &drive.Options{
 			Path:    path,
 			Sources: sources,
+			Quiet:   *cmd.quiet,
 		}).Untrash())
 	} else {
 		cwd, err := os.Getwd()
@@ -601,12 +641,14 @@ func (cmd *untrashCmd) Run(args []string) {
 		exitWithError(drive.New(context, &drive.Options{
 			Path:    path,
 			Sources: args,
+			Quiet:   *cmd.quiet,
 		}).UntrashByMatch())
 	}
 }
 
 func (cmd *publishCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.hidden = fs.Bool("hidden", false, "allows publishing of hidden paths")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -615,17 +657,20 @@ func (cmd *publishCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
 		Sources: sources,
+		Quiet:   *cmd.quiet,
 	}).Publish())
 }
 
 type unshareCmd struct {
 	noPrompt    *bool
 	accountType *string
+	quiet       *bool
 }
 
 func (cmd *unshareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.accountType = fs.String("type", "", "scope of account to revoke access to")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "disables the prompt")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -641,13 +686,16 @@ func (cmd *unshareCmd) Run(args []string) {
 		Path:     path,
 		Sources:  sources,
 		NoPrompt: *cmd.noPrompt,
+		Quiet:    *cmd.quiet,
 	}).Unshare())
 }
 
 type moveCmd struct {
+	quiet *bool
 }
 
 func (cmd *moveCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -656,15 +704,18 @@ func (cmd *moveCmd) Run(args []string) {
 	exitWithError(drive.New(context, &drive.Options{
 		Path:    path,
 		Sources: sources,
+		Quiet:   *cmd.quiet,
 	}).Move())
 }
 
 type renameCmd struct {
 	force *bool
+	quiet *bool
 }
 
 func (cmd *renameCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.force = fs.Bool("force", false, "coerce rename even if remote already exists")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -681,6 +732,7 @@ func (cmd *renameCmd) Run(args []string) {
 		Path:    path,
 		Sources: sources,
 		Force:   *cmd.force,
+		Quiet:   *cmd.quiet,
 	}).Rename())
 }
 
@@ -691,6 +743,7 @@ type shareCmd struct {
 	accountType *string
 	noPrompt    *bool
 	notify      *bool
+	quiet       *bool
 }
 
 func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -700,6 +753,7 @@ func (cmd *shareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.accountType = fs.String("type", "", "scope of accounts to share files with. Possible values: "+drive.DescAccountTypes)
 	cmd.notify = fs.Bool("notify", true, "toggle whether to notify receipients about share")
 	cmd.noPrompt = fs.Bool("no-prompt", false, "disables the prompt")
+	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 	return fs
 }
 
@@ -724,6 +778,7 @@ func (cmd *shareCmd) Run(args []string) {
 		Sources:  sources,
 		TypeMask: mask,
 		NoPrompt: *cmd.noPrompt,
+		Quiet:    *cmd.quiet,
 	}).Share())
 }
 

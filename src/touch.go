@@ -29,7 +29,7 @@ func (g *Commands) Touch() (err error) {
 		<-throttle
 	}
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 
 	for {
@@ -75,7 +75,7 @@ func (g *Commands) TouchByMatch() (err error) {
 		i += 1
 	}
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 
 	for {

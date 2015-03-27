@@ -42,7 +42,7 @@ func (g *Commands) Push() (err error) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 
-	spin := newPlayable(10)
+	spin := g.playabler()
 	spin.play()
 
 	// To Ensure mount points are cleared in the event of external exceptios
@@ -158,7 +158,7 @@ func (g *Commands) PushPiped() (err error) {
 		parentPath := g.parentPather(relToRootPath)
 		parent, pErr := g.rem.FindByPath(parentPath)
 		if pErr != nil {
-			spin := newPlayable(10)
+			spin := g.playabler()
 			spin.play()
 			parent, pErr = g.remoteMkdirAll(parentPath)
 			spin.stop()

@@ -74,6 +74,9 @@ type Options struct {
 	TypeMask int
 	// Piped when set means to infer content to or from stdin
 	Piped bool
+	// Quiet when set toggles only logging of errors to stderrs as
+	// well as reading from stdin in this case stdout is not logged to
+	Quiet bool
 }
 
 type Commands struct {
@@ -99,11 +102,16 @@ func New(context *config.Context, opts *Options) *Commands {
 			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
 	}
+
+	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
+	if opts.Quiet {
+		stdout = nil
+	}
 	return &Commands{
 		context: context,
 		rem:     r,
 		opts:    opts,
-		log:     log.New(os.Stdin, os.Stdout, os.Stderr),
+		log:     log.New(stdin, stdout, stderr),
 	}
 }
 

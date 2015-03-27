@@ -46,6 +46,7 @@ const (
 	VersionKey    = "version"
 
 	ForceKey = "force"
+	QuietKey = "quiet"
 )
 
 const (
