@@ -105,9 +105,9 @@ func New(context *config.Context, opts *Options) *Commands {
 			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
 
-                if opts.Quiet {
-                        stdout = nil
-                }
+		if opts.Quiet {
+			stdout = nil
+		}
 	}
 
 	return &Commands{

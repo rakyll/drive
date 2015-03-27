@@ -34,6 +34,8 @@
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
   - [DesktopEntry](#desktopentry)
+- [Revoking Account Access](#revoking-account-access)
+- [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
@@ -443,6 +445,19 @@ Note: Pattern matching and suffixes are done by regular expression matching so m
 As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
 with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
 desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener. Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+### Revoking Account Access
+
+To revoke OAuth Access of drive to your account, when logged in with your Google account, go to https://security.google.com/settings/security/permissions and revoke the desired permissions
+
+### Uninstalling
+
+To remove `drive` from your computer, you'll need to take out:
++ $GOPATH/bin/drive
++ $GOPATH/src/github.com/odeke-em/drive
++ $GOPATH/pkg/github.com/odeke-em/drive
++ $GOPATH/pkg/github.com/odeke-em/drive.a
+
+* Also do not forget to revoke drive's access in case you need to uninstall it.
 
 ## Applying patches 
 To  apply patches of code e.g in the midst of bug fixes, you'll just need a little bit of git fiddling.
