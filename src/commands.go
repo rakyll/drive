@@ -77,7 +77,8 @@ type Options struct {
 	Piped bool
 	// Quiet when set toggles only logging of errors to stderrs as
 	// well as reading from stdin in this case stdout is not logged to
-	Quiet bool
+	Quiet       bool
+	StdoutIsTty bool
 }
 
 type Commands struct {
@@ -89,11 +90,24 @@ type Commands struct {
 	progress *pb.ProgressBar
 }
 
+func (opts *Options) canPrompt() bool {
+	if !opts.StdoutIsTty {
+		return false
+	}
+	if opts.Quiet {
+		return false
+	}
+	return !opts.NoPrompt
+}
+
 func New(context *config.Context, opts *Options) *Commands {
 	var r *Remote
 	if context != nil {
 		r = NewRemoteContext(context)
 	}
+
+	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
+
 	if opts != nil {
 		// should always start with /
 		opts.Path = path.Clean(path.Join("/", opts.Path))
@@ -102,23 +116,12 @@ func New(context *config.Context, opts *Options) *Commands {
 			ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
 			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
-	}
 
-	stdin, stdout, stderr := os.Stdin, os.Stdout, os.Stderr
+		opts.StdoutIsTty = isatty.IsTerminal(stdout.Fd())
 
-	canQuiet := false
-	if !isatty.IsTerminal(stdout.Fd()) {
-		canQuiet = true
-	}
-
-	if opts.Quiet {
-		stdout = nil
-	}
-
-	// Now set opts.Quiet if toggled by !isatty because
-	// quiet could have explicitly been set
-	if canQuiet {
-		opts.Quiet = true
+		if opts.Quiet {
+			stdout = nil
+		}
 	}
 
 	return &Commands{

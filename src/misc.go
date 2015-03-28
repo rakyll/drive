@@ -70,7 +70,7 @@ func newPlayable(freq int64) *playable {
 }
 
 func (g *Commands) playabler() *playable {
-	if g.opts.Quiet {
+	if !g.opts.canPrompt() {
 		return noopPlayable()
 	}
 	return newPlayable(10)

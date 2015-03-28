@@ -41,8 +41,7 @@ func (g *Commands) EmptyTrash() error {
 		return nil
 	}
 
-	canPrompt := !(g.opts.NoPrompt || g.opts.Quiet)
-	if canPrompt {
+	if g.opts.canPrompt() {
 		g.log.Logln("Empty trash: (Yn)? ")
 
 		input := "Y"
@@ -114,8 +113,7 @@ func (g *Commands) trashByMatch(inTrash bool) error {
 	}
 
 	toTrash := !inTrash
-	noPrompt := g.opts.NoPrompt || g.opts.Quiet
-	ok := printChangeList(g.log, cl, noPrompt, false)
+	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
 	if ok {
 		return g.playTrashChangeList(cl, toTrash)
 	}
@@ -141,8 +139,7 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 		}
 	}
 
-	noPrompt := g.opts.NoPrompt || g.opts.Quiet
-	ok := printChangeList(g.log, cl, noPrompt, false)
+	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
 	if ok {
 		return g.playTrashChangeList(cl, toTrash)
 	}

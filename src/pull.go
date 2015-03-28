@@ -67,8 +67,7 @@ func (g *Commands) Pull() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	noPrompt := g.opts.NoPrompt || g.opts.Quiet
-	ok := printChangeList(g.log, nonConflicts, noPrompt, g.opts.NoClobber)
+	ok := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
 	if !ok {
 		return
 	}
