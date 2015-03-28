@@ -259,20 +259,11 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func nonEmptyStrings(v []string) (splits []string) {
-	for _, elem := range v {
-		if elem != "" {
-			splits = append(splits, elem)
-		}
-	}
-	return
-}
-
 func (cmd *pullCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 
 	// Filter out empty strings.
-	exports := nonEmptyStrings(strings.Split(*cmd.export, ","))
+	exports := drive.NonEmptyStrings(strings.Split(*cmd.export, ","))
 
 	options := &drive.Options{
 		Exports:        uniqOrderedStr(exports),
@@ -431,7 +422,7 @@ func (cmd *pushCmd) pushMounted(args []string) {
 		}
 	}
 
-	rest = nonEmptyStrings(rest)
+	rest = drive.NonEmptyStrings(rest)
 	context, path := discoverContext(contextArgs)
 	contextAbsPath, err := filepath.Abs(path)
 	exitWithError(err)
@@ -678,7 +669,7 @@ func (cmd *unshareCmd) Run(args []string) {
 	sources, context, path := preprocessArgs(args)
 
 	meta := map[string][]string{
-		"accountType": uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+		"accountType": uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ","))),
 	}
 
 	exitWithError(drive.New(context, &drive.Options{
@@ -762,9 +753,9 @@ func (cmd *shareCmd) Run(args []string) {
 
 	meta := map[string][]string{
 		"emailMessage": []string{*cmd.message},
-		"emails":       uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.emails, ","))),
-		"role":         uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.role, ","))),
-		"accountType":  uniqOrderedStr(nonEmptyStrings(strings.Split(*cmd.accountType, ","))),
+		"emails":       uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.emails, ","))),
+		"role":         uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.role, ","))),
+		"accountType":  uniqOrderedStr(drive.NonEmptyStrings(strings.Split(*cmd.accountType, ","))),
 	}
 
 	mask := drive.NoopOnShare
