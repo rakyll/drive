@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/cheggaaa/pb"
+	"github.com/mattn/go-isatty"
 	"github.com/odeke-em/drive/config"
 	"github.com/odeke-em/log"
 )
@@ -76,7 +77,8 @@ type Options struct {
 	Piped bool
 	// Quiet when set toggles only logging of errors to stderrs as
 	// well as reading from stdin in this case stdout is not logged to
-	Quiet bool
+	Quiet       bool
+	StdoutIsTty bool
 }
 
 type Commands struct {
@@ -86,6 +88,16 @@ type Commands struct {
 	log     *log.Logger
 
 	progress *pb.ProgressBar
+}
+
+func (opts *Options) canPrompt() bool {
+	if !opts.StdoutIsTty {
+		return false
+	}
+	if opts.Quiet {
+		return false
+	}
+	return !opts.NoPrompt
 }
 
 func New(context *config.Context, opts *Options) *Commands {
@@ -104,6 +116,8 @@ func New(context *config.Context, opts *Options) *Commands {
 			ignoresPath := filepath.Join(context.AbsPath, DriveIgnoreSuffix)
 			opts.IgnoreRegexp = readCommentedFileCompileRegexp(ignoresPath)
 		}
+
+		opts.StdoutIsTty = isatty.IsTerminal(stdout.Fd())
 
 		if opts.Quiet {
 			stdout = nil
