@@ -279,7 +279,7 @@ func (g *Commands) remoteMod(change *Change) (err error) {
 	}
 
 	parentPath := g.parentPather(change.Path)
-	parent, err = g.rem.FindByPath(parentPath)
+	parent, err = g.remoteMkdirAll(parentPath)
 
 	if err != nil {
 		return err
