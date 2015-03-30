@@ -39,6 +39,7 @@
 - [Applying patches](#applying-patches)
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
+- [Reach out](#reach-out)
 - [LICENSE](#license)
 
 ## Requirements
@@ -508,6 +509,10 @@ Background sync is not just hard, it is stupid. My technical and philosophical r
 * Google Drive allows a directory to contain files/directories with the same name. Client doesn't handle these cases yet. We don't recommend you to use `drive` if you have such files/directories to avoid data loss.
 * Racing conditions occur if remote is being modified while we're trying to update the file. Google Drive provides resource versioning with ETags, use Etags to avoid racy cases.
 
+## Reach out
+
+Doing anything interesting with drive or want to share your favorite tips and tricks? Check out the [wiki](https://github.com/odeke-em/drive/wiki) and feel free to reach out with ideas for features or requests.
+
 ## LICENSE
 
 Copyright 2013 Google Inc. All Rights Reserved.
@@ -523,4 +528,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
