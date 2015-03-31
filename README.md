@@ -40,6 +40,7 @@
 - [Why another Google Drive client?](#why-another-google-drive-client)
 - [Known issues](#known-issues)
 - [Reach out](#reach-out)
+- [Disclaimer](#disclaimer)
 - [LICENSE](#license)
 
 ## Requirements
@@ -512,6 +513,10 @@ Background sync is not just hard, it is stupid. My technical and philosophical r
 ## Reach out
 
 Doing anything interesting with drive or want to share your favorite tips and tricks? Check out the [wiki](https://github.com/odeke-em/drive/wiki) and feel free to reach out with ideas for features or requests.
+
+## Disclaimer
+
+This project is not supported nor maintained by Google.
 
 ## LICENSE
 
