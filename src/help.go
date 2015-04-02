@@ -16,6 +16,8 @@ package drive
 
 import (
 	"fmt"
+
+	"github.com/odeke-em/xon/pkger/src"
 )
 
 const (
@@ -45,10 +47,11 @@ const (
 	UnpubKey      = "unpub"
 	VersionKey    = "version"
 
-	ForceKey     = "force"
-	QuietKey     = "quiet"
-	QuitShortKey = "q"
-	QuitLongKey  = "quit"
+	ForceKey         = "force"
+	QuietKey         = "quiet"
+	QuitShortKey     = "q"
+	QuitLongKey      = "quit"
+	DriveRepoRelPath = "github.com/odeke-em/drive"
 )
 
 const (
@@ -184,7 +187,12 @@ func ShowAllDescriptions() {
 }
 
 func PrintVersion() {
-	fmt.Printf("drive version %s\n", Version)
+	fmt.Printf("drive version %s", Version)
+	pkgInfo, err := pkger.Recon(DriveRepoRelPath)
+	if err == nil && pkgInfo != nil {
+		fmt.Printf("\n%s", pkgInfo)
+	}
+	fmt.Println()
 }
 
 func ShowDescription(topic string) {
