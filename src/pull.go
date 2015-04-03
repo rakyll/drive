@@ -104,12 +104,20 @@ func (g *Commands) PullMatches() (err error) {
 	}
 
 	if len(cl) < 1 {
-		return fmt.Errorf("no matches found!")
+		return fmt.Errorf("no changes detected!")
 	}
 
-	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), g.opts.NoClobber)
+	nonConflictsPtr, conflictsPtr := g.resolveConflicts(cl, false)
+	if conflictsPtr != nil {
+		warnConflictsPersist(g.log, *conflictsPtr)
+		return fmt.Errorf("conflicts have prevented a pull operation")
+	}
+
+	nonConflicts := *nonConflictsPtr
+
+	ok := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
 	if ok {
-		return g.playPullChangeList(cl, g.opts.Exports)
+		return g.playPullChangeList(nonConflicts, g.opts.Exports)
 	}
 	return nil
 }

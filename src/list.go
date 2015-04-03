@@ -45,14 +45,16 @@ type traversalSt struct {
 	inTrash  bool
 }
 
-func (g *Commands) ListMatches() (error) {
+func (g *Commands) ListMatches() error {
 	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, g.opts.InTrash)
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
 	spin := g.playabler()
 	spin.play()
+
+	traversalCount := 0
 
 	for match := range matches {
 		if match == nil {
@@ -67,12 +69,18 @@ func (g *Commands) ListMatches() (error) {
 			mask:     g.opts.TypeMask,
 		}
 
+		traversalCount += 1
+
 		if !g.breadthFirst(travSt, spin) {
 			break
 		}
 	}
 
 	spin.stop()
+
+	if traversalCount < 1 {
+		g.log.LogErrln("no matches found!")
+	}
 
 	return nil
 }
