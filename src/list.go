@@ -37,6 +37,14 @@ type attribute struct {
 	parent  string
 }
 
+type traversalSt struct {
+	file     *File
+	headPath string
+	depth    int
+	mask     int
+	inTrash  bool
+}
+
 func (g *Commands) List() (err error) {
 
 	resolver := g.rem.FindByPath
@@ -79,7 +87,16 @@ func (g *Commands) List() (err error) {
 		if kv == nil || kv.value == nil {
 			continue
 		}
-		if !g.breadthFirst(kv.value.(*File), kv.key, g.opts.Depth, g.opts.TypeMask, false, spin) {
+
+		travSt := traversalSt{
+			depth:    g.opts.Depth,
+			file:     kv.value.(*File),
+			headPath: kv.key,
+			inTrash:  false,
+			mask:     g.opts.TypeMask,
+		}
+
+		if !g.breadthFirst(travSt, spin) {
 			break
 		}
 	}
@@ -138,18 +155,19 @@ func (f *File) pretty(logy *log.Logger, opt attribute) {
 	logy.Logf(" %-10s\t%-10s\t\t%-20s\t%-50s\n", prettyBytes(f.Size), f.Id, f.ModTime, fmtdPath)
 }
 
-func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, inTrash bool, spin *playable) bool {
+func (g *Commands) breadthFirst(travSt traversalSt, spin *playable) bool {
 
 	opt := attribute{
 		minimal: isMinimal(g.opts.TypeMask),
-		mask:    mask,
+		mask:    travSt.mask,
 	}
 
 	opt.parent = ""
-	if headPath != "/" {
-		opt.parent = headPath
+	if travSt.headPath != "/" {
+		opt.parent = travSt.headPath
 	}
 
+	f := travSt.file
 	if !f.IsDir {
 		f.pretty(g.log, opt)
 		return true
@@ -161,14 +179,14 @@ func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, i
 	}
 
 	// A depth of < 0 means traverse as deep as you can
-	if depth == 0 {
+	if travSt.depth == 0 {
 		// At the end of the line, this was successful.
 		return true
-	} else if depth > 0 {
-		depth -= 1
+	} else if travSt.depth > 0 {
+		travSt.depth -= 1
 	}
 
-	expr := buildExpression(f.Id, mask, inTrash)
+	expr := buildExpression(f.Id, travSt.mask, travSt.inTrash)
 
 	req := g.rem.service.Files.List()
 	req.Q(expr)
@@ -205,9 +223,17 @@ func (g *Commands) breadthFirst(f *File, headPath string, depth int, mask int, i
 		file.pretty(g.log, opt)
 	}
 
-	if !inTrash && !g.opts.InTrash {
+	if !travSt.inTrash && !g.opts.InTrash {
 		for _, file := range children {
-			if !g.breadthFirst(file, opt.parent, depth, g.opts.TypeMask, inTrash, spin) {
+			childSt := traversalSt{
+				depth:    travSt.depth,
+				file:     file,
+				headPath: opt.parent,
+				inTrash:  travSt.inTrash,
+				mask:     g.opts.TypeMask,
+			}
+
+			if !g.breadthFirst(childSt, spin) {
 				return false
 			}
 		}

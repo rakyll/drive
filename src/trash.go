@@ -37,7 +37,15 @@ func (g *Commands) EmptyTrash() error {
 	spin.play()
 	defer spin.stop()
 
-	if !g.breadthFirst(rootFile, "/", -1, 0, true, spin) {
+	travSt := traversalSt{
+		depth:    -1,
+		file:     rootFile,
+		headPath: "/",
+		inTrash:  true,
+		mask:     g.opts.TypeMask,
+	}
+
+	if !g.breadthFirst(travSt, spin) {
 		return nil
 	}
 
