@@ -141,6 +141,7 @@ type listCmd struct {
 	shared      *bool
 	inTrash     *bool
 	version     *bool
+	matches     *bool
 	owners      *bool
 	quiet       *bool
 }
@@ -158,13 +159,25 @@ func (cmd *listCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.noPrompt = fs.Bool("no-prompt", false, "shows no prompt before pagination")
 	cmd.owners = fs.Bool("owners", false, "shows the owner names per file")
 	cmd.recursive = fs.Bool("r", false, "recursively list subdirectories")
+	cmd.matches = fs.Bool("matches", false, "list by prefix")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 
 	return fs
 }
 
 func (cmd *listCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
+	var path string
+	var sources []string
+	var context *config.Context
+
+	if !*cmd.matches {
+		sources, context, path = preprocessArgs(args)
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		sources = args
+		_, context, path = preprocessArgs([]string{cwd})
+	}
 
 	typeMask := 0
 	if *cmd.directories {
@@ -189,7 +202,7 @@ func (cmd *listCmd) Run(args []string) {
 		typeMask |= drive.Minimal
 	}
 
-	exitWithError(drive.New(context, &drive.Options{
+	options := drive.Options{
 		Depth:     *cmd.depth,
 		Hidden:    *cmd.hidden,
 		InTrash:   *cmd.inTrash,
@@ -200,7 +213,13 @@ func (cmd *listCmd) Run(args []string) {
 		Sources:   sources,
 		TypeMask:  typeMask,
 		Quiet:     *cmd.quiet,
-	}).List())
+	}
+
+	if *cmd.matches {
+		exitWithError(drive.New(context, &options).ListMatches())
+	} else {
+		exitWithError(drive.New(context, &options).List())
+	}
 }
 
 type statCmd struct {
@@ -233,6 +252,7 @@ type pullCmd struct {
 	export         *string
 	force          *bool
 	hidden         *bool
+	matches        *bool
 	noPrompt       *bool
 	noClobber      *bool
 	recursive      *bool
@@ -253,6 +273,7 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	cmd.ignoreChecksum = fs.Bool(drive.CLIOptionIgnoreChecksum, false, drive.DescIgnoreChecksum)
 	cmd.ignoreConflict = fs.Bool(drive.CLIOptionIgnoreConflict, false, drive.DescIgnoreConflict)
 	cmd.exportsDir = fs.String("export-dir", "", "directory to place exports")
+	cmd.matches = fs.Bool("matches", false, "search by prefix")
 	cmd.piped = fs.Bool("piped", false, "if true, read content from stdin")
 	cmd.quiet = fs.Bool(drive.QuietKey, false, "if set, do not log anything but errors")
 
@@ -260,7 +281,18 @@ func (cmd *pullCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *pullCmd) Run(args []string) {
-	sources, context, path := preprocessArgs(args)
+	var path string
+	var sources []string
+	var context *config.Context
+
+	if !*cmd.matches {
+		sources, context, path = preprocessArgs(args)
+	} else {
+		cwd, err := os.Getwd()
+		exitWithError(err)
+		sources = args
+		_, context, path = preprocessArgs([]string{cwd})
+	}
 
 	// Filter out empty strings.
 	exports := drive.NonEmptyStrings(strings.Split(*cmd.export, ","))
@@ -281,7 +313,9 @@ func (cmd *pullCmd) Run(args []string) {
 		Quiet:          *cmd.quiet,
 	}
 
-	if *cmd.piped {
+	if *cmd.matches {
+		exitWithError(drive.New(context, options).PullMatches())
+	} else if *cmd.piped {
 		exitWithError(drive.New(context, options).PullPiped())
 	} else {
 		exitWithError(drive.New(context, options).Pull())

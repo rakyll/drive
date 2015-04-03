@@ -75,6 +75,45 @@ func (g *Commands) Pull() (err error) {
 	return g.playPullChangeList(nonConflicts, g.opts.Exports)
 }
 
+func (g *Commands) PullMatches() (err error) {
+	var cl []*Change
+	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, false)
+
+	if err != nil {
+		return err
+	}
+
+	p := g.opts.Path
+	if p == "/" {
+		p = ""
+	}
+
+	for match := range matches {
+		if match == nil {
+			continue
+		}
+		relToRoot := "/" + match.Name
+		fsPath := g.context.AbsPathOf(relToRoot)
+
+		ccl, cErr := g.byRemoteResolve(relToRoot, fsPath, match, false)
+		if cErr != nil {
+			continue
+		}
+
+		cl = append(cl, ccl...)
+	}
+
+	if len(cl) < 1 {
+		return fmt.Errorf("no matches found!")
+	}
+
+	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), g.opts.NoClobber)
+	if ok {
+		return g.playPullChangeList(cl, g.opts.Exports)
+	}
+	return nil
+}
+
 func (g *Commands) PullPiped() (err error) {
 	// Cannot pull asynchronously because the pull order must be maintained
 	for _, relToRootPath := range g.opts.Sources {

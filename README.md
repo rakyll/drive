@@ -88,6 +88,13 @@ Run it without any arguments to pull all of the files from the current path:
 $ drive pull
 ```
 
+Pulling by matches is also supported
+
+```shell
+$ cd ~/myDrive/content/2015
+$ drive pull --matches vines docx
+```
+
 To force download from paths that otherwise would be marked with no-changes
 
 ```shell
@@ -316,6 +323,12 @@ Pass in a directory path to list files in that directory:
 
 ```shell
 $ drive list photos
+```
+
+To list matches
+
+```shell
+$ drive list --matches mp4 go
 ```
 
 The `-trashed` option can be specified to show trashed files in the listing:

@@ -83,6 +83,31 @@ func (g *Commands) pathResolve() (relPath, absPath string, err error) {
 	return
 }
 
+func (g *Commands) resolveToLocalFile(relToRoot, fsPath string) (local *File, err error) {
+	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
+		err = fmt.Errorf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
+		return
+	}
+
+	localinfo, _ := os.Stat(fsPath)
+	if localinfo != nil {
+		local = NewLocalFile(fsPath, localinfo)
+	}
+
+	return
+}
+
+func (g *Commands) byRemoteResolve(relToRoot, fsPath string, r *File, isPush bool) (cl []*Change, err error) {
+	var l *File
+	l, err = g.resolveToLocalFile(relToRoot, fsPath)
+	if err != nil {
+		g.log.LogErrf("%v\n", err)
+		return cl, nil
+	}
+
+	return g.doChangeListRecv(relToRoot, fsPath, l, r, isPush)
+}
+
 func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl []*Change, err error) {
 	var r, l *File
 	r, err = g.rem.FindByPath(relToRoot)
@@ -93,17 +118,19 @@ func (g *Commands) changeListResolve(relToRoot, fsPath string, isPush bool) (cl 
 		}
 	}
 
-	if g.opts.IgnoreRegexp != nil && g.opts.IgnoreRegexp.Match([]byte(relToRoot)) {
-		g.log.LogErrf("\n'%s' is set to be ignored yet is being processed. Use `%s` to override this\n", relToRoot, ForceKey)
+	l, err = g.resolveToLocalFile(relToRoot, fsPath)
+	if err != nil {
+		g.log.LogErrf("%s: %v\n", relToRoot, err)
 		return cl, nil
 	}
 
-	localinfo, _ := os.Stat(fsPath)
-	if localinfo != nil {
-		l = NewLocalFile(fsPath, localinfo)
-	}
+	return g.doChangeListRecv(relToRoot, fsPath, l, r, isPush)
+}
 
+func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, isPush bool) (cl []*Change, err error) {
 	if l == nil && r == nil {
+		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
+			relToRoot, fsPath)
 		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
 			relToRoot, fsPath)
 		return

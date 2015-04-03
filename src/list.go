@@ -45,8 +45,39 @@ type traversalSt struct {
 	inTrash  bool
 }
 
-func (g *Commands) List() (err error) {
+func (g *Commands) ListMatches() (error) {
+	matches, err := g.rem.FindMatches(g.opts.Path, g.opts.Sources, g.opts.InTrash)
+    if err != nil {
+        return err
+    }
 
+	spin := g.playabler()
+	spin.play()
+
+	for match := range matches {
+		if match == nil {
+			continue
+		}
+
+		travSt := traversalSt{
+			depth:    g.opts.Depth,
+			file:     match,
+			headPath: g.opts.Path,
+			inTrash:  g.opts.InTrash,
+			mask:     g.opts.TypeMask,
+		}
+
+		if !g.breadthFirst(travSt, spin) {
+			break
+		}
+	}
+
+	spin.stop()
+
+	return nil
+}
+
+func (g *Commands) List() (err error) {
 	resolver := g.rem.FindByPath
 	if g.opts.InTrash {
 		resolver = g.rem.FindByPathTrashed
@@ -92,7 +123,7 @@ func (g *Commands) List() (err error) {
 			depth:    g.opts.Depth,
 			file:     kv.value.(*File),
 			headPath: kv.key,
-			inTrash:  false,
+			inTrash:  g.opts.InTrash,
 			mask:     g.opts.TypeMask,
 		}
 
