@@ -293,10 +293,10 @@ func merge(remotes, locals chan *File) (merged []*dirList) {
 	return
 }
 
-func reduceToSize(changes []*Change, isPush bool) (totalSize int64) {
+func reduceToSize(changes []*Change, fromSrc bool) (totalSize int64) {
 	totalSize = 0
 	for _, c := range changes {
-		if isPush {
+		if fromSrc {
 			if c.Src != nil {
 				totalSize += c.Src.Size
 			}

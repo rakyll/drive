@@ -23,6 +23,8 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+
+	"github.com/odeke-em/statos"
 )
 
 const (
@@ -152,13 +154,22 @@ func (g *Commands) PullPiped() (err error) {
 
 func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
 	var next []*Change
-	g.taskStart(len(cl))
+
+	pullSize := reduceToSize(cl, true)
+
+	g.taskStart(int64(len(cl)) + pullSize)
 
 	// TODO: Only provide precedence ordering if all the other options are allowed
 	// Currently noop on sorting by precedence
 	if false && !g.opts.NoClobber {
 		sort.Sort(ByPrecedence(cl))
 	}
+
+	go func() {
+		for n := range g.rem.progressChan {
+			g.taskAdd(int64(n))
+		}
+	}()
 
 	for {
 		if len(cl) > maxNumOfConcPullTasks {
@@ -436,6 +447,16 @@ func (g *Commands) singleDownload(p, id, exportURL string) (err error) {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(fo, blob)
+
+	ws := statos.NewWriter(fo)
+	go func() {
+		commChan := ws.ProgressChan()
+		for n := range commChan {
+			g.rem.progressChan <- n
+		}
+	}()
+
+	_, err = io.Copy(ws, blob)
+
 	return
 }

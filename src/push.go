@@ -208,13 +208,23 @@ func (g *Commands) deserializeIndex(identifier string) *config.Index {
 }
 
 func (g *Commands) playPushChangeList(cl []*Change) (err error) {
-	g.taskStart(len(cl))
+	pushSize := reduceToSize(cl, true)
+
+	g.taskStart(int64(len(cl)) + pushSize)
+
+	defer close(g.rem.progressChan)
 
 	// TODO: Only provide precedence ordering if all the other options are allowed
 	// Currently noop on sorting by precedence
 	if false && !g.opts.NoClobber {
 		sort.Sort(ByPrecedence(cl))
 	}
+
+	go func() {
+		for n := range g.rem.progressChan {
+			g.taskAdd(int64(n))
+		}
+	}()
 
 	for _, c := range cl {
 		switch c.Op() {
@@ -327,7 +337,10 @@ func (g *Commands) remoteUntrash(change *Change) (err error) {
 }
 
 func (g *Commands) remoteDelete(change *Change) (err error) {
-	defer g.taskDone()
+	defer func() {
+		g.taskAdd(change.Dest.Size)
+		g.taskDone()
+	}()
 
 	err = g.rem.Trash(change.Dest.Id)
 	if err != nil {

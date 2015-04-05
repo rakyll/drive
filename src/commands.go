@@ -144,9 +144,21 @@ func readCommentedFileCompileRegexp(p string) *regexp.Regexp {
 	return regExComp
 }
 
-func (g *Commands) taskStart(numOfTasks int) {
-	if numOfTasks > 0 {
-		g.progress = pb.StartNew(numOfTasks)
+func (g *Commands) taskStart(tasks int64) {
+	if tasks > 0 {
+		g.progress = newProgressBar(tasks)
+	}
+}
+
+func newProgressBar(total int64) *pb.ProgressBar {
+	pbf := pb.New64(total)
+	pbf.Start()
+	return pbf
+}
+
+func (g *Commands) taskAdd(n int64) {
+	if g.progress != nil {
+		g.progress.Add64(n)
 	}
 }
 

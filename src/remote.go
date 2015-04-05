@@ -29,6 +29,7 @@ import (
 	"code.google.com/p/goauth2/oauth"
 	"github.com/odeke-em/drive/config"
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
+	"github.com/odeke-em/statos"
 )
 
 const (
@@ -109,14 +110,20 @@ func mimeTypeFromExt(ext string) string {
 }
 
 type Remote struct {
-	transport *oauth.Transport
-	service   *drive.Service
+	transport    *oauth.Transport
+	service      *drive.Service
+	progressChan chan int
 }
 
 func NewRemoteContext(context *config.Context) *Remote {
 	transport := newTransport(context)
 	service, _ := drive.New(transport.Client())
-	return &Remote{service: service, transport: transport}
+	progressChan := make(chan int)
+	return &Remote{
+		progressChan: progressChan,
+		service:      service,
+		transport:    transport,
+	}
 }
 
 func hasExportLinks(f *File) bool {
@@ -511,7 +518,16 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 	if err != nil && !args.src.IsDir {
 		return
 	}
-	return r.upsertByComparison(body, args)
+	bd := statos.NewReader(body)
+
+	go func() {
+		commChan := bd.ProgressChan()
+		for n := range commChan {
+			r.progressChan <- n
+		}
+	}()
+
+	return r.upsertByComparison(bd, args)
 }
 
 func (r *Remote) findShared(p []string) (chan *File, error) {
