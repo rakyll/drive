@@ -179,6 +179,12 @@ var docMap = map[string][]string{
 	},
 }
 
+var Aliases = map[string][]string{
+	CopyKey: []string{"cp"},
+	ListKey: []string{"ls"},
+	MoveKey: []string{"mv"},
+}
+
 func ShowAllDescriptions() {
 	for key, _ := range docMap {
 		ShowDescription(key)

@@ -34,6 +34,7 @@
   - [Rename](#rename)
   - [DriveIgnore](#driveignore)
   - [DesktopEntry](#desktopentry)
+  - [Command Aliases](#command-aliases)
 - [Revoking Account Access](#revoking-account-access)
 - [Uninstalling](#uninstalling)
 - [Applying patches](#applying-patches)
@@ -460,6 +461,14 @@ Note: Pattern matching and suffixes are done by regular expression matching so m
 As previously mentioned, Google Docs, Drawings, Presentations, Sheets etc and all files affiliated
 with docs.google.com cannot be downloaded raw but only exported. Due to popular demand, Linux users
 desire the ability to have \*.desktop files that enable the file to be opened appropriately by an external opener. Thus by default on Linux, drive will create \*.desktop files for files that fall into this category.
+
+## Command Aliases
+
+`drive` supports a few aliases to make usage familiar to the utilities in your shell e.g:
++ cp : copy
++ ls : list 
++ mv : move
+
 ### Revoking Account Access
 
 To revoke OAuth Access of drive to your account, when logged in with your Google account, go to https://security.google.com/settings/security/permissions and revoke the desired permissions

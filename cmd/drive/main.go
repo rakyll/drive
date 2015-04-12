@@ -33,6 +33,16 @@ import (
 var context *config.Context
 var DefaultMaxProcs = runtime.NumCPU()
 
+func bindCommandWithAliases(key, description string, cmd command.Cmd, requiredFlags []string) {
+	command.On(key, description, cmd, requiredFlags)
+	aliases, ok := drive.Aliases[key]
+	if ok {
+		for _, alias := range aliases {
+			command.On(alias, description, cmd, requiredFlags)
+		}
+	}
+}
+
 func main() {
 	maxProcs, err := strconv.ParseInt(os.Getenv("GOMAXPROCS"), 10, 0)
 	if err != nil || maxProcs < 1 {
@@ -40,28 +50,29 @@ func main() {
 	}
 	runtime.GOMAXPROCS(int(maxProcs))
 
-	command.On(drive.AboutKey, drive.DescAbout, &aboutCmd{}, []string{})
-	command.On(drive.CopyKey, drive.DescCopy, &copyCmd{}, []string{})
-	command.On(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
-	command.On(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
-	command.On(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
-	command.On(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
-	command.On(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
-	command.On(drive.ListKey, drive.DescList, &listCmd{}, []string{})
-	command.On(drive.MoveKey, drive.DescMove, &moveCmd{}, []string{})
-	command.On(drive.PullKey, drive.DescPull, &pullCmd{}, []string{})
-	command.On(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
-	command.On(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
-	command.On(drive.RenameKey, drive.DescRename, &renameCmd{}, []string{})
-	command.On(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
-	command.On(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
-	command.On(drive.StatKey, drive.DescStat, &statCmd{}, []string{})
-	command.On(drive.UnshareKey, drive.DescUnshare, &unshareCmd{}, []string{})
-	command.On(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
-	command.On(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
-	command.On(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
-	command.On(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
-	command.On(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
+	bindCommandWithAliases(drive.AboutKey, drive.DescAbout, &aboutCmd{}, []string{})
+	bindCommandWithAliases(drive.CopyKey, drive.DescCopy, &copyCmd{}, []string{})
+	bindCommandWithAliases(drive.DiffKey, drive.DescDiff, &diffCmd{}, []string{})
+	bindCommandWithAliases(drive.EmptyTrashKey, drive.DescEmptyTrash, &emptyTrashCmd{}, []string{})
+	bindCommandWithAliases(drive.FeaturesKey, drive.DescFeatures, &featuresCmd{}, []string{})
+	bindCommandWithAliases(drive.InitKey, drive.DescInit, &initCmd{}, []string{})
+	bindCommandWithAliases(drive.HelpKey, drive.DescHelp, &helpCmd{}, []string{})
+
+	bindCommandWithAliases(drive.ListKey, drive.DescList, &listCmd{}, []string{})
+	bindCommandWithAliases(drive.MoveKey, drive.DescMove, &moveCmd{}, []string{})
+	bindCommandWithAliases(drive.PullKey, drive.DescPull, &pullCmd{}, []string{})
+	bindCommandWithAliases(drive.PushKey, drive.DescPush, &pushCmd{}, []string{})
+	bindCommandWithAliases(drive.PubKey, drive.DescPublish, &publishCmd{}, []string{})
+	bindCommandWithAliases(drive.RenameKey, drive.DescRename, &renameCmd{}, []string{})
+	bindCommandWithAliases(drive.QuotaKey, drive.DescQuota, &quotaCmd{}, []string{})
+	bindCommandWithAliases(drive.ShareKey, drive.DescShare, &shareCmd{}, []string{})
+	bindCommandWithAliases(drive.StatKey, drive.DescStat, &statCmd{}, []string{})
+	bindCommandWithAliases(drive.UnshareKey, drive.DescUnshare, &unshareCmd{}, []string{})
+	bindCommandWithAliases(drive.TouchKey, drive.DescTouch, &touchCmd{}, []string{})
+	bindCommandWithAliases(drive.TrashKey, drive.DescTrash, &trashCmd{}, []string{})
+	bindCommandWithAliases(drive.UntrashKey, drive.DescUntrash, &untrashCmd{}, []string{})
+	bindCommandWithAliases(drive.UnpubKey, drive.DescUnpublish, &unpublishCmd{}, []string{})
+	bindCommandWithAliases(drive.VersionKey, drive.Version, &versionCmd{}, []string{})
 	command.ParseAndRun()
 }
 
@@ -74,10 +85,12 @@ func (cmd *helpCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 }
 
 func (cmd *helpCmd) Run(args []string) {
-	if len(args) < 1 {
-		exitWithError(fmt.Errorf("help for more usage"))
+	arg := drive.AllKey
+	if len(args) >= 1 {
+		arg = args[0]
 	}
-	drive.ShowDescription(args[0])
+
+	drive.ShowDescription(arg)
 	exitWithError(nil)
 }
 
