@@ -26,6 +26,13 @@ import (
 	"github.com/odeke-em/log"
 )
 
+type destination int
+
+const (
+	SelectSrc = 1 << iota
+	SelectDest
+)
+
 type dirList struct {
 	remote *File
 	local  *File
@@ -293,20 +300,19 @@ func merge(remotes, locals chan *File) (merged []*dirList) {
 	return
 }
 
-func reduceToSize(changes []*Change, fromSrc bool) (totalSize int64) {
-	totalSize = 0
+func reduceToSize(changes []*Change, destMask destination) (srcSize, destSize int64) {
+	fromSrc := (destMask & SelectSrc) != 0
+	fromDest := (destMask & SelectDest) != 0
+
 	for _, c := range changes {
-		if fromSrc {
-			if c.Src != nil {
-				totalSize += c.Src.Size
-			}
-		} else {
-			if c.Dest != nil {
-				totalSize += c.Dest.Size
-			}
+		if fromSrc && c.Src != nil {
+			srcSize += c.Src.Size
+		}
+		if fromDest && c.Dest != nil {
+			destSize += c.Dest.Size
 		}
 	}
-	return totalSize
+	return
 }
 
 func conflict(src, dest *File, index *config.Index, push bool) bool {
@@ -379,13 +385,13 @@ func warnConflictsPersist(logy *log.Logger, conflicts []*Change) {
 	}
 }
 
-func printChanges(logy *log.Logger, changes []*Change, reduce bool) {
-	opMap := map[int]sizeCounter{}
+func opChangeCount(changes []*Change) map[Operation]sizeCounter {
+	opMap := map[Operation]sizeCounter{}
 
 	for _, c := range changes {
 		op := c.Op()
-		if op != OpNone {
-			logy.Logln(c.Symbol(), c.Path)
+		if op == OpNone {
+			continue
 		}
 		counter := opMap[op]
 		counter.count += 1
@@ -398,25 +404,39 @@ func printChanges(logy *log.Logger, changes []*Change, reduce bool) {
 		opMap[op] = counter
 	}
 
+	return opMap
+}
+
+func previewChanges(logy *log.Logger, cl []*Change, reduce bool, opMap map[Operation]sizeCounter) {
+	for _, c := range cl {
+		op := c.Op()
+		if op != OpNone {
+			logy.Logln(c.Symbol(), c.Path)
+		}
+	}
+
 	if reduce {
 		for op, counter := range opMap {
 			if counter.count < 1 {
 				continue
 			}
-			_, name := opToString(op)
+			_, name := op.description()
 			logy.Logf("%s %s\n", name, counter.String())
 		}
 	}
 }
 
-func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) bool {
+func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) (bool, *map[Operation]sizeCounter) {
 	if len(changes) == 0 {
 		logy.Logln("Everything is up-to-date.")
-		return false
+		return false, nil
 	}
 	if noPrompt {
-		return true
+		return true, nil
 	}
-	printChanges(logy, changes, true)
-	return promptForChanges()
+
+	opMap := opChangeCount(changes)
+	previewChanges(logy, changes, true, opMap)
+
+	return promptForChanges(), &opMap
 }

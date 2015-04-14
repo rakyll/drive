@@ -411,7 +411,7 @@ type upsertOpt struct {
 	nonStatable    bool
 }
 
-func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, err error) {
+func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, mediaInserted bool, err error) {
 	uploaded := &drive.File{
 		// Must ensure that the path is prepared for a URL upload
 		Title:   urlToPath(args.src.Name, false),
@@ -428,11 +428,13 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, e
 		req := r.service.Files.Insert(uploaded)
 		if !args.src.IsDir && body != nil {
 			req = req.Media(body)
+			mediaInserted = true
 		}
 		if uploaded, err = req.Do(); err != nil {
 			return
 		}
-		return NewRemoteFile(uploaded), nil
+		f = NewRemoteFile(uploaded)
+		return
 	}
 
 	// update the existing
@@ -459,14 +461,17 @@ func (r *Remote) upsertByComparison(body io.Reader, args *upsertOpt) (f *File, e
 	if !args.src.IsDir {
 		if args.dest == nil || args.nonStatable {
 			req = req.Media(body)
+			mediaInserted = true
 		} else if mask := fileDifferences(args.src, args.dest, args.ignoreChecksum); checksumDiffers(mask) {
+			mediaInserted = true
 			req = req.Media(body)
 		}
 	}
 	if uploaded, err = req.Do(); err != nil {
 		return
 	}
-	return NewRemoteFile(uploaded), nil
+	f = NewRemoteFile(uploaded)
+	return
 }
 
 func (r *Remote) rename(fileId, newTitle string) (*File, error) {
@@ -527,7 +532,19 @@ func (r *Remote) UpsertByComparison(args *upsertOpt) (f *File, err error) {
 		}
 	}()
 
-	return r.upsertByComparison(bd, args)
+	mediaInserted := false
+
+	f, mediaInserted, err = r.upsertByComparison(bd, args)
+
+	// Case in which for example just Chtime-ing
+	if !mediaInserted && args.dest != nil {
+		chunks := chunkInt64(args.dest.Size)
+		for n := range chunks {
+			r.progressChan <- n
+		}
+	}
+
+	return
 }
 
 func (r *Remote) findShared(p []string) (chan *File, error) {

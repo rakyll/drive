@@ -69,12 +69,12 @@ func (g *Commands) Pull() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
 	if !ok {
 		return
 	}
 
-	return g.playPullChangeList(nonConflicts, g.opts.Exports)
+	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
 }
 
 func (g *Commands) PullMatches() (err error) {
@@ -117,11 +117,12 @@ func (g *Commands) PullMatches() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
-	if ok {
-		return g.playPullChangeList(nonConflicts, g.opts.Exports)
+	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	if !ok {
+		return nil
 	}
-	return nil
+
+	return g.playPullChanges(nonConflicts, g.opts.Exports, opMap)
 }
 
 func (g *Commands) PullPiped() (err error) {
@@ -152,12 +153,24 @@ func (g *Commands) PullPiped() (err error) {
 	return
 }
 
-func (g *Commands) playPullChangeList(cl []*Change, exports []string) (err error) {
+func (g *Commands) playPullChanges(cl []*Change, exports []string, opMap *map[Operation]sizeCounter) (err error) {
 	var next []*Change
 
-	pullSize := reduceToSize(cl, true)
+	if opMap == nil {
+		result := opChangeCount(cl)
+		opMap = &result
+	}
 
-	g.taskStart(int64(len(cl)) + pullSize)
+	totalSize := int64(0)
+	ops := *opMap
+
+	for _, counter := range ops {
+		totalSize += counter.src
+	}
+
+	g.taskStart(int64(len(cl)) + totalSize)
+
+	defer close(g.rem.progressChan)
 
 	// TODO: Only provide precedence ordering if all the other options are allowed
 	// Currently noop on sorting by precedence
@@ -221,6 +234,8 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 
 	destAbsPath := g.context.AbsPathOf(change.Path)
 
+	downloadPerformed := false
+
 	// Simple heuristic to avoid downloading all the
 	// content yet it could just be a modTime difference
 	mask := fileDifferences(change.Src, change.Dest, change.IgnoreChecksum)
@@ -229,8 +244,19 @@ func (g *Commands) localMod(wg *sync.WaitGroup, change *Change, exports []string
 		if err = g.download(change, exports); err != nil {
 			return
 		}
+		downloadPerformed = true
 	}
 	err = os.Chtimes(destAbsPath, change.Src.ModTime, change.Src.ModTime)
+
+	// Update progress for the case in which you are only Chtime-ing
+	// since progress for downloaded files is already handled separately
+	if !downloadPerformed {
+		chunks := chunkInt64(change.Src.Size)
+		for n := range chunks {
+			g.rem.progressChan <- n
+		}
+	}
+
 	return
 }
 
@@ -276,9 +302,19 @@ func (g *Commands) localAdd(wg *sync.WaitGroup, change *Change, exports []string
 }
 
 func (g *Commands) localDelete(wg *sync.WaitGroup, change *Change) (err error) {
-	defer g.taskDone()
-	defer wg.Done()
-	return os.RemoveAll(change.Dest.BlobAt)
+	defer func() {
+		if err == nil {
+			chunks := chunkInt64(change.Dest.Size)
+			for n := range chunks {
+				g.rem.progressChan <- n
+			}
+		}
+
+		g.taskDone()
+		wg.Done()
+	}()
+	err = os.RemoveAll(change.Dest.BlobAt)
+	return
 }
 
 func touchFile(path string) (err error) {

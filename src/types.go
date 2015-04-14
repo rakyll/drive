@@ -25,6 +25,8 @@ import (
 	drive "github.com/odeke-em/google-api-go-client/drive/v2"
 )
 
+type Operation int
+
 const (
 	OpNone = iota
 	OpAdd
@@ -34,8 +36,8 @@ const (
 )
 
 const (
-	DifferNone = 1 << iota
-	DifferDirType
+	DifferNone    = 0
+	DifferDirType = 1 << iota
 	DifferMd5Checksum
 	DifferModTime
 	DifferSize
@@ -48,7 +50,7 @@ const (
 // Arbitrary value. TODO: Get better definition of BigFileSize.
 var BigFileSize = int64(1024 * 1024 * 400)
 
-var opPrecedence = map[int]int{
+var opPrecedence = map[Operation]int{
 	OpNone:        0,
 	OpDelete:      1,
 	OpAdd:         2,
@@ -192,8 +194,8 @@ func (self *File) sameDirType(other *File) bool {
 	return other != nil && self.IsDir == other.IsDir
 }
 
-func opToString(op int) (string, string) {
-	switch op {
+func (op *Operation) description() (symbol, info string) {
+	switch *op {
 	case OpAdd:
 		return "\033[32m+\033[0m", "Addition"
 	case OpDelete:
@@ -212,7 +214,8 @@ func (f *File) largeFile() bool {
 }
 
 func (c *Change) Symbol() string {
-	symbol, _ := opToString(c.Op())
+	op := c.Op()
+	symbol, _ := op.description()
 	return symbol
 }
 
@@ -280,7 +283,9 @@ func fileDifferences(src, dest *File, ignoreChecksum bool) int {
 		difference |= DifferDirType
 	}
 
-	if !ignoreChecksum {
+	if ignoreChecksum && sizeDiffers(difference) {
+		difference |= DifferMd5Checksum
+	} else {
 		// Only compute the checksum if the size differs
 		if sizeDiffers(difference) || md5Checksum(src) != md5Checksum(dest) {
 			difference |= DifferMd5Checksum
@@ -293,7 +298,7 @@ func sameFileTillChecksum(src, dest *File, ignoreChecksum bool) bool {
 	return fileDifferences(src, dest, ignoreChecksum) == DifferNone
 }
 
-func (c *Change) op() int {
+func (c *Change) op() Operation {
 	if c.Src == nil && c.Dest == nil {
 		return OpNone
 	}
@@ -325,7 +330,7 @@ func (c *Change) op() int {
 	return OpNone
 }
 
-func (c *Change) Op() int {
+func (c *Change) Op() Operation {
 	op := c.op()
 	if c.Force {
 		if op == OpModConflict {

@@ -121,11 +121,12 @@ func (g *Commands) trashByMatch(inTrash bool) error {
 	}
 
 	toTrash := !inTrash
-	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
-	if ok {
-		return g.playTrashChangeList(cl, toTrash)
+	ok, _ := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
+	if !ok {
+		return nil
 	}
-	return nil
+
+	return g.playTrashChangeList(cl, toTrash)
 }
 
 func (g *Commands) TrashByMatch() error {
@@ -147,16 +148,16 @@ func (g *Commands) reduce(args []string, toTrash bool) error {
 		}
 	}
 
-	ok := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
-	if ok {
-		return g.playTrashChangeList(cl, toTrash)
+	ok, _ := printChangeList(g.log, cl, !g.opts.canPrompt(), false)
+	if !ok {
+		return nil
 	}
-	return nil
+	return g.playTrashChangeList(cl, toTrash)
 }
 
 func (g *Commands) playTrashChangeList(cl []*Change, toTrash bool) (err error) {
-	trashSize := reduceToSize(cl, !toTrash)
-	g.taskStart(int64(len(cl)) + trashSize)
+	trashSize, unTrashSize := reduceToSize(cl, SelectDest|SelectSrc)
+	g.taskStart(int64(len(cl)) + trashSize + unTrashSize)
 
 	var f = g.remoteUntrash
 	if toTrash {

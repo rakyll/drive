@@ -85,17 +85,19 @@ func (g *Commands) Push() (err error) {
 
 	nonConflicts := *nonConflictsPtr
 
-	ok := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
-	if !ok {
-		return
+	pushSize, modSize := reduceToSize(cl, SelectDest|SelectSrc)
+
+	// TODO: Handle compensation from deletions and modifications
+	if false {
+		pushSize -= modSize
 	}
 
-	pushSize := reduceToSize(cl, true)
-
-	quotaStatus, qErr := g.QuotaStatus(pushSize)
-	if qErr != nil {
-		return qErr
+	// Warn about (near) quota exhaustion
+	quotaStatus, quotaErr := g.QuotaStatus(pushSize)
+	if quotaErr != nil {
+		return quotaErr
 	}
+
 	unSafe := false
 	switch quotaStatus {
 	case AlmostExceeded:
@@ -105,12 +107,19 @@ func (g *Commands) Push() (err error) {
 		unSafe = true
 	}
 	if unSafe {
-		g.log.LogErrf(" projected size: %d (%d)\n", pushSize, prettyBytes(pushSize))
+		g.log.LogErrf(" projected size: (%d) %s\n", pushSize, prettyBytes(pushSize))
 		if !promptForChanges() {
 			return
 		}
 	}
-	return g.playPushChangeList(nonConflicts)
+
+	// func printChangeList(logy *log.Logger, changes []*Change, noPrompt bool, noClobber bool) bool {
+	ok, opMap := printChangeList(g.log, nonConflicts, !g.opts.canPrompt(), g.opts.NoClobber)
+	if !ok {
+		return
+	}
+
+	return g.playPushChanges(nonConflicts, opMap)
 }
 
 func (g *Commands) resolveConflicts(cl []*Change, push bool) (*[]*Change, *[]*Change) {
@@ -178,7 +187,7 @@ func (g *Commands) PushPiped() (err error) {
 			ignoreChecksum: g.opts.IgnoreChecksum,
 		}
 
-		rem, rErr := g.rem.upsertByComparison(os.Stdin, &args)
+		rem, _, rErr := g.rem.upsertByComparison(os.Stdin, &args)
 		if rErr != nil {
 			g.log.LogErrf("%s: %v\n", relToRootPath, rErr)
 			return rErr
@@ -207,10 +216,20 @@ func (g *Commands) deserializeIndex(identifier string) *config.Index {
 	return index
 }
 
-func (g *Commands) playPushChangeList(cl []*Change) (err error) {
-	pushSize := reduceToSize(cl, true)
+func (g *Commands) playPushChanges(cl []*Change, opMap *map[Operation]sizeCounter) (err error) {
 
-	g.taskStart(int64(len(cl)) + pushSize)
+	if opMap == nil {
+		result := opChangeCount(cl)
+		opMap = &result
+	}
+
+	totalSize := int64(0)
+	ops := *opMap
+	for _, counter := range ops {
+		totalSize += counter.src
+	}
+
+	g.taskStart(int64(len(cl)) + totalSize)
 
 	defer close(g.rem.progressChan)
 
@@ -331,9 +350,25 @@ func (g *Commands) indexAbsPath(fileId string) string {
 }
 
 func (g *Commands) remoteUntrash(change *Change) (err error) {
-	defer g.taskDone()
+	target := change.Src
+	defer func() {
+		g.taskAdd(target.Size)
+		g.taskDone()
+	}()
 
-	return g.rem.Untrash(change.Src.Id)
+	err = g.rem.Untrash(target.Id)
+	if err != nil {
+		return
+	}
+
+	index := target.ToIndex()
+	wErr := g.context.SerializeIndex(index, g.context.AbsPathOf(""))
+
+	// TODO: Should indexing errors be reported?
+	if wErr != nil {
+		g.log.LogErrf("serializeIndex %s: %v\n", target.Name, wErr)
+	}
+	return
 }
 
 func (g *Commands) remoteDelete(change *Change) (err error) {

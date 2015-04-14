@@ -55,7 +55,6 @@ func (g *Commands) Diff() (err error) {
 		if dErr != nil {
 			g.log.LogErrln(dErr)
 		}
-		g.log.Logf("\n%s\n", Ruler)
 	}
 	return
 }
@@ -96,20 +95,28 @@ func (g *Commands) perDiff(change *Change, diffProgPath, cwd string) (err error)
 			change.Path, l.Size)
 	}
 
+	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
+	if mask == DifferNone {
+		// No output when "no changes found"
+		return nil
+	}
+
 	typeName := "File"
 	if l.IsDir {
 		typeName = "Directory"
 	}
 	g.log.Logf("%s: %s\n", typeName, change.Path)
-	mask := fileDifferences(r, l, g.opts.IgnoreChecksum)
+
 	if modTimeDiffers(mask) {
 		g.log.Logf("* %-15s %-40s\n* %-15s %-40s\n",
 			"local:", toUTCString(l.ModTime), "remote:", toUTCString(r.ModTime))
-	} else if mask == DifferNone {
-		// No output when "no changes found"
-		return nil
+
+		if mask == DifferModTime { // No further change
+			return
+		}
 	}
 
+	defer g.log.Logf("\n%s\n", Ruler)
 	var frTmp, fl *os.File
 	var blob io.ReadCloser
 
