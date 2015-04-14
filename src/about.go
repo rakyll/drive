@@ -21,7 +21,7 @@ import (
 	"github.com/odeke-em/log"
 )
 
-const Version = "0.1.7"
+const Version = "0.1.8"
 
 const (
 	Barely = iota
