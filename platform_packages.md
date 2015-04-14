@@ -30,7 +30,7 @@ $ export GOPATH=$HOME/go
 $ export PATH=$PATH:$GOPATH/bin
 
 # get and compile the drive program
-$ go get github.com/odeke-em/cmd/drive
+$ go get github.com/odeke-em/drive/cmd/drive
 
 # run drive with this command:
 $ $GOPATH/bin/drive
