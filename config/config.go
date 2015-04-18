@@ -204,7 +204,11 @@ func MountPoints(contextPath, contextAbsPath string, paths []string, hidden bool
 
 		if sRoot := LeastNonExistantRoot(contextAbsPath); sRoot != "" {
 			shortestMountRoot = sRoot
-			sources = append(sources, sRoot)
+			// Link traversal is already implemented, no
+			// need to append the shortestMountRoot
+			if false {
+				sources = append(sources, sRoot)
+			}
 		}
 
 		mkErr := os.MkdirAll(contextAbsPath, os.ModeDir|0755)
