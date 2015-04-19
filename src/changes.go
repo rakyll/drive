@@ -138,8 +138,6 @@ func (g *Commands) doChangeListRecv(relToRoot, fsPath string, l, r *File, isPush
 	if l == nil && r == nil {
 		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
 			relToRoot, fsPath)
-		err = fmt.Errorf("'%s' aka '%s' doesn't exist locally nor remotely",
-			relToRoot, fsPath)
 		return
 	}
 

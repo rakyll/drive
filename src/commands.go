@@ -42,8 +42,8 @@ type Options struct {
 	// Exports contains the formats to export your Google Docs + Sheets to
 	// e.g ["csv" "txt"]
 	Exports []string
-	// Directory to put the exported Google Docs + Sheets, if not
-	// provided will export them to the same dir as the source files are.
+	// ExportsDir is the directory to put the exported Google Docs + Sheets.
+	// If not provided, will export them to the same dir as the source files are
 	ExportsDir string
 	// Force once set always converts NoChange into an Addition
 	Force bool
@@ -91,7 +91,7 @@ type Commands struct {
 }
 
 func (opts *Options) canPrompt() bool {
-	if !opts.StdoutIsTty {
+	if opts == nil || !opts.StdoutIsTty {
 		return false
 	}
 	if opts.Quiet {

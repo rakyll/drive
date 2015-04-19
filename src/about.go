@@ -81,9 +81,9 @@ func printSummary(logy *log.Logger, about *drive.About, mask int) {
 func fileSizesInfo(logy *log.Logger, about *drive.About) {
 	if len(about.MaxUploadSizes) >= 1 {
 		logy.Logln("\n* Maximum upload sizes per file type *")
-		logy.Logf("%-36s %-36s\n", "FileType", "Size")
+		logy.Logf("%-50s %-20s\n", "FileType", "Size")
 		for _, uploadInfo := range about.MaxUploadSizes {
-			logy.Logf("%-36s %-36s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
+			logy.Logf("%-50s %-20s\n", uploadInfo.Type, prettyBytes(uploadInfo.Size))
 		}
 		logy.Logln()
 	}
