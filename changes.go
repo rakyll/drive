@@ -16,7 +16,9 @@ package drive
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -31,6 +33,56 @@ func (d *dirList) Name() string {
 		return d.remote.Name
 	}
 	return d.local.Name
+}
+
+// Resolves the local path relative to the root directory
+func (g *Commands) relativePathResolve(isPush bool) (err error) {
+	root := g.context.AbsPathOf("")
+	absPath := g.context.AbsPathOf(g.opts.Path)
+	relPath := ""
+
+	if absPath != root {
+		if relPath, err = filepath.Rel(root, absPath); err != nil {
+			return
+		}
+	} else {
+		var cwd string
+		if cwd, err = os.Getwd(); err != nil {
+			return
+		}
+		if cwd == root {
+			relPath = ""
+		} else if relPath, err = filepath.Rel(root, cwd); err != nil {
+			return
+		}
+	}
+     
+	relPath = strings.Join([]string{"", relPath}, "/")
+	var r, l *File
+	if r, err = g.rem.FindByPath(relPath); err != nil {
+		// We cannot pull from a non-existant remote
+		if !isPush {
+			return
+		}
+	}
+	localinfo, _ := os.Stat(absPath)
+	if localinfo != nil {
+		l = NewLocalFile(relPath, localinfo)
+	}
+
+	var cl []*Change
+	fmt.Println("Resolving...")
+	if cl, err = g.resolveChangeListRecv(isPush, relPath, r, l); err != nil {
+		return
+	}
+
+	if ok := printChangeList(cl, g.opts.IsNoPrompt); ok {
+		if isPush {
+			return g.playPushChangeList(cl)
+		}
+		return g.playPullChangeList(cl)
+	}
+	return
 }
 
 func (g *Commands) resolveChangeListRecv(
