@@ -50,7 +50,7 @@ func (c *Context) Write() (err error) {
 	return ioutil.WriteFile(credentialsPath(c.AbsPath), data, 0600)
 }
 
-// Discovers the gd directory, if no gd directory or credentials
+// Discover: Discovers the gd directory, if no gd directory or credentials
 // could be found for the path, returns ErrNoContext.
 func Discover(currentAbsPath string) (context *Context, err error) {
 	p := currentAbsPath

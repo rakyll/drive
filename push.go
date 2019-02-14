@@ -24,7 +24,7 @@ import (
 	"github.com/rakyll/drive/config"
 )
 
-// Pushes to remote if local path exists and in a god context. If path is a
+// Push: Pushes to remote if local path exists and in a god context. If path is a
 // directory, it recursively pushes to the remote if there are local changes.
 // It doesn't check if there are local changes if isForce is set.
 func (g *Commands) Push() (err error) {
